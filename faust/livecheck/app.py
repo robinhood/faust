@@ -1,7 +1,17 @@
 """LiveCheck - Faust Application."""
 import asyncio
 from datetime import timedelta
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Tuple, Type
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
 from mode.utils.compat import want_bytes
 from mode.utils.objects import annotations, cached_property, qualname
@@ -55,7 +65,7 @@ class LiveCheck(faust.App):
     Signal: ClassVar[Type[BaseSignal]]
     Signal = Signal
 
-    Case: ClassVar[Type[Case]]  # type: ignore
+    Case: ClassVar[Type[_Case]]
     Case = _Case
 
     #: Number of concurrent actors processing signal events.
@@ -81,12 +91,23 @@ class LiveCheck(faust.App):
                 **kwargs: Any) -> 'LiveCheck':
         app_id, passed_kwargs = app._default_options
         livecheck_id = f'{prefix}{app_id}'
-        app.sensors.add(LiveCheckSensor())
+        override = {
+            'web_port': web_port,
+            'bus_concurrency': bus_concurrency,
+            'test_concurrency': test_concurrency,
+            **kwargs}
+        options = {**passed_kwargs, **override}
+
+        livecheck_app = cls(livecheck_id, **options)
+        livecheck_app._contribute_to_app(app)
+
+        return livecheck_app
+
+    def _contribute_to_app(self, app: AppT) -> None:
         from .patches.aiohttp import LiveCheckMiddleware
         app.web.web_app.middlewares.append(LiveCheckMiddleware())
-        override = {'web_port': web_port, **kwargs}
-        options = {**passed_kwargs, **override}
-        return cls(livecheck_id, **options)
+        app.sensors.add(LiveCheckSensor())
+        app.livecheck = self
 
     def __init__(self,
                  id: str,
@@ -110,6 +131,10 @@ class LiveCheck(faust.App):
         patches.patch_all()
         self._apply_monkeypatches()
         self._connect_signals()
+
+    @property
+    def current_test(self) -> Optional[TestExecution]:
+        return current_test()
 
     @cached_property
     def _can_resolve(self) -> asyncio.Event:
@@ -142,7 +167,16 @@ class LiveCheck(faust.App):
              name: str = None,
              probability: float = None,
              warn_empty_after: Seconds = timedelta(minutes=30),
-             active: bool = False,
+             active: bool = None,
+             test_expires: Seconds = None,
+             frequency: Seconds = None,
+             max_history: int = None,
+             url_timeout_total: float = None,
+             url_timeout_connect: float = None,
+             url_error_retries: float = None,
+             url_error_delay_min: float = None,
+             url_error_delay_backoff: float = None,
+             url_error_delay_max: float = None,
              base: Type[_Case] = Case) -> Callable[[Type], _Case]:
         base_case = base
 
@@ -176,10 +210,19 @@ class LiveCheck(faust.App):
 
             return self.add_case(case_cls(
                 app=self,
-                name=name or qualname(cls),
+                name=self._prepare_case_name(name or qualname(cls)),
+                active=active,
                 probability=probability,
                 warn_empty_after=warn_empty_after,
                 signals=signals,
+                test_expires=test_expires,
+                frequency=frequency,
+                url_timeout_total=url_timeout_total,
+                url_timeout_connect=url_timeout_connect,
+                url_error_retries=url_error_retries,
+                url_error_delay_min=url_error_delay_min,
+                url_error_delay_backoff=url_error_delay_backoff,
+                url_error_delay_max=url_error_delay_max,
             ))
         return _inner
 
@@ -188,8 +231,14 @@ class LiveCheck(faust.App):
         return case
 
     async def on_start(self) -> None:
+        await super().on_start()
         self._install_bus_agent()
         self._install_test_execution_agent()
+
+    async def on_started(self) -> None:
+        await super().on_started()
+        for case in self.cases.values():
+            await self.add_runtime_dependency(case)
 
     def _install_bus_agent(self) -> AgentT:
         return self.agent(

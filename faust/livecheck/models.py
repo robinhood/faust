@@ -1,18 +1,36 @@
 """LiveCheck - Models."""
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional
-from faust import Record
-from faust.utils.iso8601 import parse as parse_iso8601
+
 from mode.utils.compat import want_str
 from mode.utils.objects import cached_property
 from mode.utils.text import abbr
 
-__all__ = ['SignalEvent', 'TestExecution']
+from faust import Record
+from faust.utils.iso8601 import parse as parse_iso8601
+
+__all__ = ['State', 'SignalEvent', 'TestExecution']
 
 HEADER_TEST_ID = 'LiveCheck-Test-Id'
 HEADER_TEST_NAME = 'LiveCheck-Test-Name'
 HEADER_TEST_TIMESTAMP = 'LiveCheck-Test-Timestamp'
 HEADER_TEST_EXPIRES = 'LiveCheck-Test-Expires'
+
+
+class State(Enum):
+    INIT = 'INIT'
+    PASS = 'PASS'
+    FAIL = 'FAIL'
+    ERROR = 'ERROR'
+    TIMEOUT = 'TIMEOUT'
+    SKIP = 'SKIP'
+
+    def is_ok(self) -> bool:
+        return self in OK_STATES
+
+
+OK_STATES = frozenset({State.INIT, State.PASS, State.SKIP})
 
 
 class SignalEvent(Record):

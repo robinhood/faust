@@ -10,7 +10,7 @@
 
 .. sourcecode:: console
 
-    $ faust -A examples.livecheck:livecheck worker -l info
+    $ python examples/livecheck.py livecheck -l info
 
 3) Then visit ``http://localhost:6066/order/init/sell/`` in your browser.
 
@@ -25,10 +25,12 @@ so have to do this at least twice to see activity happening
 in the LiveCheck instance terminal.
 """
 import asyncio
+from typing import AsyncIterator
 import faust
 from faust import cli
 from faust import web
-from faust.livecheck import LiveCheck, current_test
+from faust.livecheck import Case, Signal
+from faust.types import FutureMessage, StreamT
 from faust.utils import uuid
 
 
@@ -39,6 +41,9 @@ class Order(faust.Record):
     quantity: float
     price: float
 
+    # fake orders are not executed.
+    fake: bool = False
+
 
 app = faust.App(
     'orders',
@@ -46,7 +51,7 @@ app = faust.App(
     origin='examples.livecheck',
     autodiscover=True,
 )
-livecheck = LiveCheck.for_app(app)
+livecheck = app.LiveCheck()
 
 orders_topic = app.topic('orders', value_type=Order)
 execution_topic = app.topic('order-execution', value_type=Order)
@@ -81,12 +86,14 @@ class OrderView(web.View):
         # the test will ensure that no system is changing the side
         # of this order from buy to sell.
         async with test_order.maybe_trigger(order_id, side=side) as test:
+            fake = bool(int(request.query.get('fake', 0)))
             next_url = self.url_for('orders:create', 'http://localhost:6066')
             data = {
                 'order_id': order_id,
                 'user_id': user_id,
                 'side': side,
                 'did_execute_test': bool(test),
+                'fake': fake,
             }
             async with app.http_client.post(next_url, json=data) as response:
                 assert response.status == 200
@@ -97,21 +104,22 @@ class OrderView(web.View):
 @orders.route('/create/', name='create')
 class CreateOrderView(web.View):
 
-    async def post(self, request):
+    async def post(self, request: web.Request) -> web.Response:
         payload = await request.json()
         order_id = payload['order_id']
         user_id = payload['user_id']
         side = payload['side']
+        fake = payload['fake']
         did_execute_test = payload['did_execute_test']
 
         if did_execute_test:
             # LiveCheck read the HTTP headers passed in this request
-            # and set up a current_test() environment.
-            assert current_test() is not None
+            # and set up a current_test environment.
+            assert livecheck.current_test is not None
             # The id of the test execution should be the same as the order id.
-            assert current_test().id == order_id
+            assert livecheck.current_test.id == order_id
 
-        order = Order(order_id, user_id, side, 1.0, 3.33)
+        order = Order(order_id, user_id, side, 1.0, 3.33, fake=fake)
         await orders_topic.send(key=order_id, value=order)
         return self.json({'status': 'success'})
 
@@ -120,15 +128,15 @@ app.web.blueprints.add('/order/', orders)
 
 
 @app.agent(orders_topic)
-async def create_order(orders):
+async def create_order(orders: StreamT[Order]) -> None:
     async for order in orders:
-        test = current_test()
+        test = livecheck.current_test
         if test is not None:
             assert test.id == order.id
         print('1. ORDER SENT TO DB')
         await test_order.order_sent_to_db.send(order)
 
-        def on_order_sent(fut):
+        def on_order_sent(fut: FutureMessage) -> None:
             print('2. ORDER SENT TO KAFKA')
             asyncio.ensure_future(
                 test_order.order_sent_to_kafka.send())
@@ -142,29 +150,32 @@ async def create_order(orders):
 
 
 @app.agent(execution_topic)
-async def execute_order(orders):
+async def execute_order(orders: StreamT[Order]) -> None:
     async for order in orders:
         execution_id = uuid()
+        if not order.fake:
+            # bla bla bla
+            pass
         await test_order.order_executed.send(execution_id)
         print('5. ORDER EXECUTED BY EXECUTION AGENT')
 
 
-@livecheck.case(warn_empty_after=300.0, probability=0.5)
-class test_order(livecheck.Case):
+@livecheck.case(warn_empty_after=5.0, frequency=0.5, probability=0.5)
+class test_order(Case):
 
-    order_sent_to_db: livecheck.Signal[str, Order]
-    order_sent_to_kafka: livecheck.Signal[str, bool]
-    order_cache_in_redis: livecheck.Signal[str, bool]
-    order_executed: livecheck.Signal[str, str]
+    order_sent_to_db: Signal[Order]
+    order_sent_to_kafka: Signal[None]
+    order_cache_in_redis: Signal[None]
+    order_executed: Signal[str]
 
-    async def run(self, side: str):
+    async def run(self, side: str) -> None:
         # 1) wait for order to be sent to database.
         order = await self.order_sent_to_db.wait(timeout=30.0)
 
         # contract:
         #   order id matches test execution id
         #   order.side matches test argument side.
-        assert order.id == self.execution.id
+        assert order.id == self.current_execution.test.id
         assert order.side == side
 
         # 2) wait for order to be sent to Kafka
@@ -179,16 +190,19 @@ class test_order(livecheck.Case):
         # 4) wait for execution agent to execute the order.
         await self.order_executed.wait(timeout=30.0)
 
+    async def make_fake_request(self) -> AsyncIterator:
+        await self.get_url('http://localhost:6066/order/init/sell/?fake=1')
+
 
 @app.command(
     cli.option('--side', default='sell', help='Order side: buy, sell'),
     cli.option('--base-url', default='http://localhost:6066'),
 )
-async def post_order(self, side: str, base_url: str) -> None:
+async def post_order(self: cli.AppCommand, side: str, base_url: str) -> None:
     path = self.app.web.url_for('orders:init', side=side)
     url = ''.join([base_url.rstrip('/'), path])
     async with self.app.http_client.get(url) as response:
-        assert response.status == 200
+        response.raise_for_status()
         print(await response.read())
 
 

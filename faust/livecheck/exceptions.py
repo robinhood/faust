@@ -12,6 +12,14 @@ class LiveCheckError(Exception):
     """Generic base class for livecheck test errors."""
 
 
+class SuiteFailed(LiveCheckError):
+    """The whole test suite failed (not just a test).
+
+    Also raised when ``warn_empty_after=3600`` is set and there has not
+    been any execution requests in the last hour.
+    """
+
+
 class TestSkipped(LiveCheckError):
     """Test was skipped."""
 

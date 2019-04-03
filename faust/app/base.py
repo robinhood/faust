@@ -112,10 +112,12 @@ from ._attached import Attachments
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.cli.base import AppCommand as _AppCommand
+    from faust.livecheck import LiveCheck as _LiveCheck
     from faust.worker import Worker as _Worker
 else:
     class _AppCommand: ...  # noqa
-    class _Worker: ...     # noqa
+    class _LiveCheck: ...   # noqa
+    class _Worker: ...      # noqa
 
 __all__ = ['App', 'BootStrategy']
 
@@ -624,6 +626,7 @@ class App(AppT, Service):
         # This init is called by the `faust worker` command.
         for fixup in self.fixups:
             fixup.on_worker_init()
+        self.web.init_server()
         self.on_worker_init.send()
 
     def discover(self,
@@ -1253,6 +1256,10 @@ class App(AppT, Service):
             self.in_worker and
             self.conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
         )
+
+    def LiveCheck(self, **kwargs: Any) -> _LiveCheck:
+        from faust.livecheck import LiveCheck
+        return LiveCheck.for_app(self, **kwargs)
 
     @stampede
     async def maybe_start_producer(self) -> ProducerT:

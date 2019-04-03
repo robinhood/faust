@@ -1,5 +1,3 @@
-"""LiveCheck - Signals and conditions tests can wait for."""
-import abc
 import asyncio
 import typing
 from time import monotonic
@@ -18,11 +16,10 @@ else:
 
 __all__ = ['BaseSignal', 'Signal']
 
-KT = TypeVar('KT')
 VT = TypeVar('VT')
 
 
-class BaseSignal(Generic[KT, VT]):
+class BaseSignal(Generic[VT]):
     """Generic base class for signals."""
 
     name: str
@@ -37,19 +34,17 @@ class BaseSignal(Generic[KT, VT]):
         self.case = cast(_Case, case)
         self.index = index
 
-    @abc.abstractmethod
     async def send(self, value: VT = None, *,
-                   key: KT = None,
+                   key: Any = None,
                    force: bool = False) -> None:
-        ...
+        raise NotImplementedError()
 
-    @abc.abstractmethod
     async def wait(self, *,
-                   key: KT = None,
+                   key: Any = None,
                    timeout: Seconds = None) -> VT:
-        ...
+        raise NotImplementedError()
 
-    async def resolve(self, key: KT, event: SignalEvent) -> None:
+    async def resolve(self, key: Any, event: SignalEvent) -> None:
         self._set_current_value(key, event)
         self._wakeup_resolvers()
 
@@ -65,13 +60,13 @@ class BaseSignal(Generic[KT, VT]):
         app._can_resolve.clear()
         await app.wait(app._can_resolve, timeout=timeout)
 
-    def _get_current_value(self, key: KT) -> SignalEvent:
+    def _get_current_value(self, key: Any) -> SignalEvent:
         return self.case.app._resolved_signals[self._index_key(key)]
 
-    def _index_key(self, key: KT) -> Tuple[str, str, KT]:
+    def _index_key(self, key: Any) -> Tuple[str, str, Any]:
         return self.name, self.case.name, key
 
-    def _set_current_value(self, key: KT, event: SignalEvent) -> None:
+    def _set_current_value(self, key: Any, event: SignalEvent) -> None:
         self.case.app._resolved_signals[self._index_key(key)] = event
 
     def clone(self, **kwargs: Any) -> 'BaseSignal':
@@ -84,7 +79,7 @@ class BaseSignal(Generic[KT, VT]):
         return f'<{type(self).__name__}: {self.name}>'
 
 
-class Signal(BaseSignal[KT, VT]):
+class Signal(BaseSignal[VT]):
     """Signal for test case using Kafka.
 
     Used to wait for something to happen elsewhere.
@@ -96,7 +91,7 @@ class Signal(BaseSignal[KT, VT]):
     # topic for each test app.
 
     async def send(self, value: VT = None, *,
-                   key: KT = None,
+                   key: Any = None,
                    force: bool = False) -> None:
         current_test = current_test_stack.top
         if current_test is None:
@@ -116,27 +111,31 @@ class Signal(BaseSignal[KT, VT]):
         )
 
     async def wait(self, *,
-                   key: KT = None,
+                   key: Any = None,
                    timeout: Seconds = None) -> VT:
         # wait for key to arrive in consumer
-        assert self.case.execution
-        k: KT = cast(KT, self.case.execution.id) if key is None else key
-        self.case.log.info(
-            '∆ %r/%r %s (%rs)...',
-            self.index,
-            self.case.total_signals,
-            self.name.upper(),
-            timeout,
-        )
+        runner = self.case.current_execution
+        if runner is None:
+            raise RuntimeError('No test executing.')
+        test = runner.test
+        assert test
+        k: Any = test.id if key is None else key
         timeout_s = want_seconds(timeout)
+        await runner.on_signal_wait(self, timeout=timeout_s)
+        time_start = monotonic()
         event = await self._wait_for_message_by_key(key=k, timeout=timeout_s)
-
+        time_end = monotonic()
+        await runner.on_signal_received(
+            self,
+            time_start=time_start,
+            time_end=time_end,
+        )
         self._verify_event(event, k, self.name, self.case.name)
         return cast(VT, to_model(event.value))
 
     def _verify_event(self,
                       ev: SignalEvent,
-                      key: KT,
+                      key: Any,
                       name: str,
                       case: str) -> None:
         assert ev.key == key, f'{ev.key!r} == {key!r}'
@@ -144,7 +143,7 @@ class Signal(BaseSignal[KT, VT]):
         assert ev.case_name == case, f'{ev.case_name!r} == {case!r}'
 
     async def _wait_for_message_by_key(
-            self, key: KT, *,
+            self, key: Any, *,
             timeout: float = None,
             max_interval: float = 2.0) -> SignalEvent:
         app = self.case.app

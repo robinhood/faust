@@ -68,6 +68,7 @@ Livecheck
     faust.livecheck.case
     faust.livecheck.exceptions
     faust.livecheck.models
+    faust.livecheck.runners
     faust.livecheck.signals
     faust.livecheck.utils
 
@@ -246,6 +247,7 @@ CLI
     faust.cli.clean_versions
     faust.cli.completion
     faust.cli.faust
+    faust.cli.livecheck
     faust.cli.model
     faust.cli.models
     faust.cli.params

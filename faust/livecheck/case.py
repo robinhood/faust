@@ -1,19 +1,35 @@
 """LiveCheck - Test cases."""
-import abc
-from datetime import datetime, timedelta, timezone
 import typing
+from collections import deque
 from contextlib import ExitStack
+from datetime import datetime, timedelta, timezone
+from itertools import count
 from random import uniform
-from typing import Any, AsyncGenerator, Dict, Iterable, Mapping, Optional
-from mode import Seconds, want_seconds
-from mode.utils.contexts import asynccontextmanager
-from mode.utils.logging import CompositeLogger
+from statistics import median
+from time import monotonic
+from typing import (
+    Any,
+    AsyncGenerator,
+    Dict,
+    Iterable,
+    Optional,
+    Union,
+)
 
-from .exceptions import LiveCheckError, TestFailed, TestRaised, TestSkipped
-from .locals import current_test_stack
-from .models import SignalEvent, TestExecution
+from aiohttp import ClientError, ClientTimeout
+from faust.utils.functional import deque_pushpopmax
+from mode import Seconds, Service, want_seconds
+from mode.timers import timer_intervals
+from mode.utils.contexts import asynccontextmanager
+from mode.utils.times import humanize_seconds
+from mode.utils.typing import Deque
+from yarl import URL
+
+from .exceptions import SuiteFailed
+from .locals import current_execution_stack, current_test_stack
+from .models import SignalEvent, State, TestExecution
+from .runners import TestRunner
 from .signals import BaseSignal
-from .utils import to_model
 
 if typing.TYPE_CHECKING:
     from .app import LiveCheck as _LiveCheck
@@ -23,7 +39,7 @@ else:
 __all__ = ['Case']
 
 
-class Case(abc.ABC):
+class Case(Service):
     """LiveCheck test case."""
 
     app: _LiveCheck
@@ -32,22 +48,59 @@ class Case(abc.ABC):
     #: If not set this will be generated out of the subclass name.
     name: str
 
+    active: bool = True
+
+    #: Current state of this test.
+    state: State = State.INIT
+
+    #: How often we execute the test using fake data
+    #: (define Case.make_fake_request()).
+    #:
+    #: Set to None if production traffic is frequent enough to
+    #: satisfy :attr:`warn_empty_after`.
+    frequency: Optional[float] = None
+
     #: Timeout in seconds for when after we warn that nothing is processing.
     warn_empty_after: float = 1800.0
 
     #: Probability of test running when live traffic is going through.
     probability: float = 0.5
 
-    #: Is test activated (based on probability setting).
-    active: bool = False
+    #: The warn_empty_after timer uses this to keep track of
+    #: either when a test was last received, or the last time the timer
+    #: tiemd out.
+    last_test_received: Optional[float] = None
+
+    #: Timestamp of when the suite last failed.
+    last_fail: Optional[float] = None
+
+    #: Max items to store in :attr:`latency_history` and
+    #: :attr:`runtime_history`.
+    max_history: int = 100
+    latency_history: Deque[float]
+    frequency_history: Deque[float]
+    runtime_history: Deque[float]
+
+    runtime_avg: Optional[float] = None
+    latency_avg: Optional[float] = None
+    frequency_avg: Optional[float] = None
 
     signals: Dict[str, BaseSignal]
     _original_signals: Iterable[BaseSignal]
 
     total_signals: int
-    test_expires: timedelta
+    test_expires: timedelta = timedelta(hours=3)
 
-    log: CompositeLogger
+    realtime_logs = False
+
+    url_timeout_total: Optional[float] = 5 * 60.0
+    url_timeout_connect: Optional[float] = None
+    url_error_retries: int = 10
+    url_error_delay_min: float = 0.5
+    url_error_delay_backoff: float = 1.5
+    url_error_delay_max: float = 5.0
+
+    state_transition_delay: float = 60.0
 
     def __init__(self, *,
                  app: _LiveCheck,
@@ -56,44 +109,74 @@ class Case(abc.ABC):
                  warn_empty_after: Seconds = None,
                  active: bool = None,
                  signals: Iterable[BaseSignal] = None,
-                 execution: TestExecution = None,
-                 test_expires: Seconds = timedelta(hours=3)) -> None:
+                 test_expires: Seconds = None,
+                 frequency: Seconds = None,
+                 realtime_logs: bool = None,
+                 max_history: int = None,
+                 url_timeout_total: float = None,
+                 url_timeout_connect: float = None,
+                 url_error_retries: int = None,
+                 url_error_delay_min: float = None,
+                 url_error_delay_backoff: float = None,
+                 url_error_delay_max: float = None,
+                 **kwargs: Any) -> None:
         self.app = app
         self.name = name
+        if active is not None:
+            self.active = active
         if probability is not None:
             self.probability = probability
         if warn_empty_after is not None:
             self.warn_empty_after = want_seconds(warn_empty_after)
-        if active is not None:
-            self.active = active
-        self.execution = execution
         self._original_signals = signals or ()
         self.signals = {
             sig.name: sig.clone(case=self)
             for sig in self._original_signals
         }
-        self.test_expires = timedelta(seconds=want_seconds(test_expires))
+        if test_expires is not None:
+            self.test_expires = timedelta(seconds=want_seconds(test_expires))
+        if frequency is not None:
+            self.frequency = want_seconds(frequency)
+        if realtime_logs is not None:
+            self.realtime_logs = realtime_logs
+        if max_history is not None:
+            self.max_history = max_history
+
+        if url_timeout_total is not None:
+            self.url_timeout_total = url_timeout_total
+        if url_timeout_connect is not None:
+            self.url_timeout_connect = url_timeout_connect
+        if url_error_retries is not None:
+            self.url_error_retries = url_error_retries
+        if url_error_delay_min is not None:
+            self.url_error_delay_min = url_error_delay_min
+        if url_error_delay_backoff is not None:
+            self.url_error_delay_backoff = url_error_delay_backoff
+        if url_error_delay_max is not None:
+            self.url_error_delay_max = url_error_delay_max
+
+        self.frequency_history = deque()
+        self.latency_history = deque()
+        self.runtime_history = deque()
 
         self.total_signals = len(self.signals)
         # update local attribute so that the
         # signal attributes have the correct signal instance.
         self.__dict__.update(self.signals)
 
-        self.log = CompositeLogger(self.app.log, formatter=self._format_log)
+        Service.__init__(self, **kwargs)
 
-    def clone(self, **kwargs: Any) -> 'Case':
-        return type(self)(**{**self._asdict(), **kwargs})
+    @Service.timer(10.0)
+    async def _sampler(self) -> None:
+        if self.frequency_history:
+            self.frequency_avg = median(self.frequency_history)
+        if self.latency_history:
+            self.latency_avg = median(self.latency_history)
+        if self.runtime_history:
+            self.runtime_avg = median(self.runtime_history)
 
-    def _asdict(self) -> Mapping[str, Any]:
-        return {
-            'app': self.app,
-            'name': self.name,
-            'probability': self.probability,
-            'warn_empty_after': self.warn_empty_after,
-            'active': self.active,
-            'signals': self._original_signals,
-            'execution': self.execution,
-        }
+        self.log.info('Stats: (median) frequency=%r latency=%r runtime=%r',
+                      self.frequency_avg, self.latency_avg, self.runtime_avg)
 
     @asynccontextmanager
     async def maybe_trigger(
@@ -124,54 +207,181 @@ class Case(abc.ABC):
     def _now(self) -> datetime:
         return datetime.utcnow().astimezone(timezone.utc)
 
-    @abc.abstractmethod
     async def run(self, *test_args: Any, **test_kwargs: Any) -> None:
-        ...  # Subclasses must implement run
+        raise NotImplementedError('Case class must implement run')
 
     async def resolve_signal(self, key: str, event: SignalEvent) -> None:
         await self.signals[event.signal_name].resolve(key, event)
 
     async def execute(self, test: TestExecution) -> None:
-        if test.is_expired:
-            self.log.info('Skipped expired test: %s expires=%s',
-                          test.ident, test.expires)
-            raise TestSkipped('Test {test.ident} skipped: expired')
+        t_start = monotonic()
+        runner = TestRunner(self, test, started=t_start)
+        with current_execution_stack.push(runner):
+            # resolve_models
+            await runner.execute()
 
-        # resolve_models
-        runner = self.clone(execution=test)
-        with current_test_stack.push(test):
-            args = [self._prepare_arg(arg) for arg in test.test_args]
-            kwargs = {
-                self._prepare_kwkey(k): self._prepare_kwval(v)
-                for k, v in test.test_kwargs.items()
-            }
-            runner.log.info('≈≈≈ Test %s executing... (issued %s) ≈≈≈',
-                            self.name, test.human_date)
+    async def on_test_start(self, runner: TestRunner) -> None:
+        started = runner.started
+        t_prev, self.last_test_received = self.last_test_received, started
+        if t_prev:
+            time_since = started - t_prev
+            wanted_frequency = self.frequency
+            if wanted_frequency:
+                latency = time_since - wanted_frequency
+                deque_pushpopmax(
+                    self.latency_history, latency, self.max_history)
+            deque_pushpopmax(
+                self.frequency_history, time_since, self.max_history)
+
+    async def on_test_skipped(self, runner: TestRunner) -> None:
+        # wait until we have fast forwarded before raising errors
+        # XXX should we use seek, or warn somehow if this
+        # takes too long?
+        self.last_test_received = monotonic()
+
+    async def on_test_failed(self,
+                             runner: TestRunner,
+                             exc: BaseException) -> None:
+        self.state = State.FAIL
+
+    async def on_test_error(self,
+                            runner: TestRunner,
+                            exc: BaseException) -> None:
+        self.state = State.ERROR
+
+    async def on_test_timeout(self,
+                              runner: TestRunner,
+                              exc: BaseException) -> None:
+        self.state = State.TIMEOUT
+
+    async def on_test_pass(self, runner: TestRunner) -> None:
+        test = runner.test
+        runtime = runner.runtime
+        deque_pushpopmax(self.runtime_history, runtime, self.max_history)
+        ts = test.timestamp.timestamp()
+        last_fail = self.last_fail
+        if last_fail is None or ts > last_fail:
+            self._maybe_recover_from_failed_state()
+
+    @Service.task
+    async def _send_frequency(self) -> None:
+        freq = self.frequency
+        if freq:
+            for sleep_time in timer_intervals(freq, name=f'{self.name}_send'):
+                if self.should_stop:
+                    break
+                if self.app.is_leader():
+                    await self.make_fake_request()
+                    if self.should_stop:
+                        break
+                await self.sleep(sleep_time)
+                if self.should_stop:
+                    break
+
+    @Service.task
+    async def _check_frequency(self) -> None:
+        timeout = self.warn_empty_after
+        await self.sleep(timeout)
+        self.last_test_received = None
+        time_start = monotonic()
+        last_warning: Optional[float] = None
+        for sleep_time in timer_intervals(timeout, name=f'{self.name}_wempty'):
+            if self.should_stop:
+                break  # fast
             try:
-                await runner.run(*args, **kwargs)
-            except AssertionError as exc:
-                runner.log.exception('Test failed: %r', exc)
-                raise TestFailed(exc) from exc
-            except LiveCheckError as exc:
-                runner.log.exception('Test raised: %r', exc)
-                raise
-            except Exception as exc:
-                runner.log.exception('Test raised: %r', exc)
-                raise TestRaised(exc) from exc
+                now = monotonic()
+                can_warn = now - last_warning if last_warning else True
+                if can_warn:
+                    if self.last_test_received is not None:
+                        secs_since = now - self.last_test_received
+                    else:
+                        secs_since = now - time_start
+                    if secs_since > self.warn_empty_after:
+                        human_secs = humanize_seconds(secs_since)
+                        raise SuiteFailed(
+                            f'Test last received {human_secs} ago '
+                            f'(warn_empty_after={timeout}).')
+                        # we reset the timer to avoid logging every second.
+                        last_warning = now
+                    else:
+                        self._maybe_recover_from_failed_state()
+            except SuiteFailed as exc:
+                # we don't want to propagate this here, keep running...
+                await self.on_suite_fail(exc)
+            await self.sleep(sleep_time)
+            if self.should_stop:
+                break  # fast
+
+    async def on_suite_fail(self, exc: SuiteFailed) -> None:
+        self.log.exception(str(exc))
+        self.state = State.FAIL
+        self.last_fail = monotonic()
+
+    def _maybe_recover_from_failed_state(self) -> None:
+        if self.state != State.PASS:
+            secs_since_fail = self.seconds_since_last_fail
+            if secs_since_fail is None:
+                self.state = State.PASS
             else:
-                runner.log.info('Test OK √')
+                if secs_since_fail > self.state_transition_delay:
+                    self.state = State.PASS
 
-    def _prepare_arg(self, arg: Any) -> Any:
-        return to_model(arg)
+    @property
+    def seconds_since_last_fail(self) -> Optional[float]:
+        last_fail = self.last_fail
+        return monotonic() - last_fail if last_fail else None
 
-    def _prepare_kwkey(self, arg: Any) -> Any:
-        return to_model(arg)
+    async def get_url(self, url: Union[str, URL],
+                      **kwargs: Any) -> Optional[bytes]:
+        return await self.url_request('get', url, **kwargs)
 
-    def _prepare_kwval(self, val: Any) -> Any:
-        return to_model(val)
+    async def post_url(self, url: Union[str, URL],
+                       **kwargs: Any) -> Optional[bytes]:
+        return await self.url_request('post', url, **kwargs)
 
-    def _format_log(self, severity: int, msg: str,
-                    *args: Any, **kwargs: Any) -> str:
-        if self.execution:
-            return f'[{self.execution.shortident}] {msg}'
-        return f'[{self.name}] {msg}'
+    async def url_request(self, method: str, url: Union[str, URL],
+                          **kwargs: Any) -> Optional[bytes]:
+        timeout = ClientTimeout(
+            total=self.url_timeout_total,
+            connect=self.url_timeout_connect,
+        )
+        error_delay = self.url_error_delay_min
+        try:
+            for i in count():
+                try:
+                    async with self.app.http_client.request(
+                            method, url,
+                            timeout=timeout, **kwargs) as response:
+                        response.raise_for_status()
+                        return await response.read()
+                except ClientError as exc:
+                    if i >= self.url_error_retries:
+                        raise SuiteFailed(
+                            f'Cannot send fake test request: {exc!r}')
+                    retry_in = humanize_seconds(
+                        error_delay, microseconds=True)
+                    self.log.warning('URL %r raised: %r (Will retry in %s)',
+                                     url, exc, retry_in)
+                    error_delay = min(
+                        error_delay * self.url_error_delay_backoff,
+                        self.url_error_delay_max,
+                    )
+                    await self.sleep(error_delay)
+                else:
+                    self._maybe_recover_from_failed_state()
+        except SuiteFailed as exc:
+            # we don't want to propagate this here, keep running...
+            await self.on_suite_failed(exc)
+        return None
+
+    @property
+    def current_test(self) -> Optional[TestExecution]:
+        return current_test_stack.top
+
+    @property
+    def current_execution(self) -> Optional[TestRunner]:
+        return current_execution_stack.top
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}: {self.name}'
