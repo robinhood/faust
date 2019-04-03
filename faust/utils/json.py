@@ -2,6 +2,7 @@
 import datetime
 import enum
 import uuid
+from collections import deque
 from decimal import Decimal
 from typing import Any, Callable, List, Optional, Tuple, Type
 
@@ -41,7 +42,7 @@ except ImportError:  # pragma: no cover
 DECIMAL_MAXLEN = 1000
 
 #: Types that we convert to lists.
-SEQUENCE_TYPES: Tuple[type, ...] = (set,)
+SEQUENCE_TYPES: Tuple[type, ...] = (set, deque)
 
 #: Types that are datetimes and dates (-> .isoformat())
 DATE_TYPES: Tuple[type, ...] = (datetime.date, datetime.time)
