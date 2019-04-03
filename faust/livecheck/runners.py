@@ -1,6 +1,7 @@
 """LiveCheck - Test runner."""
 import asyncio
 import logging
+import traceback
 import typing
 from time import monotonic
 from typing import (
@@ -25,7 +26,7 @@ from .exceptions import (
     TestTimeout,
 )
 from .locals import current_test_stack
-from .models import State, TestExecution
+from .models import State, TestExecution, TestReport
 from .signals import BaseSignal
 from .utils import to_model
 
@@ -51,6 +52,9 @@ class TestRunner:
     logs: List[Tuple[str, Tuple]]
     signal_latency: Dict[str, float]
 
+    report: Optional[TestReport] = None
+    error: Optional[BaseException] = None
+
     def __init__(self,
                  case: _Case,
                  test: TestExecution,
@@ -62,7 +66,7 @@ class TestRunner:
         self.runtime = None
         self.logs = []
         self.log = CompositeLogger(
-            self.case.logger,
+            self.case.log.logger,
             formatter=self._format_log,
         )
         self.signal_latency = {}
@@ -88,7 +92,7 @@ class TestRunner:
                 await self.on_timeout(exc)
                 raise
             except AssertionError as exc:
-                await self.on_error(exc)
+                await self.on_failed(exc)
                 raise TestFailed(exc) from exc
             except LiveCheckError as exc:
                 await self.on_error(exc)
@@ -101,8 +105,14 @@ class TestRunner:
 
     async def skip(self, reason: str) -> NoReturn:
         exc = TestSkipped(f'Test {self.test.ident} skipped: {reason}')
-        await self.on_skipped(exc)
-        raise exc
+        try:
+            raise exc
+        except TestSkipped as exc:
+            # save with traceback
+            await self.on_skipped(exc)
+            raise
+        else:  # pragma: no cover
+            assert False  # can not get here
 
     def _prepare_args(self, args: Iterable) -> Tuple:
         to_value = self._prepare_val
@@ -149,24 +159,31 @@ class TestRunner:
 
     async def on_failed(self, exc: BaseException) -> None:
         self.end()
+        self.error = exc
         self.state = State.FAIL
         self.log.exception('Test failed: %r', exc)
         await self.case.on_test_failed(self, exc)
+        await self._finalize_report()
 
     async def on_error(self, exc: BaseException) -> None:
         self.end()
         self.state = State.ERROR
+        self.error = exc
         self.log.exception('Test raised: %r', exc)
         await self.case.on_test_error(self, exc)
+        await self._finalize_report()
 
     async def on_timeout(self, exc: BaseException) -> None:
         self.end()
+        self.error = exc
         self.state = State.TIMEOUT
         self.log.exception('Test timed-out: %r', exc)
         await self.case.on_test_timeout(self, exc)
+        await self._finalize_report()
 
     async def on_pass(self) -> None:
         self.end()
+        self.error = None
         self.state = State.PASS
         human_secs = humanize_seconds(
             self.runtime,
@@ -176,6 +193,23 @@ class TestRunner:
         self.log_info('Test OK in %s √', human_secs)
         self._flush_logs()
         await self.case.on_test_pass(self)
+        await self._finalize_report()
+
+    async def _finalize_report(self) -> None:
+        tb: Optional[str] = None
+        error = self.error
+        if error:
+            tb = '\n'.join(traceback.format_tb(error.__traceback__))
+        self.report = TestReport(
+            case_name=self.case.name,
+            state=self.state,
+            test=self.test,
+            runtime=self.runtime,
+            signal_latency=self.signal_latency,
+            error=str(error) if error else None,
+            traceback=tb,
+        )
+        await self.case.post_report(self.report)
 
     def log_info(self, msg: str, *args: Any) -> None:
         if self.case.realtime_logs:
@@ -190,7 +224,7 @@ class TestRunner:
     def _flush_logs(self, severity: int = logging.INFO) -> None:
         logs = self.logs
         try:
-            self.log.log(severity, '\n'.join(
+            self.log.logger.log(severity, '\n'.join(
                 self._format_log(severity, msg % log_args)  # noqa: S001
                 for msg, log_args in logs))
         finally:

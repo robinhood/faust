@@ -1,4 +1,5 @@
 """LiveCheck - Test cases."""
+import traceback
 import typing
 from collections import deque
 from contextlib import ExitStack
@@ -22,12 +23,12 @@ from mode import Seconds, Service, want_seconds
 from mode.timers import timer_intervals
 from mode.utils.contexts import asynccontextmanager
 from mode.utils.times import humanize_seconds
-from mode.utils.typing import Deque
+from mode.utils.typing import Counter, Deque
 from yarl import URL
 
 from .exceptions import SuiteFailed
 from .locals import current_execution_stack, current_test_stack
-from .models import SignalEvent, State, TestExecution
+from .models import SignalEvent, State, TestExecution, TestReport
 from .runners import TestRunner
 from .signals import BaseSignal
 
@@ -66,6 +67,8 @@ class Case(Service):
     #: Probability of test running when live traffic is going through.
     probability: float = 0.5
 
+    max_consecutive_failures: int = 30
+
     #: The warn_empty_after timer uses this to keep track of
     #: either when a test was last received, or the last time the timer
     #: tiemd out.
@@ -102,6 +105,10 @@ class Case(Service):
 
     state_transition_delay: float = 60.0
 
+    consecutive_failures: int = 0
+    total_failures: int = 0
+    total_by_state: Counter[State]
+
     def __init__(self, *,
                  app: _LiveCheck,
                  name: str,
@@ -113,6 +120,7 @@ class Case(Service):
                  frequency: Seconds = None,
                  realtime_logs: bool = None,
                  max_history: int = None,
+                 max_consecutive_failures: int = None,
                  url_timeout_total: float = None,
                  url_timeout_connect: float = None,
                  url_error_retries: int = None,
@@ -141,6 +149,8 @@ class Case(Service):
             self.realtime_logs = realtime_logs
         if max_history is not None:
             self.max_history = max_history
+        if max_consecutive_failures is not None:
+            self.max_consecutive_failures = max_consecutive_failures
 
         if url_timeout_total is not None:
             self.url_timeout_total = url_timeout_total
@@ -158,6 +168,8 @@ class Case(Service):
         self.frequency_history = deque()
         self.latency_history = deque()
         self.runtime_history = deque()
+
+        self.total_by_state = Counter()
 
         self.total_signals = len(self.signals)
         # update local attribute so that the
@@ -242,17 +254,38 @@ class Case(Service):
     async def on_test_failed(self,
                              runner: TestRunner,
                              exc: BaseException) -> None:
-        self.state = State.FAIL
+        await self._set_error_state(State.FAIL)
 
     async def on_test_error(self,
                             runner: TestRunner,
                             exc: BaseException) -> None:
-        self.state = State.ERROR
+        await self._set_error_state(State.ERROR)
 
     async def on_test_timeout(self,
                               runner: TestRunner,
                               exc: BaseException) -> None:
         self.state = State.TIMEOUT
+        await self._set_error_state(State.TIMEOUT)
+
+    async def _set_error_state(self, state: State) -> None:
+        self.state = state
+        self.consecutive_failures += 1
+        self.total_failures += 1
+        self.total_by_state[state] += 1
+        if self.consecutive_failures >= self.max_consecutive_failures:
+            try:
+                raise SuiteFailed(
+                    'Failed after {0!r} (max={1!r})'.format(
+                        self.consecutive_failures,
+                        self.max_consecutive_failures))
+            except SuiteFailed as exc:
+                await self.on_suite_failed(exc)
+
+    def _set_pass_state(self, state: State) -> None:
+        assert state.is_ok()
+        self.state = state
+        self.consecutive_failures = 0
+        self.total_by_state[state] += 1
 
     async def on_test_pass(self, runner: TestRunner) -> None:
         test = runner.test
@@ -262,6 +295,9 @@ class Case(Service):
         last_fail = self.last_fail
         if last_fail is None or ts > last_fail:
             self._maybe_recover_from_failed_state()
+
+    async def post_report(self, report: TestReport) -> None:
+        await self.app.post_report(report)
 
     @Service.task
     async def _send_frequency(self) -> None:
@@ -313,18 +349,32 @@ class Case(Service):
                 break  # fast
 
     async def on_suite_fail(self, exc: SuiteFailed) -> None:
-        self.log.exception(str(exc))
+        delay = self.state_transition_delay
+        if self.state.is_ok() or self._failed_longer_than(delay):
+            self.log.exception(str(exc))
+            await self.post_report(TestReport(
+                case_name=self.name,
+                state=self.state,
+                test=None,
+                runtime=None,
+                signal_latency={},
+                error=str(exc),
+                traceback='\n'.join(traceback.format_tb(exc.__traceback__)),
+            ))
         self.state = State.FAIL
         self.last_fail = monotonic()
 
     def _maybe_recover_from_failed_state(self) -> None:
         if self.state != State.PASS:
-            secs_since_fail = self.seconds_since_last_fail
-            if secs_since_fail is None:
-                self.state = State.PASS
-            else:
-                if secs_since_fail > self.state_transition_delay:
-                    self.state = State.PASS
+            if self._failed_longer_than(self.state_transition_delay):
+                self._set_pass_state(State.PASS)
+
+    def _failed_longer_than(self, secs: float) -> bool:
+        secs_since_fail = self.seconds_since_last_fail
+        if secs_since_fail is None:
+            return True
+        else:
+            return secs_since_fail > secs
 
     @property
     def seconds_since_last_fail(self) -> Optional[float]:

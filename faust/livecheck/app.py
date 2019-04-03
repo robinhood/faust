@@ -25,7 +25,7 @@ from . import patches
 from .case import Case
 from .exceptions import LiveCheckError
 from .locals import current_test, current_test_stack
-from .models import SignalEvent, TestExecution
+from .models import SignalEvent, TestExecution, TestReport
 from .signals import BaseSignal, Signal
 
 __all__ = ['LiveCheck']
@@ -74,8 +74,13 @@ class LiveCheck(faust.App):
     #: Number of concurrent actors executing test cases.
     test_concurrency: int = 100
 
-    test_topic_name: str
-    bus_topic_name: str
+    #: Unset this if you don't want reports to be sent to
+    #: the :attr:`report_topic_name` topic.
+    send_reports: bool = True
+
+    test_topic_name: str = 'livecheck'
+    bus_topic_name: str = 'livecheck-bus'
+    report_topic_name: str = 'livecheck-report'
 
     cases: Dict[str, _Case]
     bus: ChannelT
@@ -86,15 +91,23 @@ class LiveCheck(faust.App):
     def for_app(cls, app: AppT, *,
                 prefix: str = 'livecheck-',
                 web_port: int = 9999,
+                test_topic_name: str = None,
+                bus_topic_name: str = None,
+                report_topic_name: str = None,
                 bus_concurrency: int = None,
                 test_concurrency: int = None,
+                send_reports: bool = None,
                 **kwargs: Any) -> 'LiveCheck':
         app_id, passed_kwargs = app._default_options
         livecheck_id = f'{prefix}{app_id}'
         override = {
             'web_port': web_port,
+            'test_topic_name': test_topic_name,
+            'bus_topic_name': bus_topic_name,
+            'report_topic_name': report_topic_name,
             'bus_concurrency': bus_concurrency,
             'test_concurrency': test_concurrency,
+            'send_reports': send_reports,
             **kwargs}
         options = {**passed_kwargs, **override}
 
@@ -112,22 +125,30 @@ class LiveCheck(faust.App):
     def __init__(self,
                  id: str,
                  *,
-                 test_topic_name: str = 'livecheck',
-                 bus_topic_name: str = 'livecheck-bus',
+                 test_topic_name: str = None,
+                 bus_topic_name: str = None,
+                 report_topic_name: str = None,
                  bus_concurrency: int = None,
                  test_concurrency: int = None,
+                 send_reports: bool = None,
                  **kwargs: Any) -> None:
         super().__init__(id, **kwargs)
-        self.test_topic_name = test_topic_name
-        self.bus_topic_name = bus_topic_name
-        self.cases = {}
-        self._resolved_signals = {}
 
+        if test_topic_name is not None:
+            self.test_topic_name = test_topic_name
+        if bus_topic_name is not None:
+            self.bus_topic_name = bus_topic_name
+        if report_topic_name is not None:
+            self.report_topic_name = report_topic_name
         if bus_concurrency is not None:
             self.bus_concurrency = bus_concurrency
         if test_concurrency is not None:
             self.test_concurrency = test_concurrency
+        if send_reports is not None:
+            self.send_reports = send_reports
 
+        self.cases = {}
+        self._resolved_signals = {}
         patches.patch_all()
         self._apply_monkeypatches()
         self._connect_signals()
@@ -171,6 +192,7 @@ class LiveCheck(faust.App):
              test_expires: Seconds = None,
              frequency: Seconds = None,
              max_history: int = None,
+             max_consecutive_failures: int = None,
              url_timeout_total: float = None,
              url_timeout_connect: float = None,
              url_error_retries: float = None,
@@ -217,6 +239,8 @@ class LiveCheck(faust.App):
                 signals=signals,
                 test_expires=test_expires,
                 frequency=frequency,
+                max_history=max_history,
+                max_consecutive_failures=max_consecutive_failures,
                 url_timeout_total=url_timeout_total,
                 url_timeout_connect=url_timeout_connect,
                 url_error_retries=url_error_retries,
@@ -229,6 +253,12 @@ class LiveCheck(faust.App):
     def add_case(self, case: _Case) -> _Case:
         self.cases[case.name] = case
         return case
+
+    async def post_report(self, report: TestReport) -> None:
+        key = None
+        if report.test is not None:
+            key = report.test.id
+        await self.reports.send(key=key, value=report)
 
     async def on_start(self) -> None:
         await super().on_start()
@@ -288,4 +318,12 @@ class LiveCheck(faust.App):
             self.test_topic_name,
             key_type=str,
             value_type=TestExecution,
+        )
+
+    @cached_property
+    def reports(self) -> TopicT:
+        return self.topic(
+            self.report_topic_name,
+            key_type=str,
+            value_type=TestReport,
         )

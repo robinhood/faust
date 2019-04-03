@@ -10,7 +10,7 @@ from mode.utils.text import abbr
 from faust import Record
 from faust.utils.iso8601 import parse as parse_iso8601
 
-__all__ = ['State', 'SignalEvent', 'TestExecution']
+__all__ = ['State', 'SignalEvent', 'TestExecution', 'TestReport']
 
 HEADER_TEST_ID = 'LiveCheck-Test-Id'
 HEADER_TEST_NAME = 'LiveCheck-Test-Name'
@@ -115,3 +115,15 @@ class TestExecution(Record, isodates=True):
     @cached_property
     def short_case_name(self) -> str:
         return self.case_name.split('.')[-1]
+
+
+class TestReport(Record):
+    """Report after test execution."""
+
+    case_name: str
+    state: State
+    test: Optional[TestExecution]
+    runtime: Optional[float]
+    signal_latency: Dict[str, float]
+    error: Optional[str]
+    traceback: Optional[str]
