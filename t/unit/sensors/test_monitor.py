@@ -144,63 +144,6 @@ class test_Monitor:
             'topic_end_offsets': {},
         }
 
-    def test_cleanup(self, *, mon):
-        mon._cleanup_max_avg_history = Mock(name='cleanup_max_avg')
-        mon._cleanup_commit_latency_history = Mock(name='cleanup_commit')
-        mon._cleanup_send_latency_history = Mock(name='cleanup_send')
-        mon._cleanup_assignment_latency_history = Mock(name='cleanup_assign')
-
-        mon._cleanup()
-
-        mon._cleanup_max_avg_history.assert_called_once_with()
-        mon._cleanup_commit_latency_history.assert_called_once_with()
-        mon._cleanup_send_latency_history.assert_called_once_with()
-        mon._cleanup_assignment_latency_history.assert_called_once_with()
-
-    def test_cleanup_max_avg_history(self, *, mon):
-        mon.max_avg_history = 10
-
-        mon.events_runtime = list(range(5))
-        mon._cleanup_max_avg_history()
-        assert mon.events_runtime == list(range(5))
-
-        mon.events_runtime.extend(list(range(10)))
-        mon._cleanup_max_avg_history()
-        assert mon.events_runtime == list(range(10))
-
-    def test_cleanup_commit_latency_history(self, *, mon):
-        mon.max_commit_latency_history = 10
-
-        mon.commit_latency = list(range(5))
-        mon._cleanup_commit_latency_history()
-        assert mon.commit_latency == list(range(5))
-
-        mon.commit_latency.extend(list(range(10)))
-        mon._cleanup_commit_latency_history()
-        assert mon.commit_latency == list(range(10))
-
-    def test_cleanup_send_latency_history(self, *, mon):
-        mon.max_send_latency_history = 10
-
-        mon.send_latency = list(range(5))
-        mon._cleanup_send_latency_history()
-        assert mon.send_latency == list(range(5))
-
-        mon.send_latency.extend(list(range(10)))
-        mon._cleanup_send_latency_history()
-        assert mon.send_latency == list(range(10))
-
-    def test_cleanup_assignment_latency_history(self, *, mon):
-        mon.max_assignment_latency_history = 10
-
-        mon.assignment_latency = list(range(5))
-        mon._cleanup_assignment_latency_history()
-        assert mon.assignment_latency == list(range(5))
-
-        mon.assignment_latency.extend(list(range(10)))
-        mon._cleanup_assignment_latency_history()
-        assert mon.assignment_latency == list(range(10))
-
     def test_on_message_in(self, *, message, mon, time):
         for i in range(1, 11):
             offset = 3 + i
@@ -385,13 +328,14 @@ class test_Monitor:
         mon.events_runtime = []
         mon.sleep = AsyncMock(name='sleep')
 
-        def on_cleanup():
+        def on_sample(prev_events, prev_messages):
             nonlocal i
             mon.events_runtime.append(i + 0.34)
             i += 1
             if i > 10:
                 mon._stopped.set()
-        mon._cleanup = Mock(name='_cleanup')
-        mon._cleanup.side_effect = on_cleanup
+            return prev_events, prev_messages
+        mon._sample = Mock(name='_sample')
+        mon._sample.side_effect = on_sample
 
         await mon._sampler(mon)
