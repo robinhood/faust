@@ -89,16 +89,18 @@ async def test_cached_view__cannot_cache(*, app, bp, web_client, web):
 
 
 @pytest.mark.app(cache='memory://')
-def test_key_for_request(*, app):
+@pytest.mark.parametrize('include_headers', [True, False])
+def test_key_for_request(include_headers, *, app):
     _cache = blueprint.cache(timeout=DEFAULT_TIMEOUT)
     request = Mock(name='request')
     _cache.build_key = Mock(name='build_key')
-    _cache.key_for_request(request, prefix='/foo/')
+    _cache.key_for_request(
+        request, prefix='/foo/', include_headers=include_headers)
     _cache.build_key.assert_called_once_with(
         request,
         request.method,
         '/foo/',
-        [],
+        request.headers if include_headers else {},
     )
 
 
