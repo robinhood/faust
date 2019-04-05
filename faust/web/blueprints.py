@@ -110,11 +110,12 @@ class Blueprint(BlueprintT):
 
     def cache(self,
               timeout: Seconds = None,
+              include_headers: bool = False,
               key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
         if key_prefix is None:
             key_prefix = self.name
-        return Cache(timeout, key_prefix, backend)
+        return Cache(timeout, include_headers, key_prefix, backend)
 
     def route(self,
               uri: str,

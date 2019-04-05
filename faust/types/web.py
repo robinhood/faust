@@ -109,6 +109,7 @@ class CacheBackendT(ServiceT):
 class CacheT(abc.ABC):
 
     timeout: Seconds
+    include_headers: bool
     key_prefix: str
     backend: Optional[Union[Type[CacheBackendT], str]]
 
@@ -123,6 +124,7 @@ class CacheT(abc.ABC):
     @abc.abstractmethod
     def view(self,
              timeout: Seconds = None,
+             include_headers: bool = False,
              key_prefix: str = None,
              **kwargs: Any) -> Callable[[Callable], Callable]:
         ...
@@ -135,6 +137,7 @@ class BlueprintT(abc.ABC):
     @abc.abstractmethod
     def cache(self,
               timeout: Seconds = None,
+              include_headers: bool = False,
               key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
         ...
