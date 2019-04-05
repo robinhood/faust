@@ -956,7 +956,7 @@ class test_Consumer:
         await consumer._commit_handler(consumer)
         consumer.sleep.coro.assert_has_calls([
             call(consumer.commit_interval),
-            call(pytest.approx(consumer.commit_interval)),
+            call(pytest.approx(consumer.commit_interval, rel=1e-1)),
         ])
         consumer.commit.assert_called_once_with()
 
