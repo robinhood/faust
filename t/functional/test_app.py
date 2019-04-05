@@ -6,7 +6,6 @@ import faust
 import mode
 import pytest
 import pytz
-from aiohttp.client import ClientSession
 from faust import App
 from faust.app import BootStrategy
 from faust.assignor import LeaderAssignor, PartitionAssignor
@@ -118,6 +117,7 @@ class test_settings:
         assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
         assert conf.Topic is faust.Topic
+        from aiohttp.client import ClientSession
         assert conf.HttpClient is ClientSession
         assert conf.Monitor is Monitor
 
