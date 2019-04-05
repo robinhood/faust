@@ -3,16 +3,13 @@ import io
 import os
 import sys
 from contextlib import ExitStack, redirect_stderr, redirect_stdout
-from pathlib import Path
 import pytest
 from mode.utils.mocks import patch
 
-sys.path.append(str(Path(__file__).parent))
 
-from proj import main  # noqa
+def test_main(*, app, loop):
+    from proj import main
 
-
-def test_main(loop):
     neu_loop = asyncio.set_event_loop(asyncio.new_event_loop())  # noqa
 
     # must use the event loop fixture to ensure not using old loop.

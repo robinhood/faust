@@ -1,7 +1,12 @@
 import faust
 
-app = faust.App(
-    'proj',
-    origin='proj',
-    autodiscover=True,
-)
+
+def create_app():
+    return faust.App(
+        'proj',
+        origin='proj',
+        autodiscover=True,
+    )
+
+
+app = create_app()
