@@ -218,8 +218,11 @@ class LiveCheck(faust.App):
             def find_signals() -> Iterable[str]:
                 for attr_name, attr_type in fields.items():
                     actual_type = getattr(attr_type, '__origin__', attr_type)
-                    if issubclass(actual_type, BaseSignal):
-                        yield attr_name
+                    try:
+                        if issubclass(actual_type, BaseSignal):
+                            yield attr_name
+                    except TypeError:
+                        pass
 
             for i, attr_name in enumerate(find_signals()):
                 signal = getattr(case_cls, attr_name, None)
