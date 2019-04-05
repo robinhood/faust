@@ -1,4 +1,4 @@
-from proj.faust import app
+from proj324.faust import app
 
 print('IMPORTS __MAIN__')
 
