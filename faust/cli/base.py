@@ -492,7 +492,7 @@ class Command(abc.ABC):
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> NoReturn:
             cmd = cls(*args, **kwargs)
-            with exiting():
+            with exiting(print_exception=True, file=sys.stderr):
                 cmd()
 
         return _apply_options(cls.options or [])(
