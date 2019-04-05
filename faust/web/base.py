@@ -334,6 +334,7 @@ class Request(abc.ABC):
     """HTTP Request."""
 
     method: str
+    headers: Mapping[str, str]
     url: URL
     rel_url: URL
     query_string: str
