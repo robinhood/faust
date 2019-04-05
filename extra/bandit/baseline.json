@@ -1,17 +1,17 @@
 {
   "errors": [],
-  "generated_at": "2019-03-21T18:27:14Z",
+  "generated_at": "2019-04-05T20:26:52Z",
   "metrics": {
     "_totals": {
-      "CONFIDENCE.HIGH": 11.0,
+      "CONFIDENCE.HIGH": 12.0,
       "CONFIDENCE.LOW": 1.0,
       "CONFIDENCE.MEDIUM": 1.0,
       "CONFIDENCE.UNDEFINED": 0.0,
       "SEVERITY.HIGH": 0.0,
-      "SEVERITY.LOW": 7.0,
+      "SEVERITY.LOW": 8.0,
       "SEVERITY.MEDIUM": 6.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 19546,
+      "loc": 21090,
       "nosec": 0
     },
     "faust/__init__.py": {
@@ -95,7 +95,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 55,
+      "loc": 59,
       "nosec": 0
     },
     "faust/agents/models.py": {
@@ -155,7 +155,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 1315,
+      "loc": 1344,
       "nosec": 0
     },
     "faust/app/router.py": {
@@ -191,7 +191,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 122,
+      "loc": 125,
       "nosec": 0
     },
     "faust/assignor/cluster_assignment.py": {
@@ -239,7 +239,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 281,
+      "loc": 315,
       "nosec": 0
     },
     "faust/auth.py": {
@@ -251,7 +251,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 65,
+      "loc": 75,
       "nosec": 0
     },
     "faust/channels.py": {
@@ -299,7 +299,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 743,
+      "loc": 748,
       "nosec": 0
     },
     "faust/cli/clean_versions.py": {
@@ -323,7 +323,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 1.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 23,
+      "loc": 25,
       "nosec": 0
     },
     "faust/cli/faust.py": {
@@ -335,7 +335,19 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 24,
+      "loc": 26,
+      "nosec": 0
+    },
+    "faust/cli/livecheck.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 15,
       "nosec": 0
     },
     "faust/cli/model.py": {
@@ -494,6 +506,138 @@
       "loc": 33,
       "nosec": 0
     },
+    "faust/livecheck/__init__.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 5,
+      "nosec": 0
+    },
+    "faust/livecheck/app.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 275,
+      "nosec": 0
+    },
+    "faust/livecheck/case.py": {
+      "CONFIDENCE.HIGH": 1.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 1.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 353,
+      "nosec": 0
+    },
+    "faust/livecheck/exceptions.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 22,
+      "nosec": 0
+    },
+    "faust/livecheck/locals.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 16,
+      "nosec": 0
+    },
+    "faust/livecheck/models.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 100,
+      "nosec": 0
+    },
+    "faust/livecheck/patches/__init__.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 4,
+      "nosec": 0
+    },
+    "faust/livecheck/patches/aiohttp.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 42,
+      "nosec": 0
+    },
+    "faust/livecheck/runners.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 200,
+      "nosec": 0
+    },
+    "faust/livecheck/signals.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 146,
+      "nosec": 0
+    },
+    "faust/livecheck/utils.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 12,
+      "nosec": 0
+    },
     "faust/models/__init__.py": {
       "CONFIDENCE.HIGH": 0.0,
       "CONFIDENCE.LOW": 0.0,
@@ -551,7 +695,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 148,
+      "loc": 179,
       "nosec": 0
     },
     "faust/sensors/datadog.py": {
@@ -563,7 +707,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 254,
+      "loc": 274,
       "nosec": 0
     },
     "faust/sensors/monitor.py": {
@@ -575,7 +719,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 286,
+      "loc": 328,
       "nosec": 0
     },
     "faust/sensors/statsd.py": {
@@ -587,7 +731,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 150,
+      "loc": 170,
       "nosec": 0
     },
     "faust/serializers/__init__.py": {
@@ -683,7 +827,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 733,
+      "loc": 706,
       "nosec": 0
     },
     "faust/tables/__init__.py": {
@@ -707,7 +851,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 415,
+      "loc": 422,
       "nosec": 0
     },
     "faust/tables/manager.py": {
@@ -743,7 +887,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 517,
+      "loc": 525,
       "nosec": 0
     },
     "faust/tables/sets.py": {
@@ -791,7 +935,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 418,
+      "loc": 419,
       "nosec": 0
     },
     "faust/transport/__init__.py": {
@@ -851,7 +995,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 858,
+      "loc": 868,
       "nosec": 0
     },
     "faust/transport/drivers/__init__.py": {
@@ -875,7 +1019,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 695,
+      "loc": 705,
       "nosec": 0
     },
     "faust/transport/drivers/confluent.py": {
@@ -971,7 +1115,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 357,
+      "loc": 372,
       "nosec": 0
     },
     "faust/types/assignor.py": {
@@ -1115,7 +1259,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 72,
+      "loc": 87,
       "nosec": 0
     },
     "faust/types/serializers.py": {
@@ -1139,7 +1283,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 724,
+      "loc": 737,
       "nosec": 0
     },
     "faust/types/stores.py": {
@@ -1223,7 +1367,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 117,
+      "loc": 136,
       "nosec": 0
     },
     "faust/types/windows.py": {
@@ -1295,7 +1439,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 11,
+      "loc": 24,
       "nosec": 0
     },
     "faust/utils/iso8601.py": {
@@ -1319,7 +1463,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 96,
+      "loc": 97,
       "nosec": 0
     },
     "faust/utils/kafka/__init__.py": {
@@ -1463,7 +1607,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 12,
+      "loc": 14,
       "nosec": 0
     },
     "faust/web/apps/__init__.py": {
@@ -1535,7 +1679,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 278,
+      "loc": 283,
       "nosec": 0
     },
     "faust/web/blueprints.py": {
@@ -1547,7 +1691,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 136,
+      "loc": 148,
       "nosec": 0
     },
     "faust/web/cache/__init__.py": {
@@ -1655,7 +1799,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 179,
+      "loc": 213,
       "nosec": 0
     },
     "faust/web/exceptions.py": {
@@ -1679,7 +1823,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 179,
+      "loc": 193,
       "nosec": 0
     },
     "faust/windows.py": {
@@ -1709,14 +1853,14 @@
   },
   "results": [
     {
-      "code": "24                 'and try again!')\n25         self.say(click_completion.get_code(shell=self.shell()))\n26 \n",
+      "code": "27                 'and try again!')\n28         self.say(click_completion.get_code(shell=self.shell()))\n29 \n",
       "filename": "faust/cli/completion.py",
       "issue_confidence": "LOW",
       "issue_severity": "MEDIUM",
       "issue_text": "Function call with shell=True parameter identified, possible security issue.",
-      "line_number": 25,
+      "line_number": 28,
       "line_range": [
-        25
+        28
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b604_any_other_function_with_shell_equals_true.html",
       "test_id": "B604",
@@ -1731,6 +1875,20 @@
       "line_number": 80,
       "line_range": [
         80
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "199         with ExitStack() as exit_stack:\n200             if uniform(0, 1) < self.probability:\n201                 execution = await self.trigger(id, *args, **kwargs)\n",
+      "filename": "faust/livecheck/case.py",
+      "issue_confidence": "HIGH",
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 200,
+      "line_range": [
+        200
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b311-random",
       "test_id": "B311",
