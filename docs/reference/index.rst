@@ -67,7 +67,10 @@ Livecheck
     faust.livecheck.app
     faust.livecheck.case
     faust.livecheck.exceptions
+    faust.livecheck.locals
     faust.livecheck.models
+    faust.livecheck.patches
+    faust.livecheck.patches.aiohttp
     faust.livecheck.runners
     faust.livecheck.signals
     faust.livecheck.utils
