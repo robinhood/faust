@@ -8,7 +8,7 @@ from mode.utils.mocks import patch
 
 
 def test_main(*, app, loop):
-    from proj import main
+    from proj324 import main
 
     neu_loop = asyncio.set_event_loop(asyncio.new_event_loop())  # noqa
 
@@ -18,8 +18,10 @@ def test_main(*, app, loop):
     environ = dict(os.environ)
     try:
         with ExitStack() as stack:
-            stack.enter_context(patch('sys.argv', ['proj', 'foo']))
-            assert sys.argv == ['proj', 'foo']
+            stack.enter_context(patch(
+                'sys.argv',
+                ['proj', 'my_process_command_i324']))
+            assert sys.argv == ['proj', 'my_process_command_i324']
             stack.enter_context(pytest.raises(SystemExit))
             stack.enter_context(redirect_stdout(stdout))
             stack.enter_context(redirect_stderr(stderr))
@@ -32,4 +34,4 @@ def test_main(*, app, loop):
     print(f'STDERR: {stderr.getvalue()!r}')
     assert 'IMPORTS __MAIN__' not in stdout.getvalue()
     assert 'TEST FILE IMPORTED' not in stdout.getvalue()
-    assert 'HELLO WORLD' in stdout.getvalue()
+    assert 'HELLO WORLD #324' in stdout.getvalue()

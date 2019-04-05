@@ -7,6 +7,6 @@ sys.path.append(str(Path(__file__).parent))
 
 @pytest.fixture()
 def app():
-    from proj import faust
+    from proj323 import faust
     faust.app = faust.create_app()
     return faust.app

@@ -3,8 +3,8 @@ import faust
 
 def create_app():
     return faust.App(
-        'proj',
-        origin='proj',
+        'proj324',
+        origin='proj324',
         autodiscover=True,
     )
 
