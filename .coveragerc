@@ -12,6 +12,7 @@ omit =
 
     # tested by functional tests
     */faust/cli/agents.py
+    */faust/cli/livecheck.py
     */faust/cli/model.py
     */faust/cli/models.py
     */faust/cli/reset.py
