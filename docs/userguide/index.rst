@@ -20,6 +20,7 @@
     cli
     sensors
     testing
+    livecheck
     settings
     installation
     kafka
