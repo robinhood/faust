@@ -10,7 +10,6 @@ from statistics import median
 from time import monotonic
 from typing import (
     Any,
-    AsyncGenerator,
     ClassVar,
     Dict,
     Iterable,
@@ -23,7 +22,7 @@ from aiohttp import ClientError, ClientTimeout
 from mode import Seconds, Service, want_seconds
 from mode.utils.contexts import asynccontextmanager
 from mode.utils.times import humanize_seconds
-from mode.utils.typing import Counter, Deque
+from mode.utils.typing import AsyncGenerator, Counter, Deque
 from yarl import URL
 
 from faust.utils import uuid
