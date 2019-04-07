@@ -140,8 +140,8 @@ class test_Signal:
         signal._get_current_value = Mock(side_effect=KeyError())
         app = signal.case.app
         app._stopped.set()
-        res = await signal._wait_for_message_by_key('k', timeout=1.0)
-        assert res is None
+        with pytest.raises(asyncio.CancelledError):
+            await signal._wait_for_message_by_key('k', timeout=1.0)
 
     @pytest.mark.asyncio
     async def test__wait_for_message_by_key(self, *, signal):

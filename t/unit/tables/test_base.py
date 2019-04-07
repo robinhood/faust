@@ -216,8 +216,8 @@ class test_Collection:
         table._should_expire_keys.return_value = True
         table._del_old_keys = Mock(name='_del_old_keys')
 
-        def on_sleep(secs):
-            if table.sleep.call_count > 1:
+        def on_sleep(secs, **kwargs):
+            if table.sleep.call_count > 2:
                 table._stopped.set()
         table.sleep = AsyncMock(name='sleep', side_effect=on_sleep)
 
@@ -225,7 +225,8 @@ class test_Collection:
 
         table._del_old_keys.assert_called_once_with()
         table.sleep.assert_called_with(
-            pytest.approx(table.app.conf.table_cleanup_interval))
+            pytest.approx(table.app.conf.table_cleanup_interval, rel=1e-1),
+            loop=None)
 
     def test_should_expire_keys(self, *, table):
         table.window = None

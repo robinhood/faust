@@ -72,7 +72,6 @@ from weakref import WeakSet
 
 from mode import Service, ServiceT, flight_recorder, get_logger
 from mode.threads import MethodQueue, QueueServiceThread
-from mode.timers import timer_intervals
 from mode.utils.futures import notify
 from mode.utils.locks import Event
 from mode.utils.text import pluralize
@@ -721,30 +720,20 @@ class Consumer(Service, ConsumerT):
         interval = self.commit_interval
 
         await self.sleep(interval)
-        for sleep_time in timer_intervals(interval, name='commit'):
-            if self.should_stop:
-                break
+        async for sleep_time in self.itertimer(interval, name='commit'):
             await self.commit()
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break
 
     @Service.task
     async def _commit_livelock_detector(self) -> None:  # pragma: no cover
         soft_timeout = self.commit_livelock_soft_timeout
         interval: float = self.commit_interval * 2.5
         await self.sleep(interval)
-        for sleep_time in timer_intervals(interval, name='livelock'):
-            if self.should_stop:
-                break
+        async for sleep_time in self.itertimer(interval, name='livelock'):
             if self._last_batch is not None:
                 s_since_batch = monotonic() - self._last_batch
                 if s_since_batch > soft_timeout:
                     self.log.warning(
                         'Possible livelock: COMMIT OFFSET NOT ADVANCING')
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break
 
     async def commit(self, topics: TPorTopicSet = None,
                      start_new_transaction: bool = True) -> bool:

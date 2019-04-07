@@ -6,7 +6,6 @@ from time import monotonic
 from typing import Any, Callable, Mapping, MutableMapping, Tuple, cast
 
 from mode import Service, label
-from mode.timers import timer_intervals
 from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter, Deque
 
@@ -235,17 +234,9 @@ class Monitor(Sensor, KeywordReduce):
         prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
 
-        await self.sleep(1.0)
-        for sleep_time in timer_intervals(1.0, name='Monitor.sampler'):
-            if self.should_stop:
-                break
-
+        async for sleep_time in self.itertimer(1.0, name='Monitor.sampler'):
             prev_event_total, prev_message_total = self._sample(
                 prev_event_total, prev_message_total)
-
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break
 
     def _sample(self,
                 prev_event_total: int,

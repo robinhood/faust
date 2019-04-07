@@ -38,7 +38,6 @@ from typing import (
 import opentracing
 
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
-from mode.timers import timer_intervals
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.contexts import nullcontext
@@ -899,21 +898,15 @@ class App(AppT, Service):
 
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
-                await self.sleep(interval_s)
-                for sleep_time in timer_intervals(
+                async for sleep_time in self.itertimer(
                         interval_s,
                         name=timer_name,
                         max_drift_correction=max_drift_correction):
-                    if self.should_stop:
-                        break
                     should_run = not on_leader or self.is_leader()
                     if should_run:
                         with self.trace(shortlabel(fun),
                                         trace_enabled=traced):
                             await fun(*args)  # type: ignore
-                    await self.sleep(sleep_time)
-                    if self.should_stop:
-                        break
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]

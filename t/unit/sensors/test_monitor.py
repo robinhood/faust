@@ -1,3 +1,4 @@
+from statistics import median
 from typing import Any
 import pytest
 from faust import Event, Stream, Table, Topic
@@ -339,3 +340,16 @@ class test_Monitor:
         mon._sample.side_effect = on_sample
 
         await mon._sampler(mon)
+
+    def test__sample(self, *, mon):
+        prev_event_total = 0
+        prev_message_total = 0
+        mon.events_runtime = []
+        mon._sample(prev_event_total, prev_message_total)
+        mon.events_runtime = list(range(100))
+        prev_event_total = 0
+        prev_message_total = 0
+        mon._sample(prev_event_total, prev_message_total)
+
+        assert mon.events_runtime_avg == median(mon.events_runtime)
+        assert mon.events_s == 0  # XXX this is wrong!

@@ -21,7 +21,6 @@ from typing import (
 
 from aiohttp import ClientError, ClientTimeout
 from mode import Seconds, Service, want_seconds
-from mode.timers import timer_intervals
 from mode.utils.contexts import asynccontextmanager
 from mode.utils.times import humanize_seconds
 from mode.utils.typing import Counter, Deque
@@ -312,17 +311,10 @@ class Case(Service):
     async def _send_frequency(self) -> None:
         freq = self.frequency
         if freq:
-            await self.sleep(freq)
-            for sleep_time in timer_intervals(freq, name=f'{self.name}_send'):
-                if self.should_stop:
-                    break
+            async for sleep_time in self.itertimer(
+                    freq, name=f'{self.name}_send'):
                 if self.app.is_leader():
                     await self.make_fake_request()
-                    if self.should_stop:
-                        break
-                await self.sleep(sleep_time)
-                if self.should_stop:
-                    break
 
     @Service.task
     async def _check_frequency(self) -> None:
@@ -331,9 +323,8 @@ class Case(Service):
         self.last_test_received = None
         time_start = monotonic()
         last_warning: Optional[float] = None
-        for sleep_time in timer_intervals(timeout, name=f'{self.name}_wempty'):
-            if self.should_stop:
-                break  # fast
+        async for sleep_time in self.itertimer(
+                timeout, name=f'{self.name}._wempty'):
             try:
                 now = monotonic()
                 can_warn = now - last_warning if last_warning else True
@@ -354,9 +345,6 @@ class Case(Service):
             except SuiteStalled as exc:
                 # we don't want to propagate this here, keep running...
                 await self.on_suite_fail(exc, State.STALL)
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break  # fast
 
     async def on_suite_fail(self,
                             exc: SuiteFailed,

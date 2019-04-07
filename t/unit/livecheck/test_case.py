@@ -233,7 +233,7 @@ class test_Case:
     async def test__send_frequency__first_stop(self, *, case):
         case.frequency = 0.1
         case.sleep = AsyncMock()
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4]
 
             def on_ti(*args, **kwargs):
@@ -248,10 +248,10 @@ class test_Case:
         case.frequency = 0.1
         case.sleep = AsyncMock()
         case.app.is_leader = Mock(return_value=False)
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4]
 
-            async def on_sleep(secs):
+            async def on_sleep(secs, **kwargs):
                 if case.sleep.call_count >= 2:
                     case._stopped.set()
             case.sleep.side_effect = on_sleep
@@ -268,7 +268,7 @@ class test_Case:
         case.sleep = AsyncMock()
         case.frequency = 10.0
         case.app.is_leader = Mock(return_value=False)
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4]
             await case._send_frequency(case)
 
@@ -295,7 +295,7 @@ class test_Case:
 
     @pytest.mark.asyncio
     async def test__check_frequency(self, *, case):
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
             case.sleep = AsyncMock()
             await case._check_frequency(case)
@@ -305,7 +305,7 @@ class test_Case:
         frozen_monotonic.return_value = 600.0
         case.warn_stalled_after = 10.0
         case.on_suite_fail = AsyncMock()
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
             case.sleep = AsyncMock()
 
@@ -319,7 +319,7 @@ class test_Case:
 
     @pytest.mark.asyncio
     async def test__check_frequency__should_stop1(self, *, case):
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
 
             def do_stop(*args, **kwargs):
@@ -333,14 +333,14 @@ class test_Case:
 
     @pytest.mark.asyncio
     async def test__check_frequency__last_stop(self, *, case):
-        with patch('faust.livecheck.case.timer_intervals') as ti:
+        with patch('mode.services.timer_intervals') as ti:
             case._stopped.clear()
             assert not case.should_stop
             ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
 
             case.sleep = AsyncMock()
 
-            async def on_sleep(arg):
+            async def on_sleep(arg, **kwargs):
                 if case.sleep.call_count >= 2:
                     case._stopped.set()
             case.sleep.side_effect = on_sleep

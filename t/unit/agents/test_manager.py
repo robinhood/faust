@@ -43,10 +43,12 @@ class test_AgentManager:
         assert agents._by_topic == {}
 
     @pytest.mark.asyncio
-    async def test_on_stop__agent_raises_cancel(self, *, agents, agent1):
-        agent1.stop = AsyncMock(side_effect=asyncio.CancelledError())
-        await agents.on_stop()
+    async def test_on_stop__agent_raises_cancel(self, *, many, agent1, agent2):
+        agent1.stop.coro.side_effect = asyncio.CancelledError()
+        agent2.stop.coro.side_effect = asyncio.CancelledError()
+        await many.on_stop()
         agent1.stop.assert_called_once_with()
+        agent2.stop.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_start(self, *, many):
