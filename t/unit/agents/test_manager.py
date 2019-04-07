@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
@@ -40,6 +41,12 @@ class test_AgentManager:
         assert agents.app is app
         assert agents.data == {}
         assert agents._by_topic == {}
+
+    @pytest.mark.asyncio
+    async def test_on_stop__agent_raises_cancel(self, *, agents, agent1):
+        agent1.stop = AsyncMock(side_effect=asyncio.CancelledError())
+        await agents.on_stop()
+        agent1.stop.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_start(self, *, many):

@@ -29,3 +29,6 @@ class test_Blueprint:
         assert bp.static_routes
         route = bp.static_routes[0]
         assert route.name == 'test.statici'
+
+    def test_repr(self, *, bp):
+        assert repr(bp)

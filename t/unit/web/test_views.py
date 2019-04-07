@@ -53,6 +53,20 @@ class test_View:
         assert await view(request) is handler.coro()
         handler.assert_called_once_with(request)
 
+    def test_path_for(self, *, view):
+        ret = view.path_for('name', foo=1)
+        assert ret is view.web.url_for.return_value
+        view.web.url_for.assert_called_once_with('name', foo=1)
+
+    def test_url_for__no_base(self, *, view):
+        view.app.conf.canonical_url = 'http://example.com/'
+        ret = view.url_for('name', foo=1)
+        assert ret
+
+    def test_url_for__base(self, *, view):
+        ret = view.url_for('name', 'http://example.bar', foo=1)
+        assert ret
+
     @pytest.mark.asyncio
     async def test_get(self, *, view):
         req = Mock(name='request', autospec=Request)
