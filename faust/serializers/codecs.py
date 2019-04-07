@@ -4,21 +4,21 @@ Supported codecs
 ================
 
 * **raw**     - No encoding/serialization (bytes only).
-* **json**    - json with utf-8 encoding.
+* **json**    - json with UTF-8 encoding.
 * **pickle**  - pickle with base64 encoding (not urlsafe).
 * **binary**  - base64 encoding (not urlsafe).
 
 Serialization by name
 =====================
 
-The func:`dumps` function takes a codec name and the object to encode,
+The :func:`dumps` function takes a codec name and the object to encode,
 then returns bytes:
 
 .. sourcecode:: pycon
 
     >>> s = dumps('json', obj)
 
-For the reverse direction, the func:`loads` function takes a codec
+For the reverse direction, the :func:`loads` function takes a codec
 name and bytes to decode:
 
 .. sourcecode:: pycon
@@ -67,8 +67,8 @@ Our codec now encodes/decodes to raw msgpack format, but we
 may also need to transfer this payload over a transport easily confused
 by binary data, such as JSON where everything is Unicode.
 
-You can chain codecs together, so to add a binary text encoding like base64,
-to ur codec, we use the ``|`` operator to form a combined codec:
+You can chain codecs together, so to add a binary text encoding like Base64,
+to your codec, we use the ``|`` operator to form a combined codec:
 
 .. sourcecode:: python
 
@@ -91,7 +91,7 @@ The problem with monkey-patching is that we must make sure the patching
 happens before we use the feature.
 
 Faust also supports registering *codec extensions*
-using setuptools entrypoints, so instead we can create an installable msgpack
+using setuptools entry points, so instead we can create an installable msgpack
 extension.
 
 To do so we need to define a package with the following directory layout:
@@ -301,7 +301,7 @@ _extensions_finalized: MutableMapping[str, bool] = {}
 
 
 def register(name: str, codec: CodecT) -> None:
-    """Register new codec in the codec registy."""
+    """Register new codec in the codec registry."""
     codecs[name] = codec
 
 

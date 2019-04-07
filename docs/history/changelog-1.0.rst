@@ -180,7 +180,7 @@ For even older releases you can visit the :ref:`history` section.
 - **Web**: Adds ``app.on_webserver_init(web)`` callback for ability to serve static
   files using ``web.add_static``.
 
-- **Web**: Adds web.add_static(prefix, fs_path)
+- **Web**: Adds ``web.add_static(prefix, fs_path)``
 
 - **Worker**: New ``App.unassigned`` attribute is now set if the worker
   does not have any assigned partitions.
@@ -267,7 +267,7 @@ For even older releases you can visit the :ref:`history` section.
     with the official versions of :pypi:`aiokafka` and :pypi:`kafka-python`.
 
     If you have those in requirements, please remove them from your
-    virtual env and remove them from requirements.
+    ``virtualenv`` and remove them from requirements.
 
 - **Worker**: Fixes hanging in wait_empty.
 
@@ -303,7 +303,7 @@ For even older releases you can visit the :ref:`history` section.
 
     + Now depends on :pypi:`robinhood-aiokafka` 0.4.12
 
-- **Worker**: Fixed problem where worker does not recover after macbook
+- **Worker**: Fixed problem where worker does not recover after MacBook
   sleeping and waking up.
 
 - **Worker**: Fixed crash that could lead to rebalancing loop.
@@ -377,11 +377,11 @@ For even older releases you can visit the :ref:`history` section.
 - **Statsd**: The statsd monitor prematurely initialized the event loop
   on module import.
 
-    We had a fix for this, but somehow forgot to remove the "hardcoded
+    We had a fix for this, but somehow forgot to remove the "hard coded
     super" that was set to call: ``Service.__init__(self, **kwargs)``.
 
     The class is not even a subclass of Service anymore, and we are lucky it
-    manifests merely when doing something drastic, like py.test,
+    manifests merely when doing something drastic, like ``py.test``,
     recursively importing all modules in a directory.
 
 .. _version-1.0.12:
@@ -523,10 +523,10 @@ For even older releases you can visit the :ref:`history` section.
     + Now depends on Aiokafka 0.4.7.
 
 
-- **Table**: Delete keys whe raw value in changelog set to None
+- **Table**: Delete keys when raw value in changelog set to :const:`None`
 
-    This was resulting in deleted keys still being present with value None
-    upon recovery.
+    This was resulting in deleted keys still being present with value
+    :const:`None` upon recovery.
 
 - **Transports**: Crash app on CommitFailedError thrown by :pypi:`aiokafka`.
 
@@ -562,7 +562,7 @@ For even older releases you can visit the :ref:`history` section.
     with 100% CPU usage.
 
     After processing all records in all topic partitions, the worker
-    would spinloop.
+    would spin loop.
 
 - **API**: Added new base class for windows: :class:`faust.Window`
 
@@ -743,7 +743,7 @@ For even older releases you can visit the :ref:`history` section.
             # manual acknowledgment
             await stream.ack(stream.current_event)
 
-    .. admonition:: Manual Acknowledgement
+    .. admonition:: Manual Acknowledgment
 
         The stream is a sequence of events, where each event has a sequence
         number: the "offset".
@@ -752,7 +752,7 @@ For even older releases you can visit the :ref:`history` section.
         the Kafka broker will keep track of the last committed offset
         for any topic.
 
-        This means "acknowledgement" works quite differently from other
+        This means "acknowledgment" works quite differently from other
         message brokers, such as RabbitMQ where you can selectively
         ack some messages, but not others.
 

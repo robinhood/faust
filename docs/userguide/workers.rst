@@ -16,7 +16,7 @@ Starting the worker
 .. sidebar:: Daemonizing
 
     You probably want to use a daemonization tool to start
-    the worker in the background. Use systemd, supervisord or
+    the worker in the background. Use `systemd`, `supervisord` or
     any of the tools you usually use to start services.
     We hope to have a detailed guide for each of these soon.
 
@@ -82,7 +82,7 @@ again by another worker.
 .. admonition:: Starting subprocesses
 
     For Faust applications that start subprocesses as a side
-    effect of processsing the stream, you should know that the "double-fork"
+    effect of processing the stream, you should know that the "double-fork"
     problem on Unix means that the worker will not be able to reap its children
     when killed using the :sig:`KILL` signal.
 

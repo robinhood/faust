@@ -60,7 +60,7 @@ help:
 	@echo "contrib              - Regenerate CONTRIBUTING.rst file"
 	@echo "coc                  - Regenerate CODE_OF_CONDUCT.rst file"
 	@echo "clean-dist --------- - Clean all distribution build artifacts."
-	@echo "  clean-git-force    - Remove all uncomitted files."
+	@echo "  clean-git-force    - Remove all uncommitted files."
 	@echo "  clean ------------ - Non-destructive clean"
 	@echo "    clean-pyc        - Remove .pyc/__pycache__ files"
 	@echo "    clean-docs       - Remove documentation build artifacts."
@@ -112,6 +112,9 @@ apicheck:
 
 configcheck:
 	(cd "$(SPHINX_DIR)"; $(MAKE) configcheck)
+
+spell:
+	(cd "$(SPHINX_DIR)"; $(MAKE) spell)
 
 flakecheck:
 	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/

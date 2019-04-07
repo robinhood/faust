@@ -19,7 +19,6 @@ from kafka.coordinator.protocol import (
     ConsumerProtocolMemberMetadata,
 )
 from mode import get_logger
-from mode.utils.contexts import nullcontext
 from yarl import URL
 
 from faust.types.app import AppT
@@ -61,9 +60,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     Further, this assignor needs to be sticky and potentially redundant
 
     Notes:
-        Interface copied from
-        https://github.com/dpkp/kafka-python/blob/master/
-        kafka/coordinator/assignors/abstract.py
+        Interface copied from :mod:`kafka.coordinator.assignors.abstract`.
     """
 
     _metadata: ClientMetadata
@@ -193,17 +190,37 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             cluster: ClusterMetadata,
             member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
         if self.app.tracer:
-            span = self.app.tracer.get_tracer('_faust').start_span(
-                operation_name='coordinator_assignment',
-                tags={'hostname': socket.gethostname(),
-                      'cluster': cluster,
-                      'member_metadata': member_metadata})
+            return self._trace_assign(cluster, member_metadata)
         else:
-            span = nullcontext()
+            return self._assign(cluster, member_metadata)
+
+    def _trace_assign(
+            self,
+            cluster: ClusterMetadata,
+            member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
+        span = self.app.tracer.get_tracer('_faust').start_span(
+            operation_name='coordinator_assignment',
+            tags={'hostname': socket.gethostname()},
+        )
         with span:
-            assignment = self._perform_assignment(cluster, member_metadata)
+            assignment = self._assign(cluster, member_metadata)
             span.set_tag('assignment', assignment)
-            return assignment
+        return assignment
+
+    def _assign(
+            self,
+            cluster: ClusterMetadata,
+            member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
+        sensor_state = self.app.sensors.on_assignment_start(self)
+        try:
+            assignment = self._perform_assignment(cluster, member_metadata)
+        except MemoryError:
+            raise
+        except Exception as exc:
+            self.app.sensors.on_assignment_error(self, sensor_state, exc)
+        else:
+            self.app.sensors.on_assignment_completed(self, sensor_state)
+        return assignment
 
     def _perform_assignment(
             self,

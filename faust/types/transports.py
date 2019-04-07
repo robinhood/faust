@@ -432,7 +432,7 @@ class TransportT(abc.ABC):
     url: List[URL]
 
     #: String identifying the underlying driver used for this transport.
-    #: E.g. for :pypi:`aiokafka` this could be "aiokafka 0.4.1".
+    #: E.g. for :pypi:`aiokafka` this could be ``aiokafka 0.4.1``.
     driver_version: str
 
     loop: asyncio.AbstractEventLoop

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Withdrawal example.
 
-Quickstart
-==========
+Quick Start
+===========
 
 1) Start worker:
 

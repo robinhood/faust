@@ -7,6 +7,7 @@ from typing import Any, List, MutableMapping, Optional, Set, Tuple, cast
 import opentracing
 from mode import Service
 from mode.services import WaitArgT
+from mode.timers import timer_intervals
 from mode.utils.locks import Event
 from mode.utils.typing import Counter
 
@@ -48,31 +49,31 @@ class Recovery(Service):
 
     stats_interval: float = 5.0
 
-    #: Set of standby tps.
+    #: Set of standby topic partitions.
     standby_tps: Set[TP]
 
-    #: Set of active tps.
+    #: Set of active topic partitions.
     active_tps: Set[TP]
 
     actives_for_table: MutableMapping[CollectionT, Set[TP]]
     standbys_for_table: MutableMapping[CollectionT, Set[TP]]
 
-    #: Mapping from TP to table
+    #: Mapping from topic partition to table
     tp_to_table: MutableMapping[TP, CollectionT]
 
-    #: Active offset by TP.
+    #: Active offset by topic partition.
     active_offsets: Counter[TP]
 
-    #: Standby offset by TP.
+    #: Standby offset by topic partition.
     standby_offsets: Counter[TP]
 
-    #: Mapping of highwaters by tp.
+    #: Mapping of highwaters by topic partition.
     highwaters: Counter[TP]
 
-    #: Active highwaters by TP.
+    #: Active highwaters by topic partition.
     active_highwaters: Counter[TP]
 
-    #: Standby highwaters by TP.
+    #: Standby highwaters by topic partition.
     standby_highwaters: Counter[TP]
 
     _signal_recovery_start: Optional[Event] = None
@@ -89,7 +90,7 @@ class Recovery(Service):
     #: and need to be flushed before starting new recovery/stopping.
     buffers: MutableMapping[CollectionT, List[EventT]]
 
-    #: Cache of buffer size by TopicPartitiojn.
+    #: Cache of buffer size by topic partition..
     buffer_sizes: MutableMapping[TP, int]
 
     _recovery_span: Optional[opentracing.Span] = None
@@ -638,11 +639,18 @@ class Recovery(Service):
 
     @Service.task
     async def _publish_stats(self) -> None:
-        while not self.should_stop:
+        interval = self.stats_interval
+        await self.sleep(interval)
+        for sleep_time in timer_intervals(interval, name='Recovery.stats'):
+            if self.should_stop:
+                break
             if self.in_recovery:
-                self.log.info(
-                    'Still fetching. Remaining: %s', self.active_stats())
-            await self.sleep(self.stats_interval)
+                stats = self.active_stats()
+                if stats:
+                    self.log.info('Still fetching. Remaining: %s', stats)
+            await self.sleep(sleep_time)
+            if self.should_stop:
+                break
 
     def _is_changelog_tp(self, tp: TP) -> bool:
         return tp.topic in self.tables.changelog_topics

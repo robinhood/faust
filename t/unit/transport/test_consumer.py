@@ -771,9 +771,9 @@ class test_Consumer:
         consumer.crash.assert_called_once_with(exc)
 
     @pytest.mark.asyncio
-    async def test_commit_tps__no_commitable(self, *, consumer):
-        consumer._filter_commitable_offsets = Mock(name='filt')
-        consumer._filter_commitable_offsets.return_value = {}
+    async def test_commit_tps__no_committable(self, *, consumer):
+        consumer._filter_committable_offsets = Mock(name='filt')
+        consumer._filter_committable_offsets.return_value = {}
         await consumer._commit_tps(
             {TP1, TP2},
             start_new_transaction=True,
@@ -866,7 +866,7 @@ class test_Consumer:
         assert ret is consumer.transactions.commit.coro()
 
     @pytest.mark.asyncio
-    async def test_commit_offsets__no_commitable_offsets(self, *, consumer):
+    async def test_commit_offsets__no_committable_offsets(self, *, consumer):
         consumer.current_assignment.clear()
         assert not await consumer._commit_offsets({
             TP1: 3003,
@@ -956,7 +956,7 @@ class test_Consumer:
         await consumer._commit_handler(consumer)
         consumer.sleep.coro.assert_has_calls([
             call(consumer.commit_interval),
-            call(consumer.commit_interval),
+            call(pytest.approx(consumer.commit_interval, rel=1e-1)),
         ])
         consumer.commit.assert_called_once_with()
 

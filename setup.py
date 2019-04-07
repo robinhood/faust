@@ -15,8 +15,6 @@ try:
     from Cython.Build import cythonize
 except ImportError:
     USE_CYTHON = False
-    if os.environ.get('USE_CYTHON'):
-        raise Exception('USE_CYTHON enabled but cython is not installed')
 else:
     USE_CYTHON = os.environ.get('USE_CYTHON', True)
 

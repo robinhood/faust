@@ -44,7 +44,7 @@ Caching
 ~~~~~~~
 
 :``faust[redis]``:
-    for using `Redis_` as a simple caching backend (memcache-style).
+    for using `Redis_` as a simple caching backend (Memcached-style).
 
 Optimization
 ~~~~~~~~~~~~

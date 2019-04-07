@@ -149,6 +149,7 @@ class Stream(StreamT[T_co], Service):
         # Generate message handler
         self._on_stream_event_in = self.app.sensors.on_stream_event_in
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
+        self._on_message_in = self.app.sensors.on_message_in
         self._on_message_out = self.app.sensors.on_message_out
 
     def get_active_stream(self) -> StreamT:
@@ -201,10 +202,6 @@ class Stream(StreamT[T_co], Service):
             yield node
             node = dir_.getter(node)
 
-    async def _send_to_outbox(self, value: T_contra) -> None:
-        if self.outbox is not None:
-            await self.outbox.put(value)
-
     def add_processor(self, processor: Processor[T]) -> None:
         """Add processor callback executed whenever a new event is received.
 
@@ -242,7 +239,7 @@ class Stream(StreamT[T_co], Service):
         """Create a clone of this stream.
 
         Notes:
-            If the cloned stream is supposed to "supercede" this stream,
+            If the cloned stream is supposed to supersede this stream,
             like in ``group_by``/``through``/etc., you should use
             :meth:`_chain` instead so `stream._next = cloned_stream`
             is set and :meth:`get_active_stream` returns the cloned stream.
@@ -330,8 +327,10 @@ class Stream(StreamT[T_co], Service):
                         buffer_consuming = None
                 buffer_add(cast(T_co, value))
                 event = self.current_event
-                if event is not None:
-                    event_add(event)
+                if event is None:
+                    raise RuntimeError(
+                        'Take buffer found current_event is None')
+                event_add(event)
                 if buffer_size() >= max_:
                     # signal that the buffer is full and should be emptied.
                     buffer_full.set()
@@ -339,6 +338,8 @@ class Stream(StreamT[T_co], Service):
                     # If max is 1000, we are not allowed to return 1001 values.
                     buffer_consumed.clear()
                     await self.wait(buffer_consumed)
+            except CancelledError:  # pragma: no cover
+                raise
             except Exception as exc:
                 self.log.exception('Error adding to take buffer: %r', exc)
                 await self.crash(exc)
@@ -355,8 +356,8 @@ class Stream(StreamT[T_co], Service):
                 # wait until buffer full, or timeout
                 await self.wait_for_stopped(buffer_full, timeout=timeout)
                 if buffer:
-                    # make sure background thread does not add new times to
-                    # budfer while we read.
+                    # make sure background thread does not add new items to
+                    # buffer while we read.
                     buffer_consuming = self.loop.create_future()
                     try:
                         yield list(buffer)
@@ -369,6 +370,10 @@ class Stream(StreamT[T_co], Service):
                         notify(buffer_consuming)
                         buffer_full.clear()
                         buffer_consumed.set()
+                else:  # pragma: no cover
+                    pass
+            else:  # pragma: no cover
+                pass
 
         finally:
             # Restore last behaviour of "enable_acks"
@@ -447,7 +452,7 @@ class Stream(StreamT[T_co], Service):
                 await channel.maybe_declare()
             self._passive_started.set()
             try:
-                async for item in self:  # noqa
+                async for item in self:  # pragma: no cover
                     ...
             except BaseException as exc:
                 # forward the exception to the final destination channel,
@@ -707,29 +712,12 @@ class Stream(StreamT[T_co], Service):
         self._finalized = True
         await self.maybe_start()
         it = _CStreamIterator(self)
-        ack_exceptions = self.app.conf.stream_ack_exceptions
-        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
         try:
             while not self.should_stop:
                 do_ack = self.enable_acks
                 value = await it.next()  # noqa: B305
                 try:
                     yield value
-                except CancelledError:
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
-                except Exception:
-                    if not ack_exceptions:
-                        do_ack = False
-                    raise
-                except GeneratorExit:
-                    raise  # consumer did `break`
-                except BaseException:
-                    # e.g. SystemExit/KeyboardInterrupt
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
                 finally:
                     event, self.current_event = self.current_event, None
                     it.after(event, do_ack)
@@ -786,14 +774,12 @@ class Stream(StreamT[T_co], Service):
         _maybe_async = maybe_async
         event_cls = EventT
         _current_event_contextvar = _current_event
-        ack_exceptions = self.app.conf.stream_ack_exceptions
-        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
 
         consumer: ConsumerT = self.app.consumer
         unacked: Set[Message] = consumer._unacked_messages
         add_unacked: Callable[[Message], None] = unacked.add
         acking_topics: Set[str] = self.app.topics._acking_topics
-        on_message_in = self.app.sensors.on_message_in
+        on_message_in = self._on_message_in
         sleep = asyncio.sleep
         trace = self.app.trace
         _shortlabel = shortlabel
@@ -865,21 +851,6 @@ class Stream(StreamT[T_co], Service):
                     value = await on_merge(value)
                 try:
                     yield value
-                except CancelledError:
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
-                except Exception:
-                    if not ack_exceptions:
-                        do_ack = False
-                    raise
-                except GeneratorExit:
-                    raise  # consumer did `break`
-                except BaseException:
-                    # e.g. SystemExit/KeyboardInterrupt
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:

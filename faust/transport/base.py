@@ -6,7 +6,7 @@ The Transport is responsible for:
 - Creates new consumers/producers.
 
 To see a reference transport implementation go to:
-faust/transport/drivers/aiokafka.py
+:file:`faust/transport/drivers/aiokafka.py`
 """
 import asyncio
 from typing import Any, ClassVar, List, Type

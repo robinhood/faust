@@ -18,13 +18,12 @@ cdef class SlidingWindow:
         double after
         double expires
 
-    def __init__(self, object before, object, after,
-                 object expires = 0.0):
+    def __init__(self, object before, object after, object expires):
         self.before = want_seconds(before, None)
         self.after = want_seconds(after, None)
         self.expires = want_seconds(expires, 0.0)
 
-    cdef object ranges(self, double timestamp):
+    cpdef object ranges(self, double timestamp):
         return [
             (timestamp - self.before, timestamp + self.after),
         ]
@@ -34,6 +33,16 @@ cdef class SlidingWindow:
             return False
         when_stale = latest_timestamp - self.expires
         return timestamp <= when_stale
+
+    def current(self, double timestamp):
+        """Get the latest window range for a given timestamp."""
+        return timestamp - self.before, timestamp + self.after
+
+    def delta(self, double timestamp, object d):
+        return self.current(timestamp - want_seconds(d, 0.0))
+
+    def earliest(self, float timestamp):
+        return self.current(timestamp)
 
 
 

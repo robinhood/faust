@@ -49,11 +49,12 @@ decorator (see :ref:`tasks-cli-commands`).
 
 .. cmdoption:: --loop, -L
 
-    Event loop implementation to use: aio (default), gevent, uvloop.
+    Event loop implementation to use: ``aio`` (default), ``gevent``,
+    ``uvloop``.
 
 .. admonition:: Why is ``examples/word_count.py`` used as the program?
 
-    The convention for Faust projects is to define an entrypoint for
+    The convention for Faust projects is to define an entry point for
     the Faust command using ``app.main()`` - see :ref:`application-main`
     to see how to do so.
 
@@ -74,10 +75,10 @@ decorator (see :ref:`tasks-cli-commands`).
         from package.app import app
         app.main()
 
-    Or use setuptools entrypoints so that ``pip install myproj`` installs
+    Or use setuptools entry points so that ``pip install myproj`` installs
     a command-line program.
 
-    Even if you don't add an entrypoint you can always use the
+    Even if you don't add an entry point you can always use the
     :program:`faust` program by specifying the path to an app.
 
     Either the name of a module having an ``app`` attribute:

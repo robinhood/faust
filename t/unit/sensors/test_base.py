@@ -1,5 +1,6 @@
 import pytest
 from faust import Event, Stream, Table, Topic
+from faust.assignor import PartitionAssignor
 from faust.sensors import Sensor
 from faust.transport.consumer import Consumer
 from faust.transport.producer import Producer
@@ -44,6 +45,11 @@ def producer():
     return Mock(name='producer', autospec=Producer)
 
 
+@pytest.fixture
+def assignor():
+    return Mock(name='assignor', autospec=PartitionAssignor)
+
+
 class test_Sensor:
 
     @pytest.fixture
@@ -86,6 +92,12 @@ class test_Sensor:
     def test_on_send_completed(self, *, sensor, producer):
         sensor.on_send_completed(
             producer, Mock(name='state'), Mock(name='metadata'))
+
+    def test_on_assignment(self, *, sensor, assignor):
+        state = sensor.on_assignment_start(assignor)
+        assert state['time_start']
+        sensor.on_assignment_error(assignor, state, KeyError())
+        sensor.on_assignment_completed(assignor, state)
 
     def test_on_send_error(self, *, sensor, producer):
         sensor.on_send_error(
@@ -169,6 +181,19 @@ class test_SensorDelegate:
         sensors.on_send_error(producer, exc, state)
         sensor.on_send_error.assert_called_once_with(
             producer, exc, state[sensor])
+
+    def test_on_assignment(self, *, sensors, sensor, assignor):
+        state = sensors.on_assignment_start(assignor)
+        sensor.on_assignment_start.assert_called_once_with(assignor)
+
+        sensors.on_assignment_completed(assignor, state)
+        sensor.on_assignment_completed.assert_called_once_with(
+            assignor, state[sensor])
+
+        exc = KeyError('bar')
+        sensors.on_assignment_error(assignor, state, exc)
+        sensor.on_assignment_error.assert_called_once_with(
+            assignor, state[sensor], exc)
 
     def test_repr(self, *, sensors):
         assert repr(sensors)

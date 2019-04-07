@@ -232,6 +232,38 @@ class test_DatadogMonitor:
                  value=ANY, sample_rate=mon.rate, tags=None),
         ])
 
+    def test_on_assignment_start_completed(self, *, mon):
+        assignor = Mock(name='assignor')
+        state = mon.on_assignment_start(assignor)
+        mon.on_assignment_completed(assignor, state)
+
+        client = mon.client.client
+        client.increment.assert_has_calls([
+            call('assignments_complete',
+                 sample_rate=mon.rate,
+                 tags=None,
+                 value=1.0),
+        ])
+        client.timing.assert_called_once_with(
+            'assignment_latency', value=ANY, sample_rate=mon.rate, tags=None,
+        )
+
+    def test_on_assignment_start_error(self, *, mon):
+        assignor = Mock(name='assignor')
+        state = mon.on_assignment_start(assignor)
+        mon.on_assignment_error(assignor, state, KeyError())
+
+        client = mon.client.client
+        client.increment.assert_has_calls([
+            call('assignments_error',
+                 sample_rate=mon.rate,
+                 tags=None,
+                 value=1.0),
+        ])
+        client.timing.assert_called_once_with(
+            'assignment_latency', value=ANY, sample_rate=mon.rate, tags=None,
+        )
+
     def test_count(self, *, mon):
         mon.count('metric_name', count=3)
         mon.client.client.increment.assert_called_once_with(

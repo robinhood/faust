@@ -1,9 +1,9 @@
 aiohttp>=2.3.9,<4.0
 aiohttp_cors>=0.7,<2.0
-robinhood-aiokafka>=1.0.1,<1.1
+robinhood-aiokafka>=1.0.2,<1.1
 click>=6.7,<7.0
 colorclass>=2.2,<3.0
-mode>=3.1,<4.0
+mode>=3.1.3,<4.0
 opentracing>=1.3.0,<2.0.0
 terminaltables>=3.1,<4.0
 venusian>=1.1,<2.0

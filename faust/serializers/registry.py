@@ -83,7 +83,7 @@ class Registry(RegistryT):
 
         Arguments:
             typ: Model to use for deserialization.
-            value: Bytestring to deserialize.
+            value: bytes to deserialize.
 
             serializer: Codec to use for this value.  If not set
                the default will be used (:attr:`value_serializer`).
@@ -130,8 +130,8 @@ class Registry(RegistryT):
         """Serialize key.
 
         Arguments:
-            typ: Model hint (can also be str/bytes).
-                 When `typ=str` or `bytes`, raw serializer is assumed.
+            typ: Model hint (can also be :class:`str`/:class:`bytes`).
+                 When ``typ=str`` or :class:`bytes`, raw serializer is assumed.
             key: The key value to serializer.
 
             serializer: Codec to use for this key, if it is not a model type.
@@ -158,8 +158,8 @@ class Registry(RegistryT):
         """Serialize value.
 
         Arguments:
-            typ: Model hint (can also be str/bytes).
-                 When `typ=str` or `bytes`, raw serializer is assumed.
+            typ: Model hint (can also be :class:`str`/:class:`bytes`).
+                 When ``typ=str`` or :class:`bytes`, raw serializer is assumed.
             key: The value to serializer.
 
             serializer: Codec to use for this value, if it is not a model type.

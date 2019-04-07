@@ -123,6 +123,30 @@ class test_StatsdMonitor:
             call('send_latency_for_error', ANY, rate=mon.rate),
         ])
 
+    def test_on_assignment_start_completed(self, *, mon):
+        assignor = Mock(name='assignor')
+        state = mon.on_assignment_start(assignor)
+        mon.on_assignment_completed(assignor, state)
+
+        mon.client.incr.assert_has_calls([
+            call('assignments_complete', rate=mon.rate),
+        ])
+        mon.client.timing.assert_has_calls([
+            call('assignment_latency', ANY, rate=mon.rate),
+        ])
+
+    def test_on_assignment_start_failed(self, *, mon):
+        assignor = Mock(name='assignor')
+        state = mon.on_assignment_start(assignor)
+        mon.on_assignment_error(assignor, state, KeyError())
+
+        mon.client.incr.assert_has_calls([
+            call('assignments_error', rate=mon.rate),
+        ])
+        mon.client.timing.assert_has_calls([
+            call('assignment_latency', ANY, rate=mon.rate),
+        ])
+
     def test_count(self, *, mon):
         mon.count('metric_name', count=3)
         mon.client.incr.assert_called_once_with(

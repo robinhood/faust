@@ -73,7 +73,7 @@ streams must share shards.
 To shard the table differently, you must first repartition the stream using
 :class:`~@Stream.group_by`.
 
-Repartion a stream:
+Repartition a stream:
 
 .. sourcecode:: python
 
@@ -132,7 +132,7 @@ partitioned by country name, is partitioned by the user ID. In practice,
 this means that data for a country may reside on multiple partitions, and
 worker instances end up with incomplete data.
 
-To fix that reimplement your program like this, using two distinct agents
+To fix that rewrite your program like this, using two distinct agents
 and repartition the stream by country when populating the table:
 
 .. sourcecode:: python

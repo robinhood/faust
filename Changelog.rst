@@ -8,6 +8,63 @@ This document contain change notes for bugfix releases in
 the Faust 1.5 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.5.2:
+
+1.5.2
+=====
+:release-date: 2019-03-28 11:00 A.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 3.1.1 <mode:version-3.1.1>`.
+
+- Timers: Prevent drift + add some tiny drift.
+
+    Thanks to Bob Haddleton (:github_user:`bobh66`).
+
+- **App**: Autodiscovery now avoids importing ``__main__.py`` (Issue #324).
+
+    Added regression test.
+
+- The :setting:`stream_ack_exceptions` setting has been deprecated.
+
+    It was not having any effect, and we have no current use for it.
+
+- The :setting:`stream_ack_cancelled_tasks` setting has been deprecated.
+
+    It was not having any effect, and we have no current use for it.
+
+- **App**: Autodiscovery failed to load when using ``app.main()`` in some
+  cases (Issue #323).
+
+    Added regression test.
+
+- **Worker**: Fixed error during agent shutdown.
+
+- **Monitor**: Monitor assignment latency + assignments completed/failed.
+
+    Implemented in the default monitor, but also for statsd and datadog.
+
+- **CLI**: The :program:`faust` program had the wrong help description.
+
+- **Docs**: Fixes typo in :setting:`web_cors_options` example.
+
+- **App**: Do no wait for table recovery finished signal,
+  if the app is not starting the recovery service.
+
+.. _version-1.5.1:
+
+1.5.1
+=====
+:release-date: 2019-03-24 09:45 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- Fixed hanging in partition assignment introduced in Faust 1.5
+  (Issue #320).
+
+    Contributed by Bob Haddleton (:github_user:`bobh66`).
+
 .. _version-1.5.0:
 
 1.5.0
@@ -180,7 +237,7 @@ please visit the :ref:`history` section.
 - **App**: Web server is no longer running in a separate thread by default.
 
     Running the web server in a separate thread is beneficial as it
-    will not be affected by backpressue in the main thread event loop,
+    will not be affected by back pressure in the main thread event loop,
     but it also makes programming harder when it cannot share the loop
     of the parent.
 
@@ -275,7 +332,7 @@ please visit the :ref:`history` section.
 
     See new :setting:`web_cors_options` setting.
 
-- **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/crontabs
+- **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/Crontabs
    and rebalancing process.
 
     To enable you have to define a custom ``Tracer`` class that will

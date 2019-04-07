@@ -708,6 +708,15 @@ class test_Producer:
         app.in_transaction = False
         assert producer._settings_extra() == {}
 
+    def test__new_producer__default(self, *, producer):
+        p = producer._new_producer()
+        assert isinstance(p, aiokafka.AIOKafkaProducer)
+
+    def test__new_producer__in_transaction(self, *, producer):
+        producer.app.in_transaction = True
+        p = producer._new_producer()
+        assert isinstance(p, aiokafka.MultiTXNProducer)
+
     def test__producer_type(self, *, producer, app):
         app.in_transaction = True
         assert producer._producer_type is aiokafka.MultiTXNProducer
@@ -727,11 +736,58 @@ class test_Producer:
         await producer._on_irrecoverable_error(exc)
         app.consumer.crash.assert_called_once_with(exc)
 
+    @pytest.mark.asyncio
+    async def test_create_topic(self, *, producer, _producer):
+        producer.transport = Mock(
+            _create_topic=AsyncMock(),
+        )
+        await producer.create_topic(
+            'foo', 100, 3,
+            config={'x': 'y'},
+            timeout=30.3,
+            retention=300.3,
+            compacting=True,
+            deleting=True,
+            ensure_created=True,
+        )
+        producer.transport._create_topic.coro.assert_called_once_with(
+            producer,
+            _producer.client,
+            'foo',
+            100,
+            3,
+            config={'x': 'y'},
+            timeout=int(30.3 * 1000.0),
+            retention=int(300.3 * 1000.0),
+            compacting=True,
+            deleting=True,
+            ensure_created=True,
+        )
+
     def test__ensure_producer(self, *, producer, _producer):
         assert producer._ensure_producer() is _producer
         producer._producer = None
         with pytest.raises(NotReady):
             producer._ensure_producer()
+
+    @pytest.mark.asyncio
+    async def test_on_start(self, *, producer, loop):
+        producer._new_producer = Mock(
+            name='_new_producer',
+            return_value=Mock(
+                start=AsyncMock(),
+            ),
+        )
+        _producer = producer._new_producer.return_value
+        producer.beacon = Mock()
+        producer._last_batch = loop.time()
+
+        await producer.on_start()
+        assert producer._producer is _producer
+        producer._new_producer.assert_called_once_with()
+        producer.beacon.add.assert_called_once_with(_producer)
+        _producer.start.coro.assert_called_once_with()
+        assert producer._last_batch is None
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, producer, _producer):
@@ -866,6 +922,61 @@ class test_Transport:
             'retention.ms': 3000.3,
             'cleanup.policy': 'compact,delete',
         }
+
+    @pytest.mark.asyncio
+    async def test__create_topic(self, *, transport):
+        client = Mock(name='client')
+        transport._topic_waiters['foo'] = AsyncMock()
+        await transport._create_topic(
+            transport,
+            client,
+            topic='foo',
+            partitions=100,
+            replication=3,
+        )
+        transport._topic_waiters['foo'].coro.assert_called_with()
+
+    @pytest.mark.asyncio
+    async def test__create_topic__missing(self, *, transport, loop):
+        client = Mock(name='client')
+        transport._topic_waiters.clear()
+        with patch('faust.transport.drivers.aiokafka.StampedeWrapper') as SW:
+            SW.return_value = AsyncMock()
+            await transport._create_topic(
+                transport,
+                client,
+                topic='foo',
+                partitions=100,
+                replication=3,
+            )
+            SW.assert_called_once_with(
+                transport._really_create_topic,
+                transport,
+                client,
+                'foo',
+                100,
+                3,
+                loop=loop,
+            )
+            SW.return_value.coro.assert_called_once_with()
+            assert transport._topic_waiters['foo'] is SW.return_value
+
+    @pytest.mark.asyncio
+    async def test__create_topic__raises(self, *, transport, loop):
+        client = Mock(name='client')
+        transport._topic_waiters.clear()
+        with patch('faust.transport.drivers.aiokafka.StampedeWrapper') as SW:
+            SW.return_value = AsyncMock()
+            SW.return_value.coro.side_effect = KeyError('foo')
+            with pytest.raises(KeyError):
+                await transport._create_topic(
+                    transport,
+                    client,
+                    topic='foo',
+                    partitions=100,
+                    replication=3,
+                )
+            assert 'foo' not in transport._topic_waiters
 
 
 @pytest.mark.parametrize('credentials,ssl_context,expected', [

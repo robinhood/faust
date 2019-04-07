@@ -15,8 +15,8 @@ Creators
     Ask the community for help in the Slack channel, or ask
     a question on Stack Overflow.
 
-Comitters
-=========
+Committers
+==========
 
 +---------------------+---------------------------------------+
 | Arpan Shah          | <arpan@robinhood.com>                 |
@@ -78,4 +78,6 @@ Contributors
 |  Perk Lim           | <perk@robinhood.com>                  |
 +---------------------+---------------------------------------+
 | Julien Surloppe     | <julien@surloppe.fr>                  |
++---------------------+---------------------------------------+
+| Bob Haddleton       | <bob.haddleton@nokia.com>             |
 +---------------------+---------------------------------------+

@@ -57,7 +57,7 @@ For even older releases you can visit the :ref:`history` section.
     if the buffer grows too large and we have too much to do
     during commit.
 
-    The commit operation works like this (in pseudocode) when
+    The commit operation works like this (in pseudo code) when
     :setting:`stream_publish_on_commit` is enabled:
 
     .. sourcecode:: python
@@ -262,7 +262,7 @@ News
             volume: Decimal
 
     When serialized this model will use string for decimal fields
-    (the javascript float type cannot be used without losing precision, it
+    (the Javascript float type cannot be used without losing precision, it
     is a float after all), but when deserializing Faust will reconstruct
     them as Decimal objects from that string.
 
@@ -390,7 +390,7 @@ News
     Contributed by Mika Eloranta (:github_user:`melor`).
 
 - **Distribution**: ``pip install faust`` no longer installs the examples
-  direcrtory.
+  directory.
 
     Fix contributed by Michael Seifert (:github_user:`seifertm`)
 

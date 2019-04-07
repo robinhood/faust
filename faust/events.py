@@ -38,7 +38,7 @@ class Event(EventT):
 
             event.message.offset
 
-        - Iteratiing over channels/topics yields Event:
+        - Iterating over channels/topics yields Event:
 
             async for event in channel:
                 ...
@@ -90,7 +90,7 @@ class Event(EventT):
             stream objects, so in the example:
 
             The best way to access the current_event in an agent is
-            to use the contextvar:
+            to use the :class:`~contextvars.ContextVar`:
 
             .. sourcecode:: python
 

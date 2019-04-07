@@ -84,7 +84,7 @@ def option(*option_decls: Any,
     """Create command-line option.
 
     SeeAlso:
-        func:`click.option`
+        :func:`click.option`
     """
     return click.option(*option_decls, show_default=show_default, **kwargs)
 
@@ -383,13 +383,18 @@ class _Group(click.Group):
 
 # This is the thing that app.main(), ``python -m faust -A ...``,
 # and ``faust -A ..`` calls (see also faust/__main__.py, and setup.py
-# in the git repository (entrypoints).)
+# in the git repository (entry points).)
 
 @click.group(cls=_Group)
 @_apply_options(builtin_options)
 @click.pass_context
 def cli(*args: Any, **kwargs: Any) -> None:  # pragma: no cover
-    """Create :pypi:`click` CLI object."""
+    """Welcome, see list of commands and options below.
+
+    Use --help for help, --version for version information.
+
+    https://faust.readthedocs.io
+    """
     return _prepare_cli(*args, **kwargs)
 
 
@@ -487,7 +492,7 @@ class Command(abc.ABC):
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> NoReturn:
             cmd = cls(*args, **kwargs)
-            with exiting():
+            with exiting(print_exception=True, file=sys.stderr):
                 cmd()
 
         return _apply_options(cls.options or [])(
@@ -515,7 +520,7 @@ class Command(abc.ABC):
 
     @classmethod
     def parse(cls, argv: Sequence[str]) -> Mapping:
-        """Parse command-line arguments in argv' and return mapping."""
+        """Parse command-line arguments in ``argv`` and return mapping."""
         return cls._parse(argv, standalone_mode=False)
 
     @staticmethod
@@ -674,7 +679,7 @@ class Command(abc.ABC):
         return self.color('b', text)
 
     def bold_tail(self, text: str, *, sep: str = '.') -> str:
-        """Put bold emphasis on the last part of a foo.bar.baz string."""
+        """Put bold emphasis on the last part of a ``foo.bar.baz`` string."""
         head, fsep, tail = text.rpartition(sep)
         return fsep.join([head, self.bold(tail)])
 

@@ -92,6 +92,8 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_wait_for_table_recovery_completed(self, *, app):
+        app.tables = Mock()
+        app.tables.recovery.started = True
         app.wait_for_stopped = AsyncMock(name='wait_for_stopped')
         await app._wait_for_table_recovery_completed()
         app.wait_for_stopped.assert_called_once_with(
