@@ -252,6 +252,8 @@ class LiveCheck(faust.App):
 
         for attr_name, attr_type in fields.items():
             actual_type = getattr(attr_type, '__origin__', attr_type)
+            if actual_type is None:  # Python <3.7
+                actual_type = attr_type
             try:
                 if issubclass(actual_type, BaseSignal):
                     yield attr_name
