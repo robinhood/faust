@@ -11,14 +11,15 @@ from time import monotonic
 from typing import (
     Any,
     AsyncGenerator,
+    ClassVar,
     Dict,
     Iterable,
     Optional,
+    Type,
     Union,
 )
 
 from aiohttp import ClientError, ClientTimeout
-from faust.utils.functional import deque_pushpopmax
 from mode import Seconds, Service, want_seconds
 from mode.timers import timer_intervals
 from mode.utils.contexts import asynccontextmanager
@@ -26,7 +27,10 @@ from mode.utils.times import humanize_seconds
 from mode.utils.typing import Counter, Deque
 from yarl import URL
 
-from .exceptions import SuiteFailed
+from faust.utils import uuid
+from faust.utils.functional import deque_pushpopmax
+
+from .exceptions import ServiceDown, SuiteFailed, SuiteStalled
 from .locals import current_execution_stack, current_test_stack
 from .models import SignalEvent, State, TestExecution, TestReport
 from .runners import TestRunner
@@ -43,6 +47,8 @@ __all__ = ['Case']
 class Case(Service):
     """LiveCheck test case."""
 
+    Runner: ClassVar[Type[TestRunner]] = TestRunner
+
     app: _LiveCheck
 
     #: Name of the test
@@ -58,18 +64,18 @@ class Case(Service):
     #: (define Case.make_fake_request()).
     #:
     #: Set to None if production traffic is frequent enough to
-    #: satisfy :attr:`warn_empty_after`.
+    #: satisfy :attr:`warn_stalled_after`.
     frequency: Optional[float] = None
 
     #: Timeout in seconds for when after we warn that nothing is processing.
-    warn_empty_after: float = 1800.0
+    warn_stalled_after: float = 1800.0
 
     #: Probability of test running when live traffic is going through.
     probability: float = 0.5
 
     max_consecutive_failures: int = 30
 
-    #: The warn_empty_after timer uses this to keep track of
+    #: The warn_stalled_after timer uses this to keep track of
     #: either when a test was last received, or the last time the timer
     #: tiemd out.
     last_test_received: Optional[float] = None
@@ -113,7 +119,7 @@ class Case(Service):
                  app: _LiveCheck,
                  name: str,
                  probability: float = None,
-                 warn_empty_after: Seconds = None,
+                 warn_stalled_after: Seconds = None,
                  active: bool = None,
                  signals: Iterable[BaseSignal] = None,
                  test_expires: Seconds = None,
@@ -134,8 +140,8 @@ class Case(Service):
             self.active = active
         if probability is not None:
             self.probability = probability
-        if warn_empty_after is not None:
-            self.warn_empty_after = want_seconds(warn_empty_after)
+        if warn_stalled_after is not None:
+            self.warn_stalled_after = want_seconds(warn_stalled_after)
         self._original_signals = signals or ()
         self.signals = {
             sig.name: sig.clone(case=self)
@@ -180,6 +186,9 @@ class Case(Service):
 
     @Service.timer(10.0)
     async def _sampler(self) -> None:
+        await self._sample()
+
+    async def _sample(self) -> None:
         if self.frequency_history:
             self.frequency_avg = median(self.frequency_history)
         if self.latency_history:
@@ -192,7 +201,7 @@ class Case(Service):
 
     @asynccontextmanager
     async def maybe_trigger(
-            self, id: str,
+            self, id: str = None,
             *args: Any,
             **kwargs: Any) -> AsyncGenerator[Optional[TestExecution], None]:
         execution: Optional[TestExecution] = None
@@ -202,9 +211,10 @@ class Case(Service):
                 exit_stack.enter_context(current_test_stack.push(execution))
             yield execution
 
-    async def trigger(self, id: str,
+    async def trigger(self, id: str = None,
                       *args: Any,
                       **kwargs: Any) -> TestExecution:
+        id = id or uuid()
         execution = TestExecution(
             id=id,
             case_name=self.name,
@@ -227,7 +237,7 @@ class Case(Service):
 
     async def execute(self, test: TestExecution) -> None:
         t_start = monotonic()
-        runner = TestRunner(self, test, started=t_start)
+        runner = self.Runner(self, test, started=t_start)
         with current_execution_stack.push(runner):
             # resolve_models
             await runner.execute()
@@ -254,20 +264,19 @@ class Case(Service):
     async def on_test_failed(self,
                              runner: TestRunner,
                              exc: BaseException) -> None:
-        await self._set_error_state(State.FAIL)
+        await self._set_test_error_state(State.FAIL)
 
     async def on_test_error(self,
                             runner: TestRunner,
                             exc: BaseException) -> None:
-        await self._set_error_state(State.ERROR)
+        await self._set_test_error_state(State.ERROR)
 
     async def on_test_timeout(self,
                               runner: TestRunner,
                               exc: BaseException) -> None:
-        self.state = State.TIMEOUT
-        await self._set_error_state(State.TIMEOUT)
+        await self._set_test_error_state(State.TIMEOUT)
 
-    async def _set_error_state(self, state: State) -> None:
+    async def _set_test_error_state(self, state: State) -> None:
         self.state = state
         self.consecutive_failures += 1
         self.total_failures += 1
@@ -279,7 +288,7 @@ class Case(Service):
                         self.consecutive_failures,
                         self.max_consecutive_failures))
             except SuiteFailed as exc:
-                await self.on_suite_failed(exc)
+                await self.on_suite_fail(exc)
 
     def _set_pass_state(self, state: State) -> None:
         assert state.is_ok()
@@ -303,6 +312,7 @@ class Case(Service):
     async def _send_frequency(self) -> None:
         freq = self.frequency
         if freq:
+            await self.sleep(freq)
             for sleep_time in timer_intervals(freq, name=f'{self.name}_send'):
                 if self.should_stop:
                     break
@@ -316,7 +326,7 @@ class Case(Service):
 
     @Service.task
     async def _check_frequency(self) -> None:
-        timeout = self.warn_empty_after
+        timeout = self.warn_stalled_after
         await self.sleep(timeout)
         self.last_test_received = None
         time_start = monotonic()
@@ -332,37 +342,43 @@ class Case(Service):
                         secs_since = now - self.last_test_received
                     else:
                         secs_since = now - time_start
-                    if secs_since > self.warn_empty_after:
+                    if secs_since > self.warn_stalled_after:
                         human_secs = humanize_seconds(secs_since)
-                        raise SuiteFailed(
-                            f'Test last received {human_secs} ago '
-                            f'(warn_empty_after={timeout}).')
                         # we reset the timer to avoid logging every second.
                         last_warning = now
+                        raise SuiteStalled(
+                            f'Test stalled! Last received {human_secs} ago '
+                            f'(warn_stalled_after={timeout}).')
                     else:
                         self._maybe_recover_from_failed_state()
-            except SuiteFailed as exc:
+            except SuiteStalled as exc:
                 # we don't want to propagate this here, keep running...
-                await self.on_suite_fail(exc)
+                await self.on_suite_fail(exc, State.STALL)
             await self.sleep(sleep_time)
             if self.should_stop:
                 break  # fast
 
-    async def on_suite_fail(self, exc: SuiteFailed) -> None:
+    async def on_suite_fail(self,
+                            exc: SuiteFailed,
+                            new_state: State = State.FAIL) -> None:
+        assert isinstance(exc, SuiteFailed)
         delay = self.state_transition_delay
         if self.state.is_ok() or self._failed_longer_than(delay):
+            self.state = new_state
+            self.last_fail = monotonic()
             self.log.exception(str(exc))
             await self.post_report(TestReport(
                 case_name=self.name,
-                state=self.state,
+                state=new_state,
                 test=None,
                 runtime=None,
                 signal_latency={},
                 error=str(exc),
                 traceback='\n'.join(traceback.format_tb(exc.__traceback__)),
             ))
-        self.state = State.FAIL
-        self.last_fail = monotonic()
+        else:
+            self.state = new_state
+            self.last_fail = monotonic()
 
     def _maybe_recover_from_failed_state(self) -> None:
         if self.state != State.PASS:
@@ -403,10 +419,12 @@ class Case(Service):
                             method, url,
                             timeout=timeout, **kwargs) as response:
                         response.raise_for_status()
-                        return await response.read()
+                        payload = await response.read()
+                        self._maybe_recover_from_failed_state()
+                        return payload
                 except ClientError as exc:
                     if i >= self.url_error_retries:
-                        raise SuiteFailed(
+                        raise ServiceDown(
                             f'Cannot send fake test request: {exc!r}')
                     retry_in = humanize_seconds(
                         error_delay, microseconds=True)
@@ -417,11 +435,11 @@ class Case(Service):
                         self.url_error_delay_max,
                     )
                     await self.sleep(error_delay)
-                else:
-                    self._maybe_recover_from_failed_state()
-        except SuiteFailed as exc:
+            else:  # pragma: no cover
+                pass
+        except ServiceDown as exc:
             # we don't want to propagate this here, keep running...
-            await self.on_suite_failed(exc)
+            await self.on_suite_fail(exc)
         return None
 
     @property

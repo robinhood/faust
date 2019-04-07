@@ -5,7 +5,7 @@ from http import HTTPStatus
 from typing import Any, NamedTuple
 import pytest
 from _pytest.assertion.util import _compare_eq_dict, _compare_eq_set
-from aiohttp.client import ClientSession
+from aiohttp.client import ClientError, ClientSession
 from aiohttp.web import Response
 from mode.utils.futures import all_tasks
 from mode.utils.mocks import (
@@ -111,6 +111,7 @@ class SessionMarker(NamedTuple):
     text: bytes
     json: Any
     json_iterator: Any
+    max_failures: int
 
 
 @pytest.fixture()
@@ -122,17 +123,28 @@ def mock_http_client(*, app, monkeypatch, request) -> ClientSession:
             'text': b'',
             'json': None,
             'json_iterator': None,
+            'max_failures': None,
         },
         **(marker.kwargs or {} if marker else {}),
     })
+
+    def raise_for_status():
+        if options.max_failures is not None:
+            if session.request.call_count >= options.max_failures:
+                return
+        if 400 <= options.status_code:
+            raise ClientError()
+
     response = AsyncMock(
         autospec=Response,
         text=AsyncMock(return_value=options.text),
+        read=AsyncMock(return_value=options.text),
         json=AsyncMock(
             return_value=options.json,
             side_effect=options.json_iterator,
         ),
         status_code=options.status_code,
+        raise_for_status=raise_for_status,
     )
     session = Mock(
         name='http_client',

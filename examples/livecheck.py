@@ -160,7 +160,7 @@ async def execute_order(orders: StreamT[Order]) -> None:
         print('5. ORDER EXECUTED BY EXECUTION AGENT')
 
 
-@livecheck.case(warn_empty_after=5.0, frequency=0.5, probability=0.5)
+@livecheck.case(warn_stalled_after=5.0, frequency=0.5, probability=0.5)
 class test_order(Case):
 
     order_sent_to_db: Signal[Order]

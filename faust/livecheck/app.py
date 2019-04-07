@@ -187,7 +187,7 @@ class LiveCheck(faust.App):
     def case(self, *,
              name: str = None,
              probability: float = None,
-             warn_empty_after: Seconds = timedelta(minutes=30),
+             warn_stalled_after: Seconds = timedelta(minutes=30),
              active: bool = None,
              test_expires: Seconds = None,
              frequency: Seconds = None,
@@ -207,24 +207,11 @@ class LiveCheck(faust.App):
                 '__module__': cls.__module__,
                 'app': self,
             })
-            fields, defaults = annotations(
-                case_cls,
-                stop=base_case,
-                skip_classvar=True,
-                localns={case_cls.__name__: case_cls},
-            )
+
+            signal_names = self._extract_signals(case_cls, base_case)
             signals = []
 
-            def find_signals() -> Iterable[str]:
-                for attr_name, attr_type in fields.items():
-                    actual_type = getattr(attr_type, '__origin__', attr_type)
-                    try:
-                        if issubclass(actual_type, BaseSignal):
-                            yield attr_name
-                    except TypeError:
-                        pass
-
-            for i, attr_name in enumerate(find_signals()):
+            for i, attr_name in enumerate(signal_names):
                 signal = getattr(case_cls, attr_name, None)
                 if signal is None:
                     signal = self.Signal(name=attr_name, index=i + 1)
@@ -238,7 +225,7 @@ class LiveCheck(faust.App):
                 name=self._prepare_case_name(name or qualname(cls)),
                 active=active,
                 probability=probability,
-                warn_empty_after=warn_empty_after,
+                warn_stalled_after=warn_stalled_after,
                 signals=signals,
                 test_expires=test_expires,
                 frequency=frequency,
@@ -252,6 +239,24 @@ class LiveCheck(faust.App):
                 url_error_delay_max=url_error_delay_max,
             ))
         return _inner
+
+    def _extract_signals(self,
+                         case_cls: Type[_Case],
+                         base_case: Type[_Case]) -> Iterable[str]:
+        fields, defaults = annotations(
+            case_cls,
+            stop=base_case,
+            skip_classvar=True,
+            localns={case_cls.__name__: case_cls},
+        )
+
+        for attr_name, attr_type in fields.items():
+            actual_type = getattr(attr_type, '__origin__', attr_type)
+            try:
+                if issubclass(actual_type, BaseSignal):
+                    yield attr_name
+            except TypeError:
+                pass
 
     def add_case(self, case: _Case) -> _Case:
         self.cases[case.name] = case

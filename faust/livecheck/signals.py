@@ -4,7 +4,7 @@ from time import monotonic
 from typing import Any, Dict, Generic, Tuple, Type, TypeVar, cast
 from mode import Seconds, want_seconds
 
-from .exceptions import TestRaised, TestTimeout
+from .exceptions import TestTimeout
 from .locals import current_test_stack
 from .models import SignalEvent
 from .utils import to_model
@@ -172,10 +172,10 @@ class Signal(BaseSignal[VT]):
                 msg = f'Timed out waiting for signal {self.name} ({timeout})'
                 raise TestTimeout(msg) from None
             if app.should_stop:
-                raise asyncio.CancelledError()
+                break
             try:
                 val = self._get_current_value(key)
                 return val
             except KeyError:
                 pass
-        raise TestRaised('internal error')
+        raise asyncio.CancelledError()

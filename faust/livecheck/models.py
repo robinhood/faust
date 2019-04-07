@@ -24,6 +24,7 @@ class State(Enum):
     FAIL = 'FAIL'
     ERROR = 'ERROR'
     TIMEOUT = 'TIMEOUT'
+    STALL = 'STALL'
     SKIP = 'SKIP'
 
     def is_ok(self) -> bool:
