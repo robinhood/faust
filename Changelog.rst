@@ -8,6 +8,22 @@ This document contain change notes for bugfix releases in
 the Faust 1.5 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.5.3:
+
+:release-date: 2019-04-06 11:25 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**:
+
+    + Now depends on :pypi:`robinhood-aiokafka` 1.0.2
+
+        This version disables the "LeaveGroup" timeout
+        added in 1.0.0, as it was causing problems.
+
+- **Documentation**: Fixed spelling.
+
+- **Tests**: Fixed flaky regression test.
+
 .. _version-1.5.2:
 
 1.5.2
