@@ -120,8 +120,8 @@ spell:
 flakecheck:
 	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/
 
-pep257check:
-	$(PYDOCSTYLE) "$(PROJ)"
+docstylecheck:
+	$(PYDOCSTYLE) --match-dir '(?!types)' "$(PROJ)"
 
 vulture:
 	$(VULTURE) "$(PROJ)" "$(TESTDIR)" "$(EXAMPLESDIR)" \
