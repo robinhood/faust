@@ -3,13 +3,14 @@ import datetime
 import enum
 import typing
 import uuid
-from collections import deque
+from collections import Counter, deque
 from decimal import Decimal
 from typing import (
     Any,
     Callable,
     Iterable,
     List,
+    Mapping,
     Optional,
     Tuple,
     Type,
@@ -27,10 +28,7 @@ __all__ = [
 if typing.TYPE_CHECKING:
     import orjson
 else:  # pragma: no cover
-    try:
-        import orjson
-    except ImportError:
-        orjson = None  # noqa
+    orjson = None  # noqa
 
 DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID, bytes]
 
@@ -67,6 +65,9 @@ DECIMAL_MAXLEN = 1000
 
 #: Types that we convert to lists.
 SEQUENCE_TYPES: TypeTuple[Iterable] = (set, deque)
+
+#: Types that we convert o mapping.
+MAPPING_TYPES: TypeTuple[Mapping] = (Counter,)
 
 #: Types that are datetimes and dates (-> .isoformat())
 DATE_TYPES: TypeTuple[datetime.date] = (datetime.date, datetime.time)
@@ -105,15 +106,19 @@ def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
 def on_default(o: Any,
                *,
                sequences: TypeTuple[Iterable] = SEQUENCE_TYPES,
+               maps: TypeTuple[Mapping] = MAPPING_TYPES,
                dates: TypeTuple[datetime.date] = DATE_TYPES,
                value_delegate: TypeTuple[enum.Enum] = VALUE_DELEGATE_TYPES,
                has_time: TypeTuple[datetime.time] = HAS_TIME,
                _isinstance: Callable[[Any, IsInstanceArg], bool] = isinstance,
+               _dict: Callable = dict,
                _str: Callable[[Any], str] = str,
                _list: Callable = list,
                textual: TypeTuple[Any] = TEXTUAL_TYPES) -> Any:
     if _isinstance(o, textual):
         return _str(o)
+    elif _isinstance(o, maps):
+        return _dict(o)
     elif _isinstance(o, dates):
         if not _isinstance(o, has_time):
             o = datetime.datetime(o.year, o.month, o.day, 0, 0, 0, 0)
