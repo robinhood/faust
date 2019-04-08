@@ -5,7 +5,17 @@ import typing
 import uuid
 from collections import deque
 from decimal import Decimal
-from typing import Any, Callable, List, Optional, Tuple, Type
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 __all__ = [
     'JSONEncoder',
@@ -24,13 +34,18 @@ else:  # pragma: no cover
 
 DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID, bytes]
 
+T = TypeVar('T')
+
+TypeTuple = Tuple[Type[T], ...]
+IsInstanceArg = Union[Type[Any], TypeTuple[Any]]
+
 try:  # pragma: no cover
     from django.utils.functional import Promise
     DJANGO_TEXTUAL_TYPES = [Promise]
 except ImportError:
     DJANGO_TEXTUAL_TYPES = []
 
-TEXTUAL_TYPES: Tuple[Type, ...] = tuple(
+TEXTUAL_TYPES: TypeTuple[Any] = tuple(
     DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)
 
 try:  # pragma: no cover
@@ -51,15 +66,15 @@ except ImportError:  # pragma: no cover
 DECIMAL_MAXLEN = 1000
 
 #: Types that we convert to lists.
-SEQUENCE_TYPES: Tuple[type, ...] = (set, deque)
+SEQUENCE_TYPES: TypeTuple[Iterable] = (set, deque)
 
 #: Types that are datetimes and dates (-> .isoformat())
-DATE_TYPES: Tuple[type, ...] = (datetime.date, datetime.time)
+DATE_TYPES: TypeTuple[datetime.date] = (datetime.date, datetime.time)
 
 #: Types we use `return obj.value` for (Enum)
-VALUE_DELEGATE_TYPES: Tuple[type, ...] = (enum.Enum,)
+VALUE_DELEGATE_TYPES: TypeTuple[enum.Enum] = (enum.Enum,)
 
-HAS_TIME: Tuple[type, ...] = (datetime.datetime, datetime.time)
+HAS_TIME: TypeTuple[datetime.time] = (datetime.datetime, datetime.time)
 
 
 def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
@@ -89,14 +104,14 @@ def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
 
 def on_default(o: Any,
                *,
-               sequences: Tuple[type, ...] = SEQUENCE_TYPES,
-               dates: Tuple[type, ...] = DATE_TYPES,
-               value_delegate: Tuple[type, ...] = VALUE_DELEGATE_TYPES,
-               has_time: Tuple[type, ...] = HAS_TIME,
-               _isinstance: Callable = isinstance,
-               _str: Callable = str,
+               sequences: TypeTuple[Iterable] = SEQUENCE_TYPES,
+               dates: TypeTuple[datetime.date] = DATE_TYPES,
+               value_delegate: TypeTuple[enum.Enum] = VALUE_DELEGATE_TYPES,
+               has_time: TypeTuple[datetime.time] = HAS_TIME,
+               _isinstance: Callable[[Any, IsInstanceArg], bool] = isinstance,
+               _str: Callable[[Any], str] = str,
                _list: Callable = list,
-               textual: Tuple[type, ...] = TEXTUAL_TYPES) -> Any:
+               textual: TypeTuple[Any] = TEXTUAL_TYPES) -> Any:
     if _isinstance(o, textual):
         return _str(o)
     elif _isinstance(o, dates):
@@ -131,37 +146,27 @@ class JSONEncoder(json.JSONEncoder):
 
 
 if orjson is not None:
-    ErrorTuple = Tuple[Type[BaseException], ...]
 
     def dumps(obj: Any,
               json_dumps: Callable = orjson.dumps,
-              errors: ErrorTuple = (orjson.JSONEncodeError,),
               cls: Type[JSONEncoder] = JSONEncoder,
               **kwargs: Any) -> str:
         """Serialize to json."""
-        try:
-            return json_dumps(
-                obj,
-                default=on_default,
-                options=orjson.OPT_NAIVE_UTC,
-            )
-        except errors as exc:
-            raise TypeError(str(exc)) from None
+        return json_dumps(
+            obj,
+            default=on_default,
+            options=orjson.OPT_NAIVE_UTC,
+        )
 
     def loads(s: str,
               json_loads: Callable = orjson.loads,
-              errors: ErrorTuple = (orjson.JSONDecodeError,),
               **kwargs: Any) -> Any:
         """Deserialize json string."""
-        try:
-            return json_loads(s)
-        except errors as exc:
-            raise ValueError(str(exc)) from None
+        return json_loads(s)
 else:
 
     def dumps(obj: Any,
               json_dumps: Callable = json.dumps,
-              errors: ErrorTuple = (),
               cls: Type[JSONEncoder] = JSONEncoder,
               **kwargs: Any) -> str:
         """Serialize to json.  See :func:`json.dumps`."""
@@ -169,7 +174,6 @@ else:
 
     def loads(s: str,
               json_loads: Callable = json.loads,
-              errors: ErrorTuple = (),
               **kwargs: Any) -> Any:
         """Deserialize json string.  See :func:`json.loads`."""
         return json_loads(s, **kwargs)
