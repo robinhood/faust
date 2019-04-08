@@ -1,15 +1,25 @@
 """Storing sets in tables."""
+from enum import Enum
 from typing import (
     Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Generic,
     Iterable,
     List,
+    Optional,
     Set,
+    Type,
     cast,
 )
 
+from mode import Service
 from mode.utils.collections import ManagedUserSet
+from mode.utils.objects import cached_property
 
-from faust.types import EventT
+from faust.models import Record, maybe_model
+from faust.types import AgentT, AppT, EventT, StreamT, TopicT
 from faust.types.tables import KT, VT
 from faust.types.stores import StoreT
 
@@ -105,11 +115,116 @@ class ChangeloggedSetManager(ChangeloggedObjectManager):
     ValueType = ChangeloggedSet
 
 
+class SetAction(Enum):
+    ADD = 'ADD'
+    DISCARD = 'DISCARD'
+
+
+class SetManagerOperation(Record, Generic[VT],
+                          namespace='@SetManagerOperation'):
+    action: SetAction
+    member: VT
+
+
+class SetTableManager(Service, Generic[KT, VT]):
+    app: AppT
+    set_table: 'SetTable[KT, VT]'
+    enabled: bool
+
+    agent: Optional[AgentT]
+    actions: Dict[SetAction, Callable[[KT, VT], None]]
+
+    def __init__(self, set_table: 'SetTable[KT, VT]',
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.set_table = set_table
+        self.app = self.set_table.app
+        self.enabled = self.set_table.start_manager
+        self.actions = {
+            SetAction.ADD: self._add,
+            SetAction.DISCARD: self._discard,
+        }
+        if self.enabled:
+            self._enable()
+
+    async def add(self, key: KT, member: VT) -> None:
+        await self._send_operation(SetAction.ADD, key, member)
+
+    async def discard(self, key: KT, member: VT) -> None:
+        await self._send_operation(SetAction.DISCARD, key, member)
+
+    def _add(self, key: KT, member: VT) -> None:
+        self.set_table[key].add(member)
+
+    def _discard(self, key: KT, member: VT) -> None:
+        self.set_table[key].discard(member)
+
+    async def _send_operation(self,
+                              action: SetAction,
+                              key: KT,
+                              member: VT) -> None:
+        if not self.enabled:
+            raise RuntimeError(
+                f'Set table {self.set_table} is start_manager=False')
+        await self.topic.send(
+            key=key,
+            value=SetManagerOperation(action=action, member=member),
+        )
+
+    def _enable(self) -> None:
+        self.agent = self.app.agent(
+            channel=self.topic,
+            name='faust.SetTable.manager',
+        )(self._modify_set)
+
+    async def _modify_set(self, stream: StreamT[SetManagerOperation]) -> None:
+        async for set_key, set_operation in stream.items():
+            action = SetAction(set_operation.action)
+            member_obj = maybe_model(set_operation.member)
+            try:
+                handler = self.actions[action]
+            except KeyError:
+                self.log.exception('Unknown set operation: %r', action)
+            else:
+                handler(set_key, member_obj)
+
+    @cached_property
+    def topic(self) -> TopicT:
+        return self.app.topic(self.set_table.manager_topic_name,
+                              key_type=str,
+                              value_type=SetManagerOperation)
+
+
 class SetTable(Table[KT, VT]):
     """Table that maintains a dictionary of sets."""
+    Manager: ClassVar[Type[SetTableManager]] = SetTableManager
+    start_manager: bool
+    manager_topic_name: str
+    manager_topic_suffix: str = '-setmanager'
+
+    manager: SetTableManager
 
     WindowWrapper = SetWindowWrapper
     _changelog_compacting = False
+
+    def __init__(self, app: AppT, *,
+                 start_manager: bool = False,
+                 manager_topic_name: str = None,
+                 manager_topic_suffix: str = None,
+                 **kwargs: Any) -> None:
+        super().__init__(app, **kwargs)
+        self.start_manager = start_manager
+        if manager_topic_suffix is not None:
+            self.manager_topic_suffix = manager_topic_suffix
+        if manager_topic_name is None:
+            manager_topic_name = self.name + self.manager_topic_suffix
+        self.manager_topic_name = manager_topic_name
+
+        self.manager = self.Manager(self, loop=self.loop, beacon=self.beacon)
+
+    async def on_start(self) -> None:
+        await self.add_runtime_dependency(self.manager)
+        await super().on_start()
 
     def _new_store(self) -> StoreT:
         return ChangeloggedSetManager(self)

@@ -1052,6 +1052,7 @@ class App(AppT, Service):
                  *,
                  window: WindowT = None,
                  partitions: int = None,
+                 start_manager: bool = False,
                  help: str = None,
                  **kwargs: Any) -> TableT:
         table = self.tables.add(
@@ -1060,6 +1061,7 @@ class App(AppT, Service):
                 name=name,
                 beacon=self.beacon,
                 partitions=partitions,
+                start_manager=start_manager,
                 help=help,
                 **kwargs))
         return table.using_window(window) if window else table
