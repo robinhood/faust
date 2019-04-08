@@ -33,6 +33,7 @@ BUNDLES = {
     'datadog',
     'debug',
     'fast',
+    'orjson',
     'redis',
     'rocksdb',
     'setproctitle',

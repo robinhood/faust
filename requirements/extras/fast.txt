@@ -2,4 +2,5 @@
 -r cchardet.txt
 -r ciso8601.txt
 -r cython.txt
+-r orjson.txt
 -r setproctitle.txt
