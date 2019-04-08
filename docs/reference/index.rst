@@ -73,7 +73,6 @@ Livecheck
     faust.livecheck.patches.aiohttp
     faust.livecheck.runners
     faust.livecheck.signals
-    faust.livecheck.utils
 
 Models
 ======

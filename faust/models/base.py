@@ -52,7 +52,7 @@ from faust.types.models import (
     ModelT,
 )
 
-__all__ = ['Model', 'FieldDescriptor', 'registry']
+__all__ = ['Model', 'FieldDescriptor', 'maybe_model', 'registry']
 
 # NOTES:
 # - Records are described in the same notation as named tuples in Python 3.6.
@@ -125,6 +125,16 @@ your abstract model class has the `allow_blessed_key` option enabled:
 #: Every single model defined is added here automatically when a model
 #: class is defined.
 registry: MutableMapping[str, Type[ModelT]] = {}
+
+
+def maybe_model(arg: Any) -> Any:
+    """Convert argument to model if possible."""
+    try:
+        model = registry[arg['__faust']['ns']]
+    except (KeyError, TypeError):
+        return arg
+    else:
+        return model.from_data(arg)
 
 
 class Model(ModelT):

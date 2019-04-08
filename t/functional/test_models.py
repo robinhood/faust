@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 import faust
+from faust.models import maybe_model
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -982,3 +983,17 @@ class test_Record_comparison():
         object() < X(10)
     with pytest.raises(TypeError):
         object() <= X(10)
+
+
+def test_maybe_model():
+
+    class X(Record):
+        x: int
+        y: int
+
+    assert maybe_model('foo') == 'foo'
+    assert maybe_model(1) == 1
+    assert maybe_model(1.01) == 1.01
+
+    x1 = X(10, 20)
+    assert maybe_model(json.loads(x1.dumps(serializer='json'))) == x1

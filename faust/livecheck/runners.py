@@ -18,6 +18,8 @@ from mode.utils.logging import CompositeLogger
 from mode.utils.times import humanize_seconds
 from mode.utils.typing import NoReturn
 
+from faust.models import maybe_model
+
 from .exceptions import (
     LiveCheckError,
     TestFailed,
@@ -28,7 +30,6 @@ from .exceptions import (
 from .locals import current_test_stack
 from .models import State, TestExecution, TestReport
 from .signals import BaseSignal
-from .utils import to_model
 
 if typing.TYPE_CHECKING:
     from .case import Case as _Case
@@ -126,7 +127,7 @@ class TestRunner:
         }
 
     def _prepare_val(self, arg: Any) -> Any:
-        return to_model(arg)
+        return maybe_model(arg)
 
     def _format_log(self, severity: int, msg: str,
                     *args: Any, **kwargs: Any) -> str:
