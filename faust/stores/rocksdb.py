@@ -108,9 +108,11 @@ class RocksDBOptions:
         self.extra_options = kwargs
 
     def open(self, path: Path, *, read_only: bool = False) -> DB:
+        """Open RocksDB database using this configuration."""
         return rocksdb.DB(str(path), self.as_options(), read_only=read_only)
 
     def as_options(self) -> Options:
+        """Return :class:`rocksdb.Options` object using this configuration."""
         return rocksdb.Options(
             create_if_missing=True,
             max_open_files=self.max_open_files,
@@ -161,16 +163,47 @@ class Store(base.SerializedStore):
         self._key_index = LRUCache(limit=self.key_index_size)
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
+        """Return the last persisted offset.
+
+        See :meth:`set_persisted_offset`.
+        """
         offset = self._db_for_partition(tp.partition).get(self.offset_key)
         if offset is not None:
             return int(offset)
         return None
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
+        """Set the last persisted offset for this table.
+
+        This will remember the last offset that we wrote to RocksDB,
+        so that on rebalance/recovery we can seek past this point
+        to only read the events that occurred recently while
+        we were not an active replica.
+        """
         self._db_for_partition(tp.partition).put(
             self.offset_key, str(offset).encode())
 
     async def need_active_standby_for(self, tp: TP) -> bool:
+        """Decide if an active standby is needed for this topic partition.
+
+        Since other workers may be running on the same local machine,
+        we can decide to not actively read standby messages, since
+        that database file is already being populated.
+
+        Currently it is recommended that you use
+        separate data directories for multiple worker son the same machine.
+
+        For example if you have a 4 CPU core machine, you can run
+        four worker instances on that machine, but using separate
+        data directories:
+
+        .. sourcecode:: console
+
+            $ myproj --datadir=/var/faust/w1 worker -l info --web-port=6066
+            $ myproj --datadir=/var/faust/w2 worker -l info --web-port=6067
+            $ myproj --datadir=/var/faust/w3 worker -l info --web-port=6068
+            $ myproj --datadir=/var/faust/w4 worker -l info --web-port=6069
+        """
         try:
             self._db_for_partition(tp.partition)
         except rocksdb.errors.RocksIOError as exc:
@@ -184,6 +217,15 @@ class Store(base.SerializedStore):
                               batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
+        """Write batch of changelog events to local RocksDB storage.
+
+        Arguments:
+            batch: Iterable of changelog events (:class:`faust.Event`)
+            to_key: A callable you can use to deserialize the key
+                of a changelog event.
+            to_value: A callable you can use to deserialize the value
+                of a changelog event.
+        """
         batches: DefaultDict[int, rocksdb.WriteBatch]
         batches = defaultdict(rocksdb.WriteBatch)
         tp_offsets: Dict[TP, int] = {}
@@ -259,10 +301,26 @@ class Store(base.SerializedStore):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Rebalance occurred.
+
+        Arguments:
+            table: The table that we store data for.
+            assigned: Set of all assigned topic partitions.
+            revoked: Set of newly revoked topic partitions.
+            newly_assigned: Set of newly assigned topic partitions,
+                for which we were not assigned the last time.
+        """
         self.revoke_partitions(table, revoked)
         await self.assign_partitions(table, newly_assigned)
 
     def revoke_partitions(self, table: CollectionT, tps: Set[TP]) -> None:
+        """De-assign partitions used on this worker instance.
+
+        Arguments:
+            table: The table that we store data for.
+            tps: Set of topic partitions that we should no longer
+                be serving data for.
+        """
         for tp in tps:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
@@ -274,6 +332,12 @@ class Store(base.SerializedStore):
     async def assign_partitions(self,
                                 table: CollectionT,
                                 tps: Set[TP]) -> None:
+        """Assign partitions to this worker instance.
+
+        Arguments:
+            table: The table that we store data for.
+            tps: Set of topic partitions we have been assigned.
+        """
         standby_tps = self.app.assignor.assigned_standbys()
         my_topics = table.changelog_topic.topics
 
@@ -360,24 +424,37 @@ class Store(base.SerializedStore):
         raise NotImplementedError('TODO')  # XXX cannot reset tables
 
     def reset_state(self) -> None:
+        """Remove all data stored in this table.
+
+        Note:
+            Only local data will be removed, table changelog partitions
+            in Kafka will not be affected.
+        """
         self._dbs.clear()
         self._key_index.clear()
         with suppress(FileNotFoundError):
             shutil.rmtree(self.path.absolute())
 
     def partition_path(self, partition: int) -> Path:
+        """Return :class:`pathlib.Path` to db file of specific partition."""
         p = self.path / self.basename
-        return self.with_suffix(p.with_name(f'{p.name}-{partition}'))
+        return self._path_with_suffix(p.with_name(f'{p.name}-{partition}'))
 
-    def with_suffix(self, path: Path, *, suffix: str = '.db') -> Path:
+    def _path_with_suffix(self, path: Path, *, suffix: str = '.db') -> Path:
         # Path.with_suffix should not be used as this will
         # not work if the table name has dots in it (Issue #184).
         return path.with_name(f'{path.name}{suffix}')
 
     @property
     def path(self) -> Path:
+        """Path to directory where tables are stored.
+
+        See Also:
+            :setting:`tabledir`
+        """
         return self.app.conf.tabledir
 
     @property
     def basename(self) -> Path:
+        """Return the name of this table, used as filename prefix."""
         return Path(self.url.path)

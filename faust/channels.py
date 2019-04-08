@@ -58,6 +58,12 @@ class Channel(ChannelT):
         maxsize: The maximum number of messages this channel can hold.
                  If exceeded any new ``put`` call will block until a message
                  is removed from the channel.
+        is_iterator: When streams iterate over a channel they will call
+            ``stream.clone(is_iterator=True)`` so this attribute
+            denotes that this channel instance is currently being iterated
+            over.
+        active_partition: Set of active topic partitions this
+           channel instance is assigned to.
         loop: The :mod:`asyncio` event loop to use.
     """
 
@@ -95,6 +101,7 @@ class Channel(ChannelT):
 
     @property
     def queue(self) -> ThrowableQueue:
+        """Return the underlying queue/buffer backing this channel."""
         if self._queue is None:
             # this should only be set after clone = channel.__aiter__()
             # which means the loop is not accessed by merely defining
@@ -110,6 +117,16 @@ class Channel(ChannelT):
         return self._queue
 
     def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
+        """Create clone of this channel.
+
+        Arguments:
+            is_iterator: Set to True if this is now a channel
+                that is being iterated over.
+
+        Keyword Arguments:
+            Any keyword arguments passed will override any
+            of the arguments supported by :class:`Channel.__init__ <Channel>`.
+        """
         is_it = is_iterator if is_iterator is not None else self.is_iterator
         subchannel: ChannelT = self._clone(is_iterator=is_it, **kwargs)
         if is_it:
@@ -120,6 +137,7 @@ class Channel(ChannelT):
         return subchannel
 
     def clone_using_queue(self, queue: asyncio.Queue) -> ChannelT:
+        """Create clone of this channel using specific queue instance."""
         return self.clone(queue=queue, is_iterator=True)
 
     def _clone(self, **kwargs: Any) -> ChannelT:
@@ -143,6 +161,7 @@ class Channel(ChannelT):
         return self.app.stream(self, **kwargs)
 
     def get_topic_name(self) -> str:
+        """Get the topic name, or raise if this is not a named channel."""
         raise NotImplementedError('Channels are unnamed topics')
 
     async def send(self,
@@ -178,6 +197,7 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
+        """Create promise that message will be transmitted."""
         return FutureMessage(
             PendingMessage(
                 self,
@@ -198,6 +218,7 @@ class Channel(ChannelT):
 
     def prepare_headers(
             self, headers: Optional[HeadersArg]) -> OpenHeadersArg:
+        """Prepare ``headers`` passed before publishing."""
         if headers is not None:
             return prepare_headers(headers)
         return {}
@@ -219,6 +240,17 @@ class Channel(ChannelT):
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:
+        """Publish message to channel.
+
+        This is the interace used by ``topic.send()``, etc.
+        to actually publish the message on the channel
+        after being buffered up or similar.
+
+        It takes a :class:`~faust.types.FutureMessage` object,
+        wich contains all the information required to send
+        the message, and acts as a promise that is resolved
+        once the message has been fully transmitted.
+        """
         event = self._create_event(
             fut.message.key, fut.message.value, fut.message.headers,
             message=_PendingMessage_to_Message(fut.message))
@@ -246,23 +278,45 @@ class Channel(ChannelT):
 
     @stampede
     async def maybe_declare(self) -> None:
+        """Declare/create this channel, but only if it doesn't exist."""
         ...
 
     async def declare(self) -> None:
+        """Declare/create this channel.
+
+        This is used to create this channel on a server,
+        if that is required to operate it.
+        """
         ...
 
     def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
+        """Prepare key before it is sent to this channel.
+
+        :class:`~faust.Topic` uses this to implement serialization of keys
+        sent to the channel.
+        """
         return key
 
     def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
+        """Prepare value before it is sent to this channel.
+
+        :class:`~faust.Topic` uses this to implement serialization of values
+        sent to the channel.
+        """
         return value
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
+        """Decode :class:`~faust.types.Message` into :class:`~faust.Event`."""
         return self._create_event(
             message.key, message.value, message.headers, message=message)
 
     async def deliver(self, message: Message) -> None:  # pragma: no cover
+        """Deliver message to queue from consumer.
+
+        This is called by the consumer to deliver the message
+        to the channel.
+        """
         ...  # closure compiled at __init__
 
     def _compile_deliver(self) -> Callable[[Message], Awaitable[None]]:
@@ -286,36 +340,80 @@ class Channel(ChannelT):
         return Event(self.app, key, value, headers, message)
 
     async def put(self, value: Any) -> None:
+        """Put event onto this channel."""
         root = self._root if self._root is not None else self
         for subscriber in root._subscribers:
             await subscriber.queue.put(value)
 
     async def get(self, *, timeout: Seconds = None) -> Any:
+        """Get the next :class:`~faust.Event` received on this channel."""
         timeout_: float = want_seconds(timeout)
         if timeout_:
             return await asyncio.wait_for(self.queue.get(), timeout=timeout_)
         return await self.queue.get()
 
     def empty(self) -> bool:
+        """Return :const:`True` if the queue is empty."""
         return self.queue.empty()
 
     async def on_key_decode_error(self, exc: Exception,
                                   message: Message) -> None:
+        """Unable to decode the key of an item in the queue.
+
+        See Also:
+            :meth:`on_decode_error`
+        """
         await self.on_decode_error(exc, message)
         await self.throw(exc)
 
     async def on_value_decode_error(self, exc: Exception,
                                     message: Message) -> None:
+        """Unable to decode the value of an item in the queue.
+
+        See Also:
+            :meth:`on_decode_error`
+        """
         await self.on_decode_error(exc, message)
         await self.throw(exc)
 
     async def on_decode_error(self, exc: Exception, message: Message) -> None:
+        """Signal that there was an error reading an event in the queue.
+
+        When a message in the channel needs deserialization
+        to be reconstructed back to its original form, we will sometimes
+        see decoding/deserialization errors being raised, from missing
+        fields or malformed payloads, and so on.
+
+        We will log the exception, but you can also override this
+        to perform additional actions.
+
+        Admonition: Kafka
+            In the event a deserialization error occurs, we
+            HAVE to commit the offset of the source message to continue
+            processing the stream.
+
+            For this reason it is important that you keep a close eye on
+            error logs. For easy of use, we suggest using log aggregation
+            software, such as Sentry, to surface these errors to your
+            operations team.
+        """
         ...
 
     def on_stop_iteration(self) -> None:
+        """Signal that iteration over this channel was stopped.
+
+        Tip:
+            Remember to call :keyword:`super` when overriding this method.
+        """
         ...
 
     def derive(self, **kwargs: Any) -> ChannelT:
+        """Derive new channel from this channel, using new configuration.
+
+        See :class:`faust.Topic.derive`.
+
+        For local channels this will simply return the same channel.
+        """
         return self
 
     def __aiter__(self) -> ChannelT:
@@ -327,35 +425,52 @@ class Channel(ChannelT):
         return await self.queue.get()
 
     async def throw(self, exc: BaseException) -> None:
+        """Throw exception to be received by channel subscribers.
+
+        Tip:
+            When you find yourself having to call this from
+            a regular, non-``async def`` function, you can use :meth:`_throw`
+            instead.
+        """
         self.queue._throw(exc)
 
     def _throw(self, exc: BaseException) -> None:
+        """Non-async version of :meth:`throw`."""
         self.queue._throw(exc)
 
     def __repr__(self) -> str:
-        s = f'<{self.label}@{self._repr_id()}'
+        s = f'<{self.label}@{self._object_id_as_hex()}'
         if self.active_partitions is not None:
+            # if we are restricted to a specific set of topic partitions,
+            # then include that in repr(channel).
             if self.active_partitions:
                 active = '{' + ', '.join(sorted(
                     f'{tp.topic}:{tp.partition}'
                     for tp in self.active_partitions)) + '}'
             else:
+                # a defined, but empty .active_partitions signifies
+                # that we are still waiting for an assignment
+                # from the Consumer.
                 active = '{<pending for assignment>}'
             s += f' active={active}'
         s += '>'
         return s
 
-    def __str__(self) -> str:
-        return '<ANON>'
-
-    def _repr_id(self) -> str:
+    def _object_id_as_hex(self) -> str:
+        # hexadecimal version of id(self)
         return f'{id(self):#x}'
+
+    def __str__(self) -> str:
+        # subclasses should override this
+        return '<ANON>'
 
     @property
     def subscriber_count(self) -> int:
+        """Return number of active subscribers to local channel."""
         return len(self._subscribers)
 
     @property
     def label(self) -> str:
+        """Short textual description of channel."""
         sym = '(*)' if self.is_iterator else ''
         return f'{sym}{type(self).__name__}: {self}'

@@ -15,7 +15,7 @@ from . import base
 class Store(base.Store):
     """Table storage using an in-memory dictionary."""
 
-    def on_init(self) -> None:
+    def __post_init__(self) -> None:
         self.data: MutableMapping = {}
 
     def _clear(self) -> None:
@@ -24,6 +24,7 @@ class Store(base.Store):
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
+        """Apply batch of changelog events to in-memory table."""
         # default store does not do serialization, so we need
         # to convert these raw json serialized keys to proper structures
         # (E.g. regenerate tuples in WindowedKeys etc).
@@ -49,7 +50,16 @@ class Store(base.Store):
             yield key, to_value(event.value)
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
+        """Return the persisted offset.
+
+        This always returns :const:`None` when using the in-memory store.
+        """
         return None
 
     def reset_state(self) -> None:
+        """Remove local filesystem state.
+
+        This does nothing when using the in-memory store.
+
+        """
         ...

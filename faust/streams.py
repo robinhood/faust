@@ -183,6 +183,7 @@ class Stream(StreamT[T_co], Service):
         return list(self._iter_ll_forwards())[-1]
 
     def get_root_stream(self) -> StreamT:
+        """Get the root stream that this stream was derived from."""
         return list(self._iter_ll_backwards())[-1]
 
     def _iter_ll_forwards(self) -> Iterator[StreamT]:
@@ -260,6 +261,7 @@ class Stream(StreamT[T_co], Service):
         return new_stream
 
     def noack(self) -> 'StreamT':
+        """Create new stream where acks are manual."""
         self._next = new_stream = self.clone(
             enable_acks=False,
         )
@@ -624,9 +626,11 @@ class Stream(StreamT[T_co], Service):
         raise ValueError('Cannot derive topic from non-topic channel.')
 
     async def throw(self, exc: BaseException) -> None:
+        """Send exception to stream iteration."""
         await cast(ChannelT, self.channel).throw(exc)
 
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
+        """Combine streams and tables into joined stream."""
         # A combined stream is composed of multiple streams that
         # all share the same outbox.
         # The resulting stream's `on_merge` callback can be used to
@@ -641,27 +645,34 @@ class Stream(StreamT[T_co], Service):
         return stream
 
     def contribute_to_stream(self, active: StreamT) -> None:
+        """Add stream as node in joined stream."""
         self.outbox = active.outbox
 
     async def remove_from_stream(self, stream: StreamT) -> None:
+        """Remove as node in a joined stream."""
         await self.stop()
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Create stream where events are joined."""
         return self._join(joins.RightJoin(stream=self, fields=fields))
 
     def left_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Create stream where events are joined by LEFT JOIN."""
         return self._join(joins.LeftJoin(stream=self, fields=fields))
 
     def inner_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Create stream where events are joined by INNER JOIN."""
         return self._join(joins.InnerJoin(stream=self, fields=fields))
 
     def outer_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Create stream where events are joined by OUTER JOIN."""
         return self._join(joins.OuterJoin(stream=self, fields=fields))
 
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
     async def on_merge(self, value: T = None) -> Optional[T]:
+        """Signal called when an event is to be joined."""
         # TODO for joining streams
         # The join strategy.process method can return None
         # to eat the value, and on the next event create a merged
@@ -680,17 +691,20 @@ class Stream(StreamT[T_co], Service):
                 'Cannot send to non-topic channel stream.')
 
     async def on_start(self) -> None:
+        """Signal called when the stream starts."""
         if self._on_start:
             await self._on_start()
         if self._passive:
             await self._passive_started.wait()
 
     async def stop(self) -> None:
+        """Stop this stream."""
         # Stop all related streams (created by .through/.group_by/etc.)
         for s in cast(Stream, self.get_root_stream())._iter_ll_forwards():
             await Service.stop(s)
 
     async def on_stop(self) -> None:
+        """Signal that the stream is stopping."""
         self._passive = False
         self._passive_started.clear()
         for table_or_stream in self.combined:
@@ -911,7 +925,7 @@ class Stream(StreamT[T_co], Service):
 
     @property
     def label(self) -> str:
-        # used as textual description in graphs
+        """Return description of stream, used in graphs and logs."""
         return f'{type(self).__name__}: {self._repr_channel()}'
 
     def _repr_channel(self) -> str:
@@ -919,6 +933,7 @@ class Stream(StreamT[T_co], Service):
 
     @cached_property
     def shortlabel(self) -> str:
+        """Return short description of stream."""
         # used for shortlabel(stream), which is used by statsd to generate ids
         # note: str(channel) returns topic name when it's a topic, so
         # this will be:

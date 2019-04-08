@@ -20,6 +20,7 @@ class Join(JoinT):
         self.stream = stream
 
     async def process(self, event: EventT) -> Optional[EventT]:
+        """Process event to be joined with another event."""
         raise NotImplementedError()
 
     def __eq__(self, other: Any) -> bool:

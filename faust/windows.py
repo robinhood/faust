@@ -94,8 +94,9 @@ class TumblingWindow(HoppingWindow):
 class _PySlidingWindow(Window):
     """Sliding window type.
 
-    Fixed-size, overlapping windows that work on differences between
-    record timestamps
+    Notes:
+        Fixed-size, overlapping windows that work on differences between
+        record timestamps
     """
 
     before: float

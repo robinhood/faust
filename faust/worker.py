@@ -182,6 +182,7 @@ class Worker(mode.Worker):
         self.spinner = terminal.Spinner(file=self.stdout)
 
     async def on_start(self) -> None:
+        """Signal called every time the worker starts."""
         self.app.in_worker = True
         await super().on_start()
 
@@ -199,6 +200,7 @@ class Worker(mode.Worker):
             self.spinner.stop()
 
     async def on_startup_finished(self) -> None:
+        """Signal called when worker has started."""
         if self._shutdown_immediately:
             return self._on_shutdown_immediately()
         # block detection started here after changelog stuff,
@@ -220,6 +222,7 @@ class Worker(mode.Worker):
         self.say('')  # make sure spinner newlines.
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        """Return service dependencies that must start with the worker."""
         # App service is now a child of worker.
         self.app.beacon.reattach(self.beacon)
         # Transfer sensors to app
@@ -231,15 +234,22 @@ class Worker(mode.Worker):
         return chain(self.services, [self.app])
 
     async def on_first_start(self) -> None:
+        """Signal called the first time the worker starts.
+
+        First time, means this callback is not called if the
+        worker is restarted by an exception being raised.
+        """
         self.change_workdir(self.workdir)
         self.autodiscover()
         await self.default_on_first_start()
 
     def change_workdir(self, path: Path) -> None:
+        """Change the current working directory (CWD)."""
         if path and path.absolute() != path.cwd().absolute():
             os.chdir(path.absolute())
 
     def autodiscover(self) -> None:
+        """Autodiscover modules and files to find @agent decorators, etc."""
         if self.app.conf.autodiscover:
             self.app.discover()
 
@@ -257,19 +267,21 @@ class Worker(mode.Worker):
         return f'-p {conf.web_port}'
 
     async def on_execute(self) -> None:
+        """Signal called when the worker is about to start."""
         # This is called as soon as we start
         self._setproctitle('init')
         if self.spinner and self.spinner.file.isatty():
             self._say('starting➢ ', end='', flush=True)
 
     def on_worker_shutdown(self) -> None:
-        # This is called when we start the shutdown process.
+        """Signal called before the worker is shutting down."""
         self._setproctitle('stopping')
         if self.spinner and self.spinner.file.isatty():
             self.spinner.reset()
             self._say('stopping➢ ', end='', flush=True)
 
     def on_setup_root_logger(self, logger: logging.Logger, level: int) -> None:
+        """Signal called when the root logger is being configured."""
         # This is used to set up the terminal progress spinner
         # so that it spins for every log message emitted.
         self._disable_spinner_if_level_below_WARN(level)

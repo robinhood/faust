@@ -55,12 +55,15 @@ class Store(StoreT[KT, VT], Service):
         self.value_serializer = value_serializer
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
+        """Return the persisted offset for this topic and partition."""
         raise NotImplementedError('In-memory store only, does not persist.')
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
+        """Set the persisted offset for this topic and partition."""
         ...
 
     async def need_active_standby_for(self, tp: TP) -> bool:
+        """Return :const:`True` if we have a copy of standby from elsewhere."""
         return True
 
     async def on_rebalance(self,
@@ -68,11 +71,13 @@ class Store(StoreT[KT, VT], Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Handle rebalancing of the cluster."""
         ...
 
     async def on_recovery_completed(self,
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
+        """Signal that table recovery completed."""
         ...
 
     def _encode_key(self, key: KT) -> bytes:
@@ -99,6 +104,7 @@ class Store(StoreT[KT, VT], Service):
 
     @property
     def label(self) -> str:
+        """Return short description of this store."""
         return f'{type(self).__name__}: {self.table_name}'
 
 
@@ -173,6 +179,7 @@ class SerializedStore(Store[KT, VT]):
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], KT],
                               to_value: Callable[[Any], VT]) -> None:
+        """Apply batch of events from changelog topic to this store."""
         for event in batch:
             key = event.message.key
             if key is None:
@@ -207,6 +214,7 @@ class SerializedStore(Store[KT, VT]):
         return self._contains(self._encode_key(key))
 
     def keys(self) -> KeysView:
+        """Return view of keys in the K/V store."""
         return _SerializedStoreKeysView(self)
 
     def _keys_decoded(self) -> Iterator[KT]:
@@ -214,6 +222,7 @@ class SerializedStore(Store[KT, VT]):
             yield self._decode_key(key)
 
     def values(self) -> ValuesView:
+        """Return view of values in the K/V store."""
         return _SerializedStoreValuesView(self)
 
     def _values_decoded(self) -> Iterator[VT]:
@@ -221,6 +230,7 @@ class SerializedStore(Store[KT, VT]):
             yield self._decode_value(value)
 
     def items(self) -> ItemsView:
+        """Return view of items in the K/V store as (key, value) pairs."""
         return _SerializedStoreItemsView(self)
 
     def _items_decoded(self) -> Iterator[Tuple[KT, VT]]:
@@ -228,4 +238,5 @@ class SerializedStore(Store[KT, VT]):
             yield self._decode_key(key), self._decode_value(value)
 
     def clear(self) -> None:
+        """Clear all data from this K/V store."""
         self._clear()
