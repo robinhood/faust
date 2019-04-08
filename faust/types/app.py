@@ -281,6 +281,17 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def SetTable(self,
+                 name: str,
+                 *,
+                 window: WindowT = None,
+                 partitions: int = None,
+                 start_manager: bool = False,
+                 help: str = None,
+                 **kwargs: Any) -> TableT:
+        ...
+
+    @abc.abstractmethod
     def page(self, path: str, *,
              base: Type[View] = View,
              cors_options: Mapping[str, ResourceOptions] = None,
