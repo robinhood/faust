@@ -152,17 +152,23 @@ class Web(base.Web):
              headers: MutableMapping = None) -> Any:
         ctype = content_type or 'application/json'
         payload: Any = _json.dumps(value)
+        # normal json returns str, orjson returns bytes
         if isinstance(payload, bytes):
-            response_type = self.bytes
+            return self.bytes(
+                payload,
+                content_type=ctype,
+                status=status,
+                reason=reason,
+                headers=headers,
+            )
         else:
-            response_type = self.text
-        return response_type(
-            payload,
-            content_type=ctype,
-            status=status,
-            reason=reason,
-            headers=headers,
-        )
+            return self.text(
+                payload,
+                content_type=ctype,
+                status=status,
+                reason=reason,
+                headers=headers,
+            )
 
     def bytes(self,
               value: _bytes,
