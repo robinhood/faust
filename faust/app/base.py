@@ -1091,7 +1091,8 @@ class App(AppT, Service):
                     shard_param: str = None,
                     *,
                     query_param: str = None,
-                    match_info: str = None) -> ViewDecorator:
+                    match_info: str = None,
+                    exact_key: str = None) -> ViewDecorator:
         def _decorator(fun: ViewHandlerFun) -> ViewHandlerFun:
             _query_param = query_param
             if shard_param is not None:
@@ -1100,13 +1101,18 @@ class App(AppT, Service):
                     raise TypeError(
                         'Cannot specify shard_param and query_param')
                 _query_param = shard_param
-            if _query_param is None and match_info is None:
-                raise TypeError('Need one of query_param or shard_param')
+            if (_query_param is None and
+                    match_info is None and
+                    exact_key is None):
+                raise TypeError(
+                    'Need one of query_param, shard_param, or exact key')
 
             @wraps(fun)
             async def get(view: View, request: Request,
                           *args: Any, **kwargs: Any) -> Response:
-                if match_info:
+                if exact_key:
+                    key = exact_key
+                elif match_info:
                     key = request.match_info[match_info]
                 elif _query_param:
                     key = request.query[_query_param]

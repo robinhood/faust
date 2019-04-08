@@ -292,7 +292,8 @@ class AppT(ServiceT):
                     shard_param: str = None,
                     *,
                     query_param: str = None,
-                    match_info: str = None) -> ViewDecorator:
+                    match_info: str = None,
+                    exact_key: str = None) -> ViewDecorator:
         ...
 
     @abc.abstractmethod
