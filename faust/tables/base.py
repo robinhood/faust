@@ -22,7 +22,6 @@ from typing import (
 )
 
 from mode import Seconds, Service
-from mode.timers import timer_intervals
 from yarl import URL
 
 from faust import stores
@@ -285,13 +284,9 @@ class Collection(Service, CollectionT):
         interval = self.app.conf.table_cleanup_interval
         if self._should_expire_keys():
             await self.sleep(interval)
-            for sleep_time in timer_intervals(interval, name='table_cleanup'):
-                if self.should_stop:
-                    break
+            async for sleep_time in self.itertimer(
+                    interval, name='table_cleanup'):
                 self._del_old_keys()
-                await self.sleep(sleep_time)
-                if self.should_stop:
-                    break
 
     def _del_old_keys(self) -> None:
         window = cast(WindowT, self.window)

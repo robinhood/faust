@@ -191,3 +191,6 @@ class Blueprint(BlueprintT):
                             url_prefix: Optional[str]) -> None:
         uri = self._url_with_prefix(route.uri, url_prefix)
         web.add_static(uri, route.file_or_directory)
+
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__}: {self.name}>'

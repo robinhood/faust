@@ -5,6 +5,7 @@ from .agents import agents
 from .base import call_command, cli
 from .clean_versions import clean_versions
 from .completion import completion
+from .livecheck import livecheck
 from .model import model
 from .models import models
 from .reset import reset
@@ -18,6 +19,7 @@ __all__ = [
     'clean_versions',
     'cli',
     'completion',
+    'livecheck',
     'model',
     'models',
     'reset',

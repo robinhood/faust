@@ -53,12 +53,14 @@ from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from faust.cli.base import AppCommand as _AppCommand
+    from faust.livecheck.app import LiveCheck as _LiveCheck
     from faust.sensors.monitor import Monitor as _Monitor
     from faust.worker import Worker as _Worker
     from .models import ModelArg as _ModelArg
     from .settings import Settings as _Settings
 else:
     class _AppCommand: ...     # noqa
+    class _LiveCheck: ...      # noqa
     class _Monitor: ...        # noqa
     class _Worker: ...         # noqa
     class _ModelArg: ...       # noqa
@@ -146,6 +148,7 @@ class AppT(ServiceT):
     on_rebalance_complete: Signal = Signal()
     on_before_shutdown: Signal = Signal()
     on_worker_init: SyncSignal = SyncSignal()
+    on_produce_message: SyncSignal = SyncSignal()
 
     client_only: bool
 
@@ -319,6 +322,10 @@ class AppT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
+        ...
+
+    @abc.abstractmethod
+    def LiveCheck(self, **kwargs: Any) -> _LiveCheck:
         ...
 
     @stampede

@@ -1,18 +1,19 @@
 """Monitor - sensor tracking metrics."""
 import asyncio
-import statistics
+from collections import deque
+from statistics import median
 from time import monotonic
-from typing import Any, Callable, List, Mapping, MutableMapping, cast
+from typing import Any, Callable, Mapping, MutableMapping, Tuple, cast
 
 from mode import Service, label
-from mode.timers import timer_intervals
 from mode.utils.objects import KeywordReduce
-from mode.utils.typing import Counter
+from mode.utils.typing import Counter, Deque
 
 from faust.types import CollectionT, EventT, StreamT, TopicT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
+from faust.utils.functional import deque_pushpopmax
 
 from .base import Sensor
 
@@ -126,17 +127,17 @@ class Monitor(Sensor, KeywordReduce):
     #: Average event runtime over the last second.
     events_runtime_avg: float = 0.0
 
-    #: List of run times used for averages
-    events_runtime: List[float] = cast(List[float], None)
+    #: Deque of run times used for averages
+    events_runtime: Deque[float] = cast(Deque[float], None)
 
-    #: List of commit latency values
-    commit_latency: List[float] = cast(List[float], None)
+    #: Deque of commit latency values
+    commit_latency: Deque[float] = cast(Deque[float], None)
 
-    #: List of send latency values
-    send_latency: List[float] = cast(List[float], None)
+    #: Deque of send latency values
+    send_latency: Deque[float] = cast(Deque[float], None)
 
-    #: List of assignment latency values.
-    assignment_latency: List[float] = cast(List[float], None)
+    #: Deque of assignment latency values.
+    assignment_latency: Deque[float] = cast(Deque[float], None)
 
     #: Counter of times a topics buffer was full
     topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
@@ -177,10 +178,10 @@ class Monitor(Sensor, KeywordReduce):
                  events_total: int = 0,
                  events_by_stream: Counter[StreamT] = None,
                  events_by_task: Counter[asyncio.Task] = None,
-                 events_runtime: List[float] = None,
-                 commit_latency: List[float] = None,
-                 send_latency: List[float] = None,
-                 assignment_latency: List[float] = None,
+                 events_runtime: Deque[float] = None,
+                 commit_latency: Deque[float] = None,
+                 send_latency: Deque[float] = None,
+                 assignment_latency: Deque[float] = None,
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
@@ -197,10 +198,11 @@ class Monitor(Sensor, KeywordReduce):
                 max_assignment_latency_history)
 
         self.tables = {} if tables is None else tables
-        self.commit_latency = [] if commit_latency is None else commit_latency
-        self.send_latency = [] if send_latency is None else send_latency
+        self.commit_latency = (
+            deque() if commit_latency is None else commit_latency)
+        self.send_latency = deque() if send_latency is None else send_latency
         self.assignment_latency = (
-            [] if assignment_latency is None else assignment_latency)
+            deque() if assignment_latency is None else assignment_latency)
 
         self.messages_active = messages_active
         self.messages_received_total = messages_received_total
@@ -215,7 +217,8 @@ class Monitor(Sensor, KeywordReduce):
         self.events_by_stream = Counter()
         self.events_s = events_s
         self.events_runtime_avg = events_runtime_avg
-        self.events_runtime = [] if events_runtime is None else events_runtime
+        self.events_runtime = (
+            deque() if events_runtime is None else events_runtime)
         self.topic_buffer_full = Counter()
         self.time: Callable[[], float] = monotonic
 
@@ -228,36 +231,32 @@ class Monitor(Sensor, KeywordReduce):
 
     @Service.task
     async def _sampler(self) -> None:
-        median = statistics.median
         prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
 
-        await self.sleep(1.0)
-        for sleep_time in timer_intervals(1.0, name='Monitor.sampler'):
-            if self.should_stop:
-                break
+        async for sleep_time in self.itertimer(1.0, name='Monitor.sampler'):
+            prev_event_total, prev_message_total = self._sample(
+                prev_event_total, prev_message_total)
 
-            # Update average event runtime.
-            if self.events_runtime:
-                self.events_runtime_avg = median(self.events_runtime)
+    def _sample(self,
+                prev_event_total: int,
+                prev_message_total: int) -> Tuple[int, int]:
+        # Update average event runtime.
+        if self.events_runtime:
+            self.events_runtime_avg = median(self.events_runtime)
 
-            # Update events/s
-            self.events_s, prev_event_total = (
-                self.events_total - prev_event_total,
-                self.events_total,
-            )
+        # Update events/s
+        self.events_s, prev_event_total = (
+            self.events_total - prev_event_total,
+            self.events_total,
+        )
 
-            # Update messages/s
-            self.messages_s, prev_message_total = (
-                self.messages_received_total - prev_message_total,
-                self.messages_received_total)
+        # Update messages/s
+        self.messages_s, prev_message_total = (
+            self.messages_received_total - prev_message_total,
+            self.messages_received_total)
 
-            # Cleanup
-            self._cleanup()
-
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break
+        return prev_event_total, prev_message_total
 
     def asdict(self) -> Mapping:
         return {
@@ -322,36 +321,6 @@ class Monitor(Sensor, KeywordReduce):
             topic_partition_offsets[tp.topic] = partition_offsets
         return topic_partition_offsets
 
-    def _cleanup(self) -> None:
-        self._cleanup_max_avg_history()
-        self._cleanup_commit_latency_history()
-        self._cleanup_send_latency_history()
-        self._cleanup_assignment_latency_history()
-
-    def _cleanup_max_avg_history(self) -> None:
-        max_history = self.max_avg_history
-        events_runtime = self.events_runtime
-        if max_history is not None and len(events_runtime) > max_history:
-            events_runtime[:len(events_runtime) - max_history] = []
-
-    def _cleanup_commit_latency_history(self) -> None:
-        max_history = self.max_commit_latency_history
-        commit_latency = self.commit_latency
-        if max_history is not None and len(commit_latency) > max_history:
-            commit_latency[:len(commit_latency) - max_history] = []
-
-    def _cleanup_send_latency_history(self) -> None:
-        max_history = self.max_send_latency_history
-        send_latency = self.send_latency
-        if max_history is not None and len(send_latency) > max_history:
-            send_latency[:len(send_latency) - max_history] = []
-
-    def _cleanup_assignment_latency_history(self) -> None:
-        max_history = self.max_assignment_latency_history
-        assignment_latency = self.assignment_latency
-        if max_history is not None and len(assignment_latency) > max_history:
-            assignment_latency[:len(assignment_latency) - max_history] = []
-
     def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
@@ -384,7 +353,7 @@ class Monitor(Sensor, KeywordReduce):
             time_out=time_out,
             time_total=time_total,
         )
-        self.events_runtime.append(time_total)
+        deque_pushpopmax(self.events_runtime, time_total, self.max_avg_history)
 
     def on_topic_buffer_full(self, topic: TopicT) -> None:
         self.topic_buffer_full[topic] += 1
@@ -419,7 +388,12 @@ class Monitor(Sensor, KeywordReduce):
         return self.time()
 
     def on_commit_completed(self, consumer: ConsumerT, state: Any) -> None:
-        self.commit_latency.append(self.time() - cast(float, state))
+        latency = self.time() - cast(float, state)
+        deque_pushpopmax(
+            self.commit_latency,
+            latency,
+            self.max_commit_latency_history,
+        )
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
                           message: PendingMessage,
@@ -432,7 +406,9 @@ class Monitor(Sensor, KeywordReduce):
                           producer: ProducerT,
                           state: Any,
                           metadata: RecordMetadata) -> None:
-        self.send_latency.append(self.time() - cast(float, state))
+        latency = self.time() - cast(float, state)
+        deque_pushpopmax(
+            self.send_latency, latency, self.max_send_latency_history)
 
     def on_send_error(self,
                       producer: ProducerT,
@@ -458,12 +434,16 @@ class Monitor(Sensor, KeywordReduce):
                             state: Mapping,
                             exc: BaseException) -> None:
         time_total = self.time() - state['time_start']
-        self.assignment_latency.append(time_total)
+        deque_pushpopmax(
+            self.assignment_latency, time_total,
+            self.max_assignment_latency_history)
         self.assignments_failed += 1
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
                                 state: Mapping) -> None:
         time_total = self.time() - state['time_start']
-        self.assignment_latency.append(time_total)
+        deque_pushpopmax(
+            self.assignment_latency, time_total,
+            self.max_assignment_latency_history)
         self.assignments_completed += 1

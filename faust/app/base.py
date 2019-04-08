@@ -38,7 +38,6 @@ from typing import (
 import opentracing
 
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
-from mode.timers import timer_intervals
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.contexts import nullcontext
@@ -112,10 +111,12 @@ from ._attached import Attachments
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.cli.base import AppCommand as _AppCommand
+    from faust.livecheck import LiveCheck as _LiveCheck
     from faust.worker import Worker as _Worker
 else:
     class _AppCommand: ...  # noqa
-    class _Worker: ...     # noqa
+    class _LiveCheck: ...   # noqa
+    class _Worker: ...      # noqa
 
 __all__ = ['App', 'BootStrategy']
 
@@ -492,6 +493,8 @@ class App(AppT, Service):
             self.on_rebalance_complete.with_default_sender(self))
         self.on_before_shutdown = (
             self.on_before_shutdown.with_default_sender(self))
+        self.on_produce_message = (
+            self.on_produce_message.with_default_sender(self))
 
     def _init_fixups(self) -> MutableSequence[FixupT]:
         # Returns list of "fixups"
@@ -622,6 +625,7 @@ class App(AppT, Service):
         # This init is called by the `faust worker` command.
         for fixup in self.fixups:
             fixup.on_worker_init()
+        self.web.init_server()
         self.on_worker_init.send()
 
     def discover(self,
@@ -894,21 +898,15 @@ class App(AppT, Service):
 
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
-                await self.sleep(interval_s)
-                for sleep_time in timer_intervals(
+                async for sleep_time in self.itertimer(
                         interval_s,
                         name=timer_name,
                         max_drift_correction=max_drift_correction):
-                    if self.should_stop:
-                        break
                     should_run = not on_leader or self.is_leader()
                     if should_run:
                         with self.trace(shortlabel(fun),
                                         trace_enabled=traced):
                             await fun(*args)  # type: ignore
-                    await self.sleep(sleep_time)
-                    if self.should_stop:
-                        break
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]
@@ -1251,6 +1249,10 @@ class App(AppT, Service):
             self.in_worker and
             self.conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
         )
+
+    def LiveCheck(self, **kwargs: Any) -> _LiveCheck:
+        from faust.livecheck import LiveCheck
+        return LiveCheck.for_app(self, **kwargs)
 
     @stampede
     async def maybe_start_producer(self) -> ProducerT:

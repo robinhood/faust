@@ -944,9 +944,9 @@ class test_Consumer:
     async def test_commit_handler(self, *, consumer):
         i = 0
 
-        def on_sleep(secs):
+        def on_sleep(secs, **kwargs):
             nonlocal i
-            if i:
+            if i > 1:
                 consumer._stopped.set()
             i += 1
 
@@ -956,7 +956,7 @@ class test_Consumer:
         await consumer._commit_handler(consumer)
         consumer.sleep.coro.assert_has_calls([
             call(consumer.commit_interval),
-            call(pytest.approx(consumer.commit_interval, rel=1e-1)),
+            call(pytest.approx(consumer.commit_interval, rel=1e-1), loop=None),
         ])
         consumer.commit.assert_called_once_with()
 

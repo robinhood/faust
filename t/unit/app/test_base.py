@@ -573,7 +573,7 @@ class test_App:
         did_execute = Mock(name='did_execute')
         app.sleep = AsyncMock()
 
-        def on_sleep(seconds):
+        def on_sleep(seconds, **kwargs):
             app._stopped.set()
 
         app.sleep.coro.side_effect = on_sleep
@@ -590,7 +590,7 @@ class test_App:
         app.is_leader = Mock(return_value=False)
         app.sleep = AsyncMock()
 
-        def on_sleep(seconds):
+        def on_sleep(seconds, **kwargs):
             if app.sleep.call_count >= 3:
                 app._stopped.set()
         # cannot use list side_effect arg as it causes
@@ -612,7 +612,7 @@ class test_App:
         app.is_leader = Mock(return_value=True)
         app.sleep = AsyncMock()
 
-        def on_sleep(seconds):
+        def on_sleep(seconds, **kwargs):
             if app.sleep.call_count >= 3:
                 app._stopped.set()
         # cannot use list side_effect arg as it causes
@@ -657,7 +657,7 @@ class test_App:
         app.is_leader = Mock(return_value=False)
         app.sleep = AsyncMock()
 
-        def on_sleep(seconds):
+        def on_sleep(seconds, **kwargs):
             if app.sleep.call_count >= 3:
                 app._stopped.set()
         app.sleep.coro.side_effect = on_sleep
@@ -679,7 +679,7 @@ class test_App:
         app.is_leader = Mock(return_value=True)
         app.sleep = AsyncMock()
 
-        def on_sleep(seconds):
+        def on_sleep(seconds, **kwargs):
             if app.sleep.call_count >= 3:
                 app._stopped.set()
         app.sleep.coro.side_effect = on_sleep

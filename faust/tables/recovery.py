@@ -7,7 +7,6 @@ from typing import Any, List, MutableMapping, Optional, Set, Tuple, cast
 import opentracing
 from mode import Service
 from mode.services import WaitArgT
-from mode.timers import timer_intervals
 from mode.utils.locks import Event
 from mode.utils.typing import Counter
 
@@ -641,16 +640,12 @@ class Recovery(Service):
     async def _publish_stats(self) -> None:
         interval = self.stats_interval
         await self.sleep(interval)
-        for sleep_time in timer_intervals(interval, name='Recovery.stats'):
-            if self.should_stop:
-                break
+        async for sleep_time in self.itertimer(
+                interval, name='Recovery.stats'):
             if self.in_recovery:
                 stats = self.active_stats()
                 if stats:
                     self.log.info('Still fetching. Remaining: %s', stats)
-            await self.sleep(sleep_time)
-            if self.should_stop:
-                break
 
     def _is_changelog_tp(self, tp: TP) -> bool:
         return tp.topic in self.tables.changelog_topics

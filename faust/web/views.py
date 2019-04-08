@@ -8,12 +8,14 @@ from typing import (
     Mapping,
     MutableMapping,
     Type,
+    Union,
     cast,
     no_type_check,
 )
 
 from faust.types import AppT, ModelT
 from faust.types.web import ViewDecorator, ViewHandlerFun
+from yarl import URL
 
 from . import exceptions
 from .base import Request, Response, Web
@@ -86,6 +88,20 @@ class View:
                                request: Request,
                                exc: WebError) -> Response:
         return self.error(exc.code, exc.detail, **exc.extra_context)
+
+    def path_for(self, view_name: str, **kwargs: Any) -> str:
+        return self.web.url_for(view_name, **kwargs)
+
+    def url_for(self,
+                view_name: str,
+                _base_url: Union[str, URL] = None,
+                **kwargs: Any) -> URL:
+        if _base_url is None:
+            _base_url = self.app.conf.canonical_url
+        return URL('/'.join([
+            str(_base_url).rstrip('/'),
+            str(self.path_for(view_name, **kwargs)).lstrip('/'),
+        ]))
 
     @no_type_check
     async def head(self, request: Request, **kwargs: Any) -> Any:

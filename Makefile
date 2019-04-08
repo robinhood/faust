@@ -16,6 +16,7 @@ VULTURE ?= vulture
 VULTURE_MIN_CONFIDENCE ?= 100
 PRE_COMMIT ?= pre-commit
 DMYPY ?= dmypy
+BANDIT ?= bandit
 
 TESTDIR ?= t
 EXAMPLESDIR ?= examples
@@ -253,3 +254,7 @@ reqs-uvloop:
 .PHONY:
 setup-develop:
 	$(PYTHON) setup.py develop
+
+.PHONY:
+update-bandit:
+	$(BANDIT) -o extra/bandit/baseline.json -f json -c extra/bandit/config.yaml -r "$(PROJ)"

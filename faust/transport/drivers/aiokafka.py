@@ -433,6 +433,9 @@ class Producer(base.Producer):
 
     _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
+    def on_init(self) -> None:
+        self._send_on_produce_message = self.app.on_produce_message.send
+
     def _settings_default(self) -> Mapping[str, Any]:
         transport = cast(Transport, self.transport)
         return {
@@ -561,8 +564,14 @@ class Producer(base.Producer):
         producer = self._ensure_producer()
         if headers is not None and isinstance(headers, Mapping):
             headers = list(headers.items())
+        self._send_on_produce_message(
+            key=key, value=value,
+            partition=partition,
+            timestamp=timestamp,
+            headers=headers,
+        )
+        timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
         try:
-            timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
             return cast(Awaitable[RecordMetadata], await producer.send(
                 topic, value,
                 key=key,
