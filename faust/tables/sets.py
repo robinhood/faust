@@ -79,6 +79,9 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
     def as_stored_value(self) -> Any:
         return self.data
 
+    def __iter__(self) -> Iterable[VT]:
+        return iter(self.data)
+
     def apply_changelog_event(self, operation: int, value: Any) -> None:
         if operation == OPERATION_ADD:
             self.data.add(value)
