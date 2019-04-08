@@ -20,7 +20,6 @@ from aiohttp.web import (
     Response,
     TCPSite,
     UnixSite,
-    json_response,
 )
 from aiohttp_cors import CorsConfig, ResourceOptions
 from faust.types import AppT
@@ -151,13 +150,18 @@ class Web(base.Web):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Any:
-        return json_response(
-            value,
-            content_type='application/json',
+        ctype = content_type or 'application/json'
+        payload: Any = _json.dumps(value)
+        if isinstance(payload, bytes):
+            response_type = self.bytes
+        else:
+            response_type = self.text
+        return response_type(
+            payload,
+            content_type=ctype,
             status=status,
             reason=reason,
             headers=headers,
-            dumps=_json.dumps,
         )
 
     def bytes(self,
