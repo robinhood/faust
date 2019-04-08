@@ -426,7 +426,7 @@ class Store(base.SerializedStore):
     def reset_state(self) -> None:
         """Remove all data stored in this table.
 
-        Note:
+        Notes:
             Only local data will be removed, table changelog partitions
             in Kafka will not be affected.
         """
@@ -450,7 +450,10 @@ class Store(base.SerializedStore):
         """Path to directory where tables are stored.
 
         See Also:
-            :setting:`tabledir`
+            :setting:`tabledir` (default value for this path).
+
+        Returns:
+            :class:`pathlib.Path`.
         """
         return self.app.conf.tabledir
 

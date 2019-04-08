@@ -124,8 +124,9 @@ class Channel(ChannelT):
                 that is being iterated over.
 
         Keyword Arguments:
-            Any keyword arguments passed will override any
-            of the arguments supported by :class:`Channel.__init__ <Channel>`.
+            **kwargs: Any keyword arguments passed will override any
+                of the arguments supported by
+                :class:`Channel.__init__ <Channel>`.
         """
         is_it = is_iterator if is_iterator is not None else self.is_iterator
         subchannel: ChannelT = self._clone(is_iterator=is_it, **kwargs)

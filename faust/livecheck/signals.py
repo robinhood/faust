@@ -4,10 +4,11 @@ from time import monotonic
 from typing import Any, Dict, Generic, Tuple, Type, TypeVar, cast
 from mode import Seconds, want_seconds
 
+from faust.models import maybe_model
+
 from .exceptions import TestTimeout
 from .locals import current_test_stack
 from .models import SignalEvent
-from .utils import to_model
 
 if typing.TYPE_CHECKING:
     from .case import Case as _Case
@@ -131,7 +132,7 @@ class Signal(BaseSignal[VT]):
             time_end=time_end,
         )
         self._verify_event(event, k, self.name, self.case.name)
-        return cast(VT, to_model(event.value))
+        return cast(VT, maybe_model(event.value))
 
     def _verify_event(self,
                       ev: SignalEvent,
