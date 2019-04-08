@@ -155,7 +155,7 @@ if orjson is not None:
         return json_dumps(
             obj,
             default=on_default,
-            options=orjson.OPT_NAIVE_UTC,
+            option=orjson.OPT_NAIVE_UTC,
         )
 
     def loads(s: str,
