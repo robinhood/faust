@@ -30,6 +30,17 @@ please visit the :ref:`history` section.
     it so we wait a bit, but this has shown to be not as effective
     as intended.
 
+- **Web**: Cache can now be configured to take headers into account.
+
+    Create the cache manager for your blueprint with the ``include_headers``
+    argument:
+
+    .. sourcecode:: python
+
+        cache = blueprint.cache(timeout=300.0, include_headers=True)
+
+    Contributed by Sanyam Satia (:github_user:`ssatia`).
+
 .. _version-1.5.3:
 
 1.5.3
