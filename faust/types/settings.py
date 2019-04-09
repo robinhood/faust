@@ -201,7 +201,7 @@ STREAM_BUFFER_MAXSIZE = 4096
 #: We wait for a bit to allow for more nodes to join/leave before
 #: starting to reprocess, to minimize the chance of errors and rebalancing
 #: loops.
-STREAM_RECOVERY_DELAY = 3.0
+STREAM_RECOVERY_DELAY = 0.0
 
 #: We buffer up sending messages until the
 #: source topic offset related to that processing is committed.
