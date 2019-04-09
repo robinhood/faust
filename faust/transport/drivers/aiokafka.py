@@ -433,15 +433,14 @@ class Producer(base.Producer):
     logger = logger
 
     allow_headers: bool = True
-    wanted_api_version: Optional[Tuple[int, ...]] = None
     _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
     def __post_init__(self) -> None:
         if self.partitioner is None:
             self.partitioner = DefaultPartitioner()
         if self._api_version != 'auto':
-            self.wanted_api_version = parse_kafka_version(self._api_version)
-            if self.wanted_api_version < (0, 11):
+            wanted_api_version = parse_kafka_version(self._api_version)
+            if wanted_api_version < (0, 11):
                 self.allow_headers = False
 
     def _settings_default(self) -> Mapping[str, Any]:
