@@ -107,20 +107,27 @@ class test_LiveCheck:
 
     def test_case_decorator(self, *, livecheck):
 
+        class SignalWithNoneOrigin(livecheck.Signal):
+            __origin__ = None
+
         @livecheck.case()
         class test_foo:
 
             signal1: livecheck.Signal
-            signal2: livecheck.Signal = livecheck.Signal()
+            signal2: SignalWithNoneOrigin
+            signal3: livecheck.Signal = livecheck.Signal()
             foo: Union[str, int]
             bar: str
 
         assert isinstance(test_foo.signal1, BaseSignal)
-        assert isinstance(test_foo.signal2, BaseSignal)
+        assert isinstance(test_foo.signal2, SignalWithNoneOrigin)
+        assert isinstance(test_foo.signal3, BaseSignal)
 
         assert test_foo.signal1.case is test_foo
+        assert test_foo.signal2.case is test_foo
         assert test_foo.signal1.index == 1
         assert test_foo.signal2.index == 2
+        assert test_foo.signal3.index == 3
 
     def test_add_case(self, *, livecheck):
         case = Mock()

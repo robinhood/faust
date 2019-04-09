@@ -793,6 +793,24 @@ class test_App:
         ret = await routed(view, request)
         assert ret == 42
 
+    @pytest.mark.asyncio
+    async def test_table_route__exact_key(self, *, app):
+        table = app.Table('foo')
+        view = Mock()
+        request = Mock()
+        app.router.route_req = AsyncMock()
+
+        @app.table_route(table, exact_key='active')
+        async def routed(self, request):
+            return 42
+
+        ret = await routed(view, request)
+        assert ret is app.router.route_req.coro.return_value
+
+        app.router.route_req.coro.side_effect = SameNode()
+        ret = await routed(view, request)
+        assert ret == 42
+
     def test_table_route__compat_shard_param(self, *, app):
         table = app.Table('foo')
         with pytest.warns(DeprecationWarning):

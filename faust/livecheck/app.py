@@ -221,13 +221,13 @@ class LiveCheck(faust.App):
                 'app': self,
             })
 
-            signal_names = self._extract_signals(case_cls, base_case)
+            signal_types = dict(self._extract_signals(case_cls, base_case))
             signals = []
 
-            for i, attr_name in enumerate(signal_names):
+            for i, (attr_name, attr_type) in enumerate(signal_types.items()):
                 signal = getattr(case_cls, attr_name, None)
                 if signal is None:
-                    signal = self.Signal(name=attr_name, index=i + 1)
+                    signal = attr_type(name=attr_name, index=i + 1)
                     setattr(case_cls, attr_name, signal)
                     signals.append(signal)
                 else:
@@ -253,9 +253,10 @@ class LiveCheck(faust.App):
             ))
         return _inner
 
-    def _extract_signals(self,
-                         case_cls: Type[_Case],
-                         base_case: Type[_Case]) -> Iterable[str]:
+    def _extract_signals(
+            self,
+            case_cls: Type[_Case],
+            base_case: Type[_Case]) -> Iterable[Tuple[str, Type[BaseSignal]]]:
         fields, defaults = annotations(
             case_cls,
             stop=base_case,
@@ -269,7 +270,7 @@ class LiveCheck(faust.App):
                 actual_type = attr_type
             try:
                 if issubclass(actual_type, BaseSignal):
-                    yield attr_name
+                    yield attr_name, attr_type
             except TypeError:
                 pass
 

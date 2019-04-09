@@ -40,7 +40,7 @@ IsInstanceArg = Union[Type[Any], TypeTuple[Any]]
 try:  # pragma: no cover
     from django.utils.functional import Promise
     DJANGO_TEXTUAL_TYPES = [Promise]
-except ImportError:
+except ImportError:  # pragma: no cover
     DJANGO_TEXTUAL_TYPES = []
 
 TEXTUAL_TYPES: TypeTuple[Any] = tuple(
@@ -151,7 +151,7 @@ class JSONEncoder(json.JSONEncoder):
         return callback(o)
 
 
-if orjson is not None:
+if orjson is not None:  # pragma: no cover
 
     def dumps(obj: Any,
               json_dumps: Callable = orjson.dumps,

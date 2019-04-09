@@ -1,3 +1,4 @@
+import faust
 import pytest
 from faust.tables.sets import (
     ChangeloggedSet,
@@ -5,9 +6,12 @@ from faust.tables.sets import (
     OPERATION_ADD,
     OPERATION_DISCARD,
     OPERATION_UPDATE,
+    SetAction,
+    SetManagerOperation,
+    SetTableManager,
     SetWindowSet,
 )
-from mode.utils.mocks import Mock, call
+from mode.utils.mocks import AsyncMock, Mock, call
 
 
 @pytest.fixture()
@@ -139,11 +143,148 @@ def test_ChangeloggedSetManager():
     assert ChangeloggedSetManager.ValueType is ChangeloggedSet
 
 
+class test_SetTableManager:
+
+    @pytest.fixture()
+    def stable(self, *, app):
+        return app.SetTable('name', start_manager=True)
+
+    @pytest.fixture()
+    def man(self, *, stable):
+        return SetTableManager(stable)
+
+    def test_constructor_enabled(self, *, app, stable):
+        stable.start_manager = True
+        app.agent = Mock(name='agent')
+        man = SetTableManager(stable)
+        assert man.enabled
+        app.agent.assert_called_once_with(
+            channel=man.topic,
+            name='faust.SetTable.manager',
+        )
+
+    def test_constructor_disabled(self, *, app, stable):
+        stable.start_manager = False
+        app.agent = Mock(name='agent')
+        man = SetTableManager(stable)
+        assert man
+        assert not man.enabled
+        app.agent.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.add('key', 'member')
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.ADD, 'key', 'member',
+        )
+
+    @pytest.mark.asyncio
+    async def test_discard(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.discard('key', 'member')
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.DISCARD, 'key', 'member',
+        )
+
+    def test__add(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._add('a', 'v1')
+        man.set_table['a'].add.assert_called_once_with('v1')
+
+    def test__discard(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._discard('a', 'v1')
+        man.set_table['a'].discard.assert_called_once_with('v1')
+
+    @pytest.mark.asyncio
+    async def test__send_operation__disabled(self, *, man):
+        man.enabled = False
+        with pytest.raises(RuntimeError):
+            await man._send_operation(SetAction.ADD, 'k', 'v')
+
+    @pytest.mark.asyncio
+    async def test__send_operation__enabled(self, *, man):
+        man.enabled = True
+        man.topic.send = AsyncMock()
+        await man._send_operation(SetAction.ADD, 'k', 'v')
+        man.topic.send.assert_called_once_with(
+            key='k',
+            value=SetManagerOperation(action=SetAction.ADD, member='v'),
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.allow_lingering_tasks(count=1)
+    async def test__modify_set(self, *, man):
+        stream = Mock()
+        man.set_table = {
+            'k1': Mock(),
+            'k2': Mock(),
+            'k3': Mock(),
+            'k4': Mock(),
+        }
+
+        class X(faust.Record):
+            x: int
+            y: int
+
+        unknown_set_op = SetManagerOperation(
+            action=SetAction.ADD,
+            member='v4',
+        )
+        unknown_set_op.action = 'UNKNOWN'
+
+        async def stream_items():
+            yield ('k1', SetManagerOperation(
+                action=SetAction.ADD,
+                member='v',
+            ))
+            yield ('k2', SetManagerOperation(
+                action=SetAction.DISCARD,
+                member='v2',
+            ))
+            yield ('k3', SetManagerOperation(
+                action=SetAction.DISCARD,
+                member=X(10, 30).to_representation(),
+            ))
+            yield ('k4', unknown_set_op)
+
+        stream.items.side_effect = stream_items
+
+        await man._modify_set(stream)
+
+        man.set_table['k1'].add.assert_called_with('v')
+        man.set_table['k2'].discard.assert_called_with('v2')
+        man.set_table['k3'].discard.assert_called_with(X(10, 30))
+
+
 class test_SetTable:
 
     @pytest.fixture()
     def stable(self, *, app):
         return app.SetTable('name')
+
+    def test_constructor__with_suffix(self, *, app):
+        t1 = app.SetTable('name', manager_topic_suffix='-foo')
+        assert t1.manager_topic_suffix == '-foo'
+        assert t1.manager_topic_name == 'name-foo'
+
+    def test_constructor__with_specific_name(self, *, app):
+        t1 = app.SetTable('name', manager_topic_name='foo')
+        assert t1.manager_topic_name == 'foo'
+
+    @pytest.mark.asyncio
+    async def test_on_start(self, *, stable):
+        stable.changelog_topic.maybe_declare = AsyncMock()
+        stable.add_runtime_dependency = AsyncMock()
+        stable.start_manager = False
+        await stable.on_start()
+
+        stable.start_manager = True
+        await stable.on_start()
+        stable.add_runtime_dependency.assert_has_calls([
+            call(stable.manager)], any_order=True)
+        await stable.on_stop()
 
     def test__new_store(self, *, stable):
         store = stable._new_store()

@@ -151,6 +151,49 @@ class test_Web:
             )
             assert resp is Response()
 
+    def test_json__from_str(self, *, web):
+        web.text = Mock(name='web.text')
+        with patch('faust.utils.json.dumps') as dumps:
+            dumps.return_value = 'foo'
+            payload = {'foo': 'bar'}
+            response = web.json(
+                payload,
+                status=101,
+                reason='bar',
+                headers={'k': 'v'},
+            )
+            dumps.assert_called_once_with(payload)
+            web.text.assert_called_once_with(
+                dumps.return_value,
+                content_type='application/json',
+                status=101,
+                reason='bar',
+                headers={'k': 'v'},
+            )
+            assert response is web.text.return_value
+
+    def test_json__from_bytes(self, *, web):
+        web.bytes = Mock(name='web.bytes')
+        with patch('faust.utils.json.dumps') as dumps:
+            dumps.return_value = b'foo'
+            payload = {'foo': 'bar'}
+            response = web.json(
+                payload,
+                content_type='application/x-json',
+                status=101,
+                reason='bar',
+                headers={'k': 'v'},
+            )
+            dumps.assert_called_once_with(payload)
+            web.bytes.assert_called_once_with(
+                dumps.return_value,
+                content_type='application/x-json',
+                status=101,
+                reason='bar',
+                headers={'k': 'v'},
+            )
+            assert response is web.bytes.return_value
+
     def test_html(self, *, web):
         with patch('faust.web.drivers.aiohttp.Response') as Response:
             resp = web.html(

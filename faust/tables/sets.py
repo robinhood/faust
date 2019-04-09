@@ -111,6 +111,7 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
 
 class ChangeloggedSetManager(ChangeloggedObjectManager):
     """Store that maintains a dictionary of sets."""
+    url = None
 
     ValueType = ChangeloggedSet
 
@@ -200,13 +201,14 @@ class SetTableManager(Service, Generic[KT, VT]):
 
     async def _modify_set(self, stream: StreamT[SetManagerOperation]) -> None:
         async for set_key, set_operation in stream.items():
-            action = SetAction(set_operation.action)
-            member_obj = maybe_model(set_operation.member)
             try:
-                handler = self.actions[action]
-            except KeyError:
-                self.log.exception('Unknown set operation: %r', action)
+                action = SetAction(set_operation.action)
+            except ValueError:
+                self.log.exception(
+                    'Unknown set operation: %r', set_operation.action)
             else:
+                member_obj = maybe_model(set_operation.member)
+                handler = self.actions[action]
                 handler(set_key, member_obj)
 
     @cached_property
@@ -247,7 +249,8 @@ class SetTable(Table[KT, VT]):
 
     async def on_start(self) -> None:
         """Call when set table starts."""
-        await self.add_runtime_dependency(self.manager)
+        if self.start_manager:
+            await self.add_runtime_dependency(self.manager)
         await super().on_start()
 
     def _new_store(self) -> StoreT:

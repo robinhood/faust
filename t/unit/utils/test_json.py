@@ -1,4 +1,5 @@
 import enum
+from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -65,6 +66,7 @@ def test_JSONEncoder():
     assert encoder.default(date(2016, 3, 2))
     assert encoder.default(datetime.utcnow())
     assert encoder.default(datetime.now(timezone.utc))
+    assert encoder.default(Counter([('foo', 3), ('bar', 4)]))
     assert encoder.default(uuid4())
     assert encoder.default(Flags.X) == 'Xval'
     assert encoder.default(Flags.Y) == 'Yval'
