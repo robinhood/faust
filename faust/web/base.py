@@ -55,51 +55,61 @@ class Response:
     @property
     @abc.abstractmethod
     def status(self) -> int:
+        """Return the response status code."""
         ...
 
     @property
     @abc.abstractmethod
     def body(self) -> _bytes:
+        """Return the response body as bytes."""
         ...
 
     @property
     @abc.abstractmethod
     def headers(self) -> MutableMapping:
+        """Return mapping of response HTTP headers."""
         ...
 
     @property
     @abc.abstractmethod
     def content_length(self) -> Optional[int]:
+        """Return the size of the response body."""
         ...
 
     @property
     @abc.abstractmethod
     def content_type(self) -> str:
+        """Return the response content type."""
         ...
 
     @property
     @abc.abstractmethod
     def charset(self) -> Optional[str]:
+        """Return the response character set."""
         ...
 
     @property
     @abc.abstractmethod
     def chunked(self) -> bool:
+        """Return :const:`True` if response is chunked."""
         ...
 
     @property
     @abc.abstractmethod
     def compression(self) -> bool:
+        """Return :const:`True` if the response body is compressed."""
         ...
 
     @property
     @abc.abstractmethod
     def keep_alive(self) -> Optional[bool]:
+        """Return :const:`True` if HTTP keep-alive enabled."""
         ...
 
     @property
     @abc.abstractmethod
     def body_length(self) -> int:
+        """Size of HTTP response body."""
         ...
 
 
@@ -117,11 +127,13 @@ class BlueprintManager:
         self._active = {}
 
     def add(self, prefix: str, blueprint: SymbolArg[Type[BlueprintT]]) -> None:
+        """Register blueprint with this app."""
         if self.applied:
             raise RuntimeError('Cannot add blueprints after server started')
         self._enabled.append((prefix, blueprint))
 
     def apply(self, web: 'Web') -> None:
+        """Apply all blueprints."""
         if not self.applied:
             self.applied = True
             for prefix, blueprint in self._enabled:
@@ -167,6 +179,7 @@ class Web(Service):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create text response, using "text/plain" content-type."""
         ...
 
     @abc.abstractmethod
@@ -175,6 +188,7 @@ class Web(Service):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create HTML response from string, ``text/html`` content-type."""
         ...
 
     @abc.abstractmethod
@@ -183,6 +197,13 @@ class Web(Service):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create new JSON response.
+
+        Accepts any JSON-serializable value and will automatically
+        serialize it for you.
+
+        The content-type is set to "application/json".
+        """
         ...
 
     @abc.abstractmethod
@@ -193,10 +214,12 @@ class Web(Service):
               status: int = 200,
               reason: str = None,
               headers: MutableMapping = None) -> Response:
+        """Create new ``bytes`` response - for binary data."""
         ...
 
     @abc.abstractmethod
     def bytes_to_response(self, s: _bytes) -> Response:
+        """Deserialize HTTP response from byte string."""
         ...
 
     def _bytes_to_response(
@@ -216,6 +239,7 @@ class Web(Service):
 
     @abc.abstractmethod
     def response_to_bytes(self, response: Response) -> _bytes:
+        """Serialize HTTP response into byte string."""
         ...
 
     def _response_to_bytes(
@@ -242,6 +266,7 @@ class Web(Service):
               pattern: str,
               handler: Callable,
               cors_options: Mapping[str, ResourceOptions] = None) -> None:
+        """Add route for handler."""
         ...
 
     @abc.abstractmethod
@@ -249,19 +274,23 @@ class Web(Service):
                    prefix: str,
                    path: Union[Path, str],
                    **kwargs: Any) -> None:
+        """Add static route."""
         ...
 
     @abc.abstractmethod
     async def read_request_content(self, request: 'Request') -> _bytes:
+        """Read HTTP body as bytes."""
         ...
 
     @abc.abstractmethod
     async def wsgi(self) -> Any:
+        """WSGI entry point."""
         ...
 
     def add_view(self, view_cls: Type[View], *,
                  prefix: str = '',
                  cors_options: Mapping[str, ResourceOptions] = None) -> View:
+        """Add route for view."""
         view: View = view_cls(self.app, self)
         path = prefix.rstrip('/') + '/' + view.view_path.lstrip('/')
         self.route(path, view, cors_options)
@@ -288,11 +317,13 @@ class Web(Service):
         return quote(value, safe='')  # disable '/' being safe by default
 
     def init_server(self) -> None:
+        """Initialize and setup web server."""
         self.blueprints.apply(self)
         self.app.on_webserver_init(self)
 
     @property
     def url(self) -> URL:
+        """Return the canonical URL to this worker (including port)."""
         canon = self.app.conf.canonical_url
         if canon.host == socket.gethostname():
             return URL(f'http://localhost:{self.app.conf.web_port}/')
@@ -317,35 +348,43 @@ class Request(abc.ABC):
 
     @abc.abstractmethod
     def can_read_body(self) -> bool:
+        """Return :const:`True` if the request has a body."""
         ...
 
     @abc.abstractmethod
     async def read(self) -> bytes:
+        """Read post data as bytes."""
         ...
 
     @abc.abstractmethod
     async def text(self) -> str:
+        """Read post data as text."""
         ...
 
     @abc.abstractmethod
     async def json(self) -> Any:
+        """Read post data and deserialize as JSON."""
         ...
 
     @abc.abstractmethod
     async def post(self) -> Mapping[str, str]:
+        """Read post data."""
         ...
 
     @property
     @abc.abstractmethod
     def match_info(self) -> Mapping[str, str]:
+        """Return match info from URL route as a mapping."""
         ...
 
     @property
     @abc.abstractmethod
     def query(self) -> Mapping[str, str]:
+        """Return HTTP query parameters as a mapping."""
         ...
 
     @property
     @abc.abstractmethod
     def cookies(self) -> Mapping[str, Any]:
+        """Return cookies as a mapping."""
         ...

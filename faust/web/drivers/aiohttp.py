@@ -49,29 +49,35 @@ def _faust_to_aiohttp_options(
 
 
 class ServerThread(ServiceThread):
+    """A web server running in a dedicated thread."""
 
     def __init__(self, web: 'Web', **kwargs: Any) -> None:
         self.web = web
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
+        """Call in parent thread when the service thread is starting."""
         await self.web.start_server()
 
     async def on_thread_stop(self) -> None:
+        """Call in thread when the service stops."""
         # on_stop() executes in parent thread, on_thread_stop in the thread.
         await self.web.stop_server()
 
 
 class Server(Service):
+    """Web server service."""
 
     def __init__(self, web: 'Web', **kwargs: Any) -> None:
         self.web = web
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
+        """Call when the web server starts."""
         await self.web.start_server()
 
     async def on_stop(self) -> None:
+        """Call when the web server stops."""
         await self.web.stop_server()
 
 
@@ -101,12 +107,17 @@ class Web(base.Web):
 
     @property
     def cors(self) -> CorsConfig:
+        """Return CORS config object."""
         if self._cors is None:
             self._cors = aiohttp_cors.setup(
                 self.web_app, defaults=self.cors_options)
         return self._cors
 
     async def on_start(self) -> None:
+        """Call when the embedded web server starts.
+
+        Only used for `faust worker`, not when using :meth:`wsgi`.
+        """
         cors = self.cors
         assert cors
         self.init_server()
@@ -115,6 +126,11 @@ class Web(base.Web):
         self.add_dependency(self._thread)
 
     async def wsgi(self) -> Any:
+        """Call WSGI handler.
+
+        Used by :pypi:`gunicorn` and other WSGI compatible hosts
+        to access the Faust web entry point.
+        """
         self.init_server()
         return self.web_app
 
@@ -123,6 +139,7 @@ class Web(base.Web):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> base.Response:
+        """Create text response, using "text/plain" content-type."""
         response = Response(
             text=value,
             content_type=content_type,
@@ -137,6 +154,7 @@ class Web(base.Web):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> base.Response:
+        """Create HTML response from string, ``text/html`` content-type."""
         return self.text(
             value,
             status=status,
@@ -150,6 +168,13 @@ class Web(base.Web):
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Any:
+        """Create new JSON response.
+
+        Accepts any JSON-serializable value and will automatically
+        serialize it for you.
+
+        The content-type is set to "application/json".
+        """
         ctype = content_type or 'application/json'
         payload: Any = _json.dumps(value)
         # normal json returns str, orjson returns bytes
@@ -177,6 +202,7 @@ class Web(base.Web):
               status: int = 200,
               reason: str = None,
               headers: MutableMapping = None) -> base.Response:
+        """Create new ``bytes`` response - for binary data."""
         response = Response(
             body=value,
             content_type=content_type,
@@ -187,12 +213,14 @@ class Web(base.Web):
         return cast(base.Response, response)
 
     async def read_request_content(self, request: base.Request) -> _bytes:
+        """Return the request body as bytes."""
         return await cast(Request, request).content.read()
 
     def route(self,
               pattern: str,
               handler: Callable,
               cors_options: Mapping[str, ResourceOptions] = None) -> None:
+        """Add route for web view or handler."""
         if cors_options or self.cors_options:
             async_handler = self._wrap_into_asyncdef(handler)
             for method in NON_OPTIONS_METHODS:
@@ -217,9 +245,11 @@ class Web(base.Web):
                    prefix: str,
                    path: Union[Path, str],
                    **kwargs: Any) -> None:
+        """Add route for static assets."""
         self.web_app.router.add_static(prefix, str(path), **kwargs)
 
     def bytes_to_response(self, s: _bytes) -> base.Response:
+        """Deserialize byte string back into a response object."""
         status, headers, body = self._bytes_to_response(s)
         response = Response(
             body=body,
@@ -229,6 +259,11 @@ class Web(base.Web):
         return cast(base.Response, response)
 
     def response_to_bytes(self, response: base.Response) -> _bytes:
+        """Convert response to serializable byte string.
+
+        The result is a byte string that can be deserialized
+        using :meth:`bytes_to_response`.
+        """
         resp = cast(Response, response)
         return self._response_to_bytes(
             resp.status,
@@ -256,11 +291,13 @@ class Web(base.Web):
         )
 
     async def start_server(self) -> None:
+        """Start the web server."""
         await self._runner.setup()
         site = self._create_site()
         await site.start()
 
     async def stop_server(self) -> None:
+        """Stop the web server."""
         if self._runner:
             await self._runner.cleanup()
         await self._cleanup_app()

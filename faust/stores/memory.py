@@ -57,7 +57,7 @@ class Store(base.Store):
         return None
 
     def reset_state(self) -> None:
-        """Remove local filesystem state.
+        """Remove local file system state.
 
         This does nothing when using the in-memory store.
 

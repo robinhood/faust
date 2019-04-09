@@ -51,10 +51,18 @@ class worker(AppCommand):
                cast(List, now_builtin_worker_options))
 
     def on_worker_created(self, worker: Worker) -> None:
+        """Print banner when worker starts."""
         self.say(self.banner(worker))
 
     def as_service(self, loop: asyncio.AbstractEventLoop,
                    *args: Any, **kwargs: Any) -> ServiceT:
+        """Return the service this command should execute.
+
+        For the worker we simply start the application itself.
+
+        Note:
+            The application will be started using a :class:`faust.Worker`.
+        """
         self._init_worker_options(*args, **kwargs)
         return self.app
 
@@ -133,9 +141,11 @@ class worker(AppCommand):
         ]
 
     def faust_ident(self) -> str:
+        """Return Faust version information as ANSI string."""
         return self.color('hiblue', f'{FAUST} v{faust_version}')
 
     def platform(self) -> str:
+        """Return platform identifier as ANSI string."""
         return '{py_imp} {py_version} ({system} {machine})'.format(
             py_imp=platform.python_implementation(),
             py_version=platform.python_version(),

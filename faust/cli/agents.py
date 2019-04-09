@@ -18,6 +18,7 @@ class agents(AppCommand):
     ]
 
     async def run(self, local: bool) -> None:
+        """Dump list of available agents in this application."""
         self.say(
             self.tabulate(
                 [
@@ -29,6 +30,7 @@ class agents(AppCommand):
             ))
 
     def agents(self, *, local: bool = False) -> Sequence[AgentT]:
+        """Convert list of agents to terminal table rows."""
         sortkey = cast(Callable[[Type[AgentT]], Any], self.sortkey)
         return [
             agent
@@ -37,6 +39,7 @@ class agents(AppCommand):
         ]
 
     def agent_to_row(self, agent: AgentT) -> Sequence[str]:
+        """Convert agent fields to terminal table row."""
         return [
             self.bold_tail(self._name(agent)),
             self._topic(agent),

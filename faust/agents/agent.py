@@ -224,6 +224,7 @@ class Agent(AgentT, Service):
         Service.__init__(self)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        """Return list of services dependencies required to start agent."""
         # Agent service is now a child of app.
         self.beacon.reattach(self.app.beacon)
         return []
@@ -267,6 +268,7 @@ class Agent(AgentT, Service):
         return await self._start_one_supervised(None, active_partitions)
 
     async def on_start(self) -> None:
+        """Call when an agent starts."""
         self.supervisor = self._new_supervisor()
         await self._on_start_supervisor()
 
@@ -322,6 +324,7 @@ class Agent(AgentT, Service):
         return active_partitions
 
     async def on_stop(self) -> None:
+        """Call when an agent stops."""
         # Agents iterate over infinite streams, so we cannot wait for it
         # to stop.
         # Instead we cancel it and this forces the stream to ack the
@@ -340,10 +343,12 @@ class Agent(AgentT, Service):
             self.supervisor = None
 
     def cancel(self) -> None:
+        """Cancel agent and its actor instances running in this process."""
         for aref in self._actors:
             aref.cancel()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call when partitions are revoked."""
         T = traced_from_parent_span()
         if self.isolated_partitions:
             # isolated: start/stop actors for each partition
@@ -352,6 +357,7 @@ class Agent(AgentT, Service):
             await T(self.on_shared_partitions_revoked)(revoked)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        """Call when partitions are assigned."""
         T = traced_from_parent_span()
         if self.isolated_partitions:
             await T(self.on_isolated_partitions_assigned)(assigned)
@@ -359,6 +365,7 @@ class Agent(AgentT, Service):
             await T(self.on_shared_partitions_assigned)(assigned)
 
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call when isolated partitions are revoked."""
         self.log.dev('Partitions revoked')
         T = traced_from_parent_span()
         for tp in revoked:
@@ -367,6 +374,7 @@ class Agent(AgentT, Service):
                 await T(aref.on_isolated_partition_revoked)(tp)
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
+        """Call when isolated partitions are assigned."""
         T = traced_from_parent_span()
         for tp in sorted(assigned):
             await T(self._assign_isolated_partition)(tp)
@@ -402,12 +410,15 @@ class Agent(AgentT, Service):
         return await self._start_for_partitions({tp})
 
     async def on_shared_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call when non-isolated partitions are revoked."""
         ...
 
     async def on_shared_partitions_assigned(self, assigned: Set[TP]) -> None:
+        """Call when non-isolated partitions are assigned."""
         ...
 
     def info(self) -> Mapping:
+        """Return agent attributes as a dictionary."""
         return {
             'app': self.app,
             'fun': self.fun,
@@ -422,6 +433,11 @@ class Agent(AgentT, Service):
         }
 
     def clone(self, *, cls: Type[AgentT] = None, **kwargs: Any) -> AgentT:
+        """Create clone of this agent object.
+
+        Keyword arguments can be passed to override any argument
+        supported by :class:`Agent.__init__ <Agent>`.
+        """
         return (cls or type(self))(**{**self.info(), **kwargs})
 
     def test_context(self,
@@ -429,6 +445,7 @@ class Agent(AgentT, Service):
                      supervisor_strategy: SupervisorStrategyT = None,
                      on_error: AgentErrorHandler = None,
                      **kwargs: Any) -> AgentTestWrapperT:  # pragma: no cover
+        """Create new unit-testing wrapper for this agent."""
         # flow control into channel queues are disabled at startup,
         # so need to resume that.
         self.app.flow_control.resume()
@@ -471,6 +488,7 @@ class Agent(AgentT, Service):
                  active_partitions: Set[TP] = None,
                  stream: StreamT = None,
                  channel: ChannelT = None) -> ActorRefT:
+        """Create new actor instance for this agent."""
         # The agent function can be reused by other agents/tasks.
         # For example:
         #
@@ -499,6 +517,7 @@ class Agent(AgentT, Service):
                           index: int = None,
                           active_partitions: Set[TP] = None,
                           channel: ChannelT = None) -> ActorRefT:
+        """Create new actor from stream."""
         we_created_stream = False
         actual_stream: StreamT
         if stream is None:
@@ -532,6 +551,7 @@ class Agent(AgentT, Service):
         )
 
     def add_sink(self, sink: SinkT) -> None:
+        """Add new sink to further handle results from this agent."""
         if sink not in self._sinks:
             self._sinks.append(sink)
 
@@ -539,6 +559,7 @@ class Agent(AgentT, Service):
                channel: ChannelT = None,
                active_partitions: Set[TP] = None,
                **kwargs: Any) -> StreamT:
+        """Create underlying stream used by this agent."""
         if channel is None:
             channel = cast(TopicT, self.channel_iterator).clone(
                 is_iterator=False,
@@ -672,6 +693,11 @@ class Agent(AgentT, Service):
                    partition: int = None,
                    timestamp: float = None,
                    headers: HeadersArg = None) -> None:
+        """RPC operation: like :meth:`ask` but do not expect reply.
+
+        Cast here is like "casting a spell", and will not expect
+        a reply back from the agent.
+        """
         await self.send(
             key=key,
             value=value,
@@ -689,6 +715,11 @@ class Agent(AgentT, Service):
                   headers: HeadersArg = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
+        """RPC operation: ask agent for result of processing value.
+
+        This version will wait until the result is available
+        and return the processed value.
+        """
         p = await self.ask_nowait(
             value,
             key=key,
@@ -714,6 +745,11 @@ class Agent(AgentT, Service):
                          reply_to: ReplyToArg = None,
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
+        """RPC operation: ask agent for result of processing value.
+
+        This version does not wait for the result to arrive,
+        but instead returns a promise of future evaluation.
+        """
         if reply_to is None:
             raise TypeError('Missing reply_to argument')
         reply_to = self._get_strtopic(reply_to)
@@ -805,6 +841,11 @@ class Agent(AgentT, Service):
                   key: K = None,
                   reply_to: ReplyToArg = None,
                   ) -> AsyncIterator:  # pragma: no cover
+        """RPC map operation on a list of values.
+
+        A map operation iterates over results as they arrive.
+        See :meth:`join` and :meth:`kvjoin` if you want them in order.
+        """
         # Map takes only values, but can provide one key that is used for all.
         async for value in self.kvmap(
                 ((key, v) async for v in aiter(values)), reply_to):
@@ -815,6 +856,11 @@ class Agent(AgentT, Service):
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg = None,
     ) -> AsyncIterator[str]:  # pragma: no cover
+        """RPC map operation on a list of ``(key, value)`` pairs.
+
+        A map operation iterates over results as they arrive.
+        See :meth:`join` and :meth:`kvjoin` if you want them in order.
+        """
         # kvmap takes (key, value) pairs.
         reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
 
@@ -843,6 +889,11 @@ class Agent(AgentT, Service):
                    key: K = None,
                    reply_to: ReplyToArg = None,
                    ) -> List[Any]:  # pragma: no cover
+        """RPC map operation on a list of values.
+
+        A join returns the results in order, and only returns once
+        all values have been processed.
+        """
         return await self.kvjoin(
             ((key, value) async for value in aiter(values)),
             reply_to=reply_to,
@@ -852,6 +903,11 @@ class Agent(AgentT, Service):
             self,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg = None) -> List[Any]:  # pragma: no cover
+        """RPC map operation on list of ``(key, value)`` pairs.
+
+        A join returns the results in order, and only returns once
+        all values have been processed.
+        """
         reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
         barrier = BarrierState(reply_to)
 
@@ -901,6 +957,7 @@ class Agent(AgentT, Service):
         return shorten_fqdn(self.name)
 
     def get_topic_names(self) -> Iterable[str]:
+        """Return list of topic names this agent subscribes to."""
         channel = self.channel
         if isinstance(channel, TopicT):
             return channel.topics
@@ -908,6 +965,7 @@ class Agent(AgentT, Service):
 
     @property
     def channel(self) -> ChannelT:
+        """Return channel used by agent."""
         if self._channel is None:
             self._channel = self._prepare_channel(
                 self._channel_arg,
@@ -923,6 +981,7 @@ class Agent(AgentT, Service):
 
     @property
     def channel_iterator(self) -> AsyncIterator:
+        """Return channel agent iterates over."""
         # The channel is "memoized" here, so subsequent access to
         # instance.channel_iterator will return the same value.
         if self._channel_iterator is None:
@@ -937,6 +996,7 @@ class Agent(AgentT, Service):
 
     @property
     def label(self) -> str:
+        """Return human-readable description of agent."""
         return self._agent_label()
 
     def _agent_label(self, name_suffix: str = '') -> str:
@@ -946,6 +1006,7 @@ class Agent(AgentT, Service):
 
     @property
     def shortlabel(self) -> str:
+        """Return short description of agent."""
         return self._agent_label()
 
 

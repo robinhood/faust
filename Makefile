@@ -121,7 +121,7 @@ flakecheck:
 	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/
 
 docstylecheck:
-	$(PYDOCSTYLE) --match-dir '(?!types)' "$(PROJ)"
+	$(PYDOCSTYLE) --match-dir '(?!types|assignor)' "$(PROJ)"
 
 vulture:
 	$(VULTURE) "$(PROJ)" "$(TESTDIR)" "$(EXAMPLESDIR)" \

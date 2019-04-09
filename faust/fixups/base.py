@@ -16,10 +16,13 @@ class Fixup(FixupT):
         self.app = app
 
     def enabled(self) -> bool:
+        """Return if fixup should be enabled in this environment."""
         return False
 
     def autodiscover_modules(self) -> Iterable[str]:
+        """Return list of additional autodiscover modules."""
         return []
 
     def on_worker_init(self) -> None:
+        """Call when initializing worker/CLI commands."""
         ...

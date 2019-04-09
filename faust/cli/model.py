@@ -28,6 +28,7 @@ class model(AppCommand):
     ]
 
     async def run(self, name: str) -> None:
+        """Dump list of registered models to terminal."""
         try:
             model = registry[name]
         except KeyError:
@@ -59,9 +60,11 @@ class model(AppCommand):
         return click.UsageError(f'No model {name!r}. {alt}')
 
     def model_fields(self, model: Type[ModelT]) -> terminal.TableDataT:
+        """Convert model fields to terminal table rows."""
         return [self.field(getattr(model, k)) for k in model._options.fields]
 
     def field(self, field: FieldDescriptorT) -> Sequence[str]:
+        """Convert model field model to terminal table columns."""
         return [
             field.field,
             self._type(field.type),
@@ -72,6 +75,7 @@ class model(AppCommand):
         return typ.__name__ if typ in BUILTIN_TYPES else repr(typ)
 
     def model_to_row(self, model: Type[ModelT]) -> Sequence[str]:
+        """Convert model to terminal table row."""
         return [
             self.bold_tail(self._name(model)),
             self.dark(self._help(model)),

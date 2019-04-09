@@ -21,17 +21,20 @@ class Router(RouterT):
         self._assignor = self.app.assignor
 
     def key_store(self, table_name: str, key: K) -> URL:
+        """Return the URL of web server that hosts key in table."""
         table = self._get_table(table_name)
         topic = self._get_table_topic(table)
         k = self._get_serialized_key(table, key)
         return self._assignor.key_store(topic, k)
 
     def table_metadata(self, table_name: str) -> HostToPartitionMap:
+        """Return metadata stored for table in the partition assignor."""
         table = self._get_table(table_name)
         topic = self._get_table_topic(table)
         return self._assignor.table_metadata(topic)
 
     def tables_metadata(self) -> HostToPartitionMap:
+        """Return metadata stored for all tables in the partition assignor."""
         return self._assignor.tables_metadata()
 
     @classmethod
@@ -47,6 +50,14 @@ class Router(RouterT):
 
     async def route_req(self, table_name: str, key: K, web: Web,
                         request: Request) -> Response:
+        """Route request to worker having key in table.
+
+        Arguments:
+            table_name: Name of the table.
+            key: The key that we want.
+            web: The currently sued web driver,
+            request: The web request currently being served.
+        """
         app = self.app
         try:
             dest_url: URL = app.router.key_store(table_name, key)

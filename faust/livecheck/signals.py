@@ -1,3 +1,4 @@
+"""LiveCheck Signals - Test communication and synchronization."""
 import asyncio
 import typing
 from time import monotonic
@@ -38,14 +39,17 @@ class BaseSignal(Generic[VT]):
     async def send(self, value: VT = None, *,
                    key: Any = None,
                    force: bool = False) -> None:
+        """Notify test that this signal is now complete."""
         raise NotImplementedError()
 
     async def wait(self, *,
                    key: Any = None,
                    timeout: Seconds = None) -> VT:
+        """Wait for signal to be completed."""
         raise NotImplementedError()
 
     async def resolve(self, key: Any, event: SignalEvent) -> None:
+        """Resolve signal with value."""
         self._set_current_value(key, event)
         self._wakeup_resolvers()
 
@@ -71,6 +75,7 @@ class BaseSignal(Generic[VT]):
         self.case.app._resolved_signals[self._index_key(key)] = event
 
     def clone(self, **kwargs: Any) -> 'BaseSignal':
+        """Clone this signal using keyword arguments."""
         return type(self)(**{**self._asdict(), **kwargs})
 
     def _asdict(self, **kwargs: Any) -> Dict:
@@ -94,6 +99,7 @@ class Signal(BaseSignal[VT]):
     async def send(self, value: VT = None, *,
                    key: Any = None,
                    force: bool = False) -> None:
+        """Notify test that this signal is now complete."""
         current_test = current_test_stack.top
         if current_test is None:
             if not force:
@@ -114,6 +120,7 @@ class Signal(BaseSignal[VT]):
     async def wait(self, *,
                    key: Any = None,
                    timeout: Seconds = None) -> VT:
+        """Wait for signal to be completed."""
         # wait for key to arrive in consumer
         runner = self.case.current_execution
         if runner is None:

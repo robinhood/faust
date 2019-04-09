@@ -1,3 +1,4 @@
+"""Sensors."""
 from .base import Sensor, SensorDelegate
 from .monitor import Monitor, TableState
 

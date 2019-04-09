@@ -24,15 +24,18 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
+        """Call when agents are being started."""
         self.update_topic_index()
         for agent in self.values():
             await agent.maybe_start()
 
     def service_reset(self) -> None:
+        """Reset service state on restart."""
         [agent.service_reset() for agent in self.values()]
         super().service_reset()
 
     async def on_stop(self) -> None:
+        """Call when agents are being stopped."""
         for agent in self.values():
             try:
                 await asyncio.shield(agent.stop())
@@ -40,15 +43,18 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
                 pass
 
     async def stop(self) -> None:
+        """Stop all running agents."""
         # Cancel first so _execute_task sees we are not stopped.
         self.cancel()
         # Then stop the agents
         await super().stop()
 
     def cancel(self) -> None:
+        """Cancel all running agents."""
         [agent.cancel() for agent in self.values()]
 
     def update_topic_index(self) -> None:
+        """Update indices."""
         # keep mapping from topic name to set of agents.
         by_topic_index = self._by_topic
         for agent in self.values():
@@ -58,6 +64,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
     async def on_rebalance(self,
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Call when a rebalance is needed."""
         T = traced_from_parent_span()
         # for isolated_partitions agents we stop agents for revoked
         # partitions.

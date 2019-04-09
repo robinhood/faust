@@ -75,7 +75,7 @@ class Case(Service):
 
     #: The warn_stalled_after timer uses this to keep track of
     #: either when a test was last received, or the last time the timer
-    #: tiemd out.
+    #: timed out.
     last_test_received: Optional[float] = None
 
     #: Timestamp of when the suite last failed.
@@ -202,6 +202,7 @@ class Case(Service):
             self, id: str = None,
             *args: Any,
             **kwargs: Any) -> AsyncGenerator[Optional[TestExecution], None]:
+        """Schedule test execution, or not, based on probability setting."""
         execution: Optional[TestExecution] = None
         with ExitStack() as exit_stack:
             if uniform(0, 1) < self.probability:
@@ -212,6 +213,7 @@ class Case(Service):
     async def trigger(self, id: str = None,
                       *args: Any,
                       **kwargs: Any) -> TestExecution:
+        """Schedule test execution ASAP."""
         id = id or uuid()
         execution = TestExecution(
             id=id,
@@ -228,12 +230,15 @@ class Case(Service):
         return datetime.utcnow().astimezone(timezone.utc)
 
     async def run(self, *test_args: Any, **test_kwargs: Any) -> None:
+        """Override this to define your test case."""
         raise NotImplementedError('Case class must implement run')
 
     async def resolve_signal(self, key: str, event: SignalEvent) -> None:
+        """Mark test execution signal as resolved."""
         await self.signals[event.signal_name].resolve(key, event)
 
     async def execute(self, test: TestExecution) -> None:
+        """Execute test using :class:`TestRunner`."""
         t_start = monotonic()
         runner = self.Runner(self, test, started=t_start)
         with current_execution_stack.push(runner):
@@ -241,6 +246,7 @@ class Case(Service):
             await runner.execute()
 
     async def on_test_start(self, runner: TestRunner) -> None:
+        """Call when a test starts executing."""
         started = runner.started
         t_prev, self.last_test_received = self.last_test_received, started
         if t_prev:
@@ -254,6 +260,7 @@ class Case(Service):
                 self.frequency_history, time_since, self.max_history)
 
     async def on_test_skipped(self, runner: TestRunner) -> None:
+        """Call when a test is skipped."""
         # wait until we have fast forwarded before raising errors
         # XXX should we use seek, or warn somehow if this
         # takes too long?
@@ -262,16 +269,19 @@ class Case(Service):
     async def on_test_failed(self,
                              runner: TestRunner,
                              exc: BaseException) -> None:
+        """Call when invariant in test execution fails."""
         await self._set_test_error_state(State.FAIL)
 
     async def on_test_error(self,
                             runner: TestRunner,
                             exc: BaseException) -> None:
+        """Call when a test execution raises an exception."""
         await self._set_test_error_state(State.ERROR)
 
     async def on_test_timeout(self,
                               runner: TestRunner,
                               exc: BaseException) -> None:
+        """Call when a test execution times out."""
         await self._set_test_error_state(State.TIMEOUT)
 
     async def _set_test_error_state(self, state: State) -> None:
@@ -295,6 +305,7 @@ class Case(Service):
         self.total_by_state[state] += 1
 
     async def on_test_pass(self, runner: TestRunner) -> None:
+        """Call when a test execution passes."""
         test = runner.test
         runtime = runner.runtime
         deque_pushpopmax(self.runtime_history, runtime, self.max_history)
@@ -304,6 +315,7 @@ class Case(Service):
             self._maybe_recover_from_failed_state()
 
     async def post_report(self, report: TestReport) -> None:
+        """Publish test report."""
         await self.app.post_report(report)
 
     @Service.task
@@ -348,6 +360,7 @@ class Case(Service):
     async def on_suite_fail(self,
                             exc: SuiteFailed,
                             new_state: State = State.FAIL) -> None:
+        """Call when the suite fails."""
         assert isinstance(exc, SuiteFailed)
         delay = self.state_transition_delay
         if self.state.is_ok() or self._failed_longer_than(delay):
@@ -381,19 +394,23 @@ class Case(Service):
 
     @property
     def seconds_since_last_fail(self) -> Optional[float]:
+        """Return number of seconds since any test failed."""
         last_fail = self.last_fail
         return monotonic() - last_fail if last_fail else None
 
     async def get_url(self, url: Union[str, URL],
                       **kwargs: Any) -> Optional[bytes]:
+        """Perform GET request using HTTP client."""
         return await self.url_request('get', url, **kwargs)
 
     async def post_url(self, url: Union[str, URL],
                        **kwargs: Any) -> Optional[bytes]:
+        """Perform POST request using HTTP client."""
         return await self.url_request('post', url, **kwargs)
 
     async def url_request(self, method: str, url: Union[str, URL],
                           **kwargs: Any) -> Optional[bytes]:
+        """Perform URL request using HTTP client."""
         timeout = ClientTimeout(
             total=self.url_timeout_total,
             connect=self.url_timeout_connect,
@@ -431,12 +448,15 @@ class Case(Service):
 
     @property
     def current_test(self) -> Optional[TestExecution]:
+        """Return the currently active test in this task (if any)."""
         return current_test_stack.top
 
     @property
     def current_execution(self) -> Optional[TestRunner]:
+        """Return the currently executing :class:`TestRunner` in this task."""
         return current_execution_stack.top
 
     @property
     def label(self) -> str:
+        """Return human-readable label for this test case."""
         return f'{type(self).__name__}: {self.name}'

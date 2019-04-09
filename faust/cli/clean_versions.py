@@ -15,9 +15,11 @@ class clean_versions(AppCommand):
     """
 
     async def run(self) -> None:
+        """Execute command."""
         self.remove_old_versiondirs()
 
     def remove_old_versiondirs(self) -> None:
+        """Remove data from old application versions from data directory."""
         for dir in self.app.conf.find_old_versiondirs():
             self.say(f'Removing old version directory {dir}...')
             rmtree(str(dir))

@@ -43,6 +43,7 @@ class View:
 
     @classmethod
     def from_handler(cls, fun: ViewHandlerFun) -> Type['View']:
+        """Decorate ``async def`` handler function to create view."""
         if not callable(fun):
             raise TypeError(f'View handler must be callable, not {fun!r}')
         return type(fun.__name__, (cls,), {
@@ -66,12 +67,15 @@ class View:
         self.__post_init__()
 
     def __post_init__(self) -> None:
+        """Override this to add custom initialization to your view."""
         ...
 
     async def __call__(self, request: Any) -> Any:
+        """Perform HTTP request."""
         return await self.dispatch(request)
 
     async def dispatch(self, request: Any) -> Any:
+        """Dispatch the request and perform any callbacks/cleanup."""
         method = request.method.lower()
         kwargs = request.match_info or {}  # XXX Aiohttp specific
 
@@ -87,15 +91,26 @@ class View:
     async def on_request_error(self,
                                request: Request,
                                exc: WebError) -> Response:
+        """Call when a request raises an exception."""
         return self.error(exc.code, exc.detail, **exc.extra_context)
 
     def path_for(self, view_name: str, **kwargs: Any) -> str:
+        """Return the URL path for view by name.
+
+        Supports match keyword arguments.
+        """
         return self.web.url_for(view_name, **kwargs)
 
     def url_for(self,
                 view_name: str,
                 _base_url: Union[str, URL] = None,
                 **kwargs: Any) -> URL:
+        """Return the canonical URL for view by name.
+
+        Supports match keyword arguments.
+        Can take optional base name, which if not set will
+        be the canonical URL of the app.
+        """
         if _base_url is None:
             _base_url = self.app.conf.canonical_url
         return URL('/'.join([
@@ -105,30 +120,37 @@ class View:
 
     @no_type_check
     async def head(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``head`` to define the HTTP HEAD handler."""
         return await self.get(request, **kwargs)
 
     @no_type_check  # subclasses change signature based on route match_info
     async def get(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``get`` to define the HTTP GET handler."""
         raise exceptions.MethodNotAllowed('Method GET not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def post(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``post`` to define the HTTP POST handler."""
         raise exceptions.MethodNotAllowed('Method POST not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def put(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``put`` to define the HTTP PUT handler."""
         raise exceptions.MethodNotAllowed('Method PUT not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def patch(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``patch`` to define the HTTP PATCH handler."""
         raise exceptions.MethodNotAllowed('Method PATCH not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def delete(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``delete`` to define the HTTP DELETE handler."""
         raise exceptions.MethodNotAllowed('Method DELETE not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def options(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``options`` to define the HTTP OPTIONS handler."""
         raise exceptions.MethodNotAllowed('Method OPTIONS not allowed.')
 
     def text(self, value: str, *,
@@ -136,6 +158,7 @@ class View:
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create text response, using "text/plain" content-type."""
         return self.web.text(
             value,
             content_type=content_type,
@@ -149,6 +172,7 @@ class View:
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create HTML response from string, ``text/html`` content-type."""
         return self.web.html(
             value,
             content_type=content_type,
@@ -162,6 +186,13 @@ class View:
              status: int = 200,
              reason: str = None,
              headers: MutableMapping = None) -> Response:
+        """Create new JSON response.
+
+        Accepts any JSON-serializable value and will automatically
+        serialize it for you.
+
+        The content-type is set to "application/json".
+        """
         return self.web.json(
             value,
             content_type=content_type,
@@ -177,6 +208,7 @@ class View:
               status: int = 200,
               reason: str = None,
               headers: MutableMapping = None) -> Response:
+        """Create new ``bytes`` response - for binary data."""
         return self.web.bytes(
             value,
             content_type=content_type,
@@ -186,23 +218,35 @@ class View:
         )
 
     async def read_request_content(self, request: Request) -> _bytes:
+        """Return the request body as bytes."""
         return await self.web.read_request_content(request)
 
     def bytes_to_response(self, s: _bytes) -> Response:
+        """Deserialize byte string back into a response object."""
         return self.web.bytes_to_response(s)
 
     def response_to_bytes(self, response: Response) -> _bytes:
+        """Convert response to serializable byte string.
+
+        The result is a byte string that can be deserialized
+        using :meth:`bytes_to_response`.
+        """
         return self.web.response_to_bytes(response)
 
     def route(self, pattern: str, handler: Callable) -> Any:
+        """Create new route from pattern and handler."""
         self.web.route(pattern, handler)
         return handler
 
     def notfound(self, reason: str = 'Not Found', **kwargs: Any) -> Response:
-        # Deprecated: Use raise NotFound() instead.
+        """Create not found error response.
+
+        Deprecated: Use ``raise self.NotFound()`` instead.
+        """
         return self.error(404, reason, **kwargs)
 
     def error(self, status: int, reason: str, **kwargs: Any) -> Response:
+        """Create error JSON response."""
         return self.json({'error': reason, **kwargs}, status=status)
 
 

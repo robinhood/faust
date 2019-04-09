@@ -22,6 +22,7 @@ class Table(TableT[KT, VT], Collection):
 
     def using_window(self, window: WindowT, *,
                      key_index: bool = False) -> WindowWrapperT:
+        """Wrap table using a specific window type."""
         self.window = window
         self._changelog_compacting = True
         self._changelog_deleting = True
@@ -31,6 +32,7 @@ class Table(TableT[KT, VT], Collection):
     def hopping(self, size: Seconds, step: Seconds,
                 expires: Seconds = None,
                 key_index: bool = False) -> WindowWrapperT:
+        """Wrap table in a hopping window."""
         return self.using_window(
             windows.HoppingWindow(size, step, expires),
             key_index=key_index,
@@ -39,6 +41,7 @@ class Table(TableT[KT, VT], Collection):
     def tumbling(self, size: Seconds,
                  expires: Seconds = None,
                  key_index: bool = False) -> WindowWrapperT:
+        """Wrap table in a tumbling window."""
         return self.using_window(
             windows.TumblingWindow(size, expires),
             key_index=key_index,
@@ -62,9 +65,11 @@ class Table(TableT[KT, VT], Collection):
         del self[key]
 
     def on_key_get(self, key: KT) -> None:
+        """Call when the value for a key in this table is retrieved."""
         self._sensor_on_get(self, key)
 
     def on_key_set(self, key: KT, value: VT) -> None:
+        """Call when the value for a key in this table is set."""
         event = current_event()
         if event is None:
             raise TypeError(
@@ -75,6 +80,7 @@ class Table(TableT[KT, VT], Collection):
         self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: KT) -> None:
+        """Call when a key in this table is removed."""
         event = current_event()
         if event is None:
             raise TypeError(
@@ -86,6 +92,7 @@ class Table(TableT[KT, VT], Collection):
 
     def as_ansitable(self, title: str = '{table.name}',
                      **kwargs: Any) -> str:
+        """Draw table as a a terminal ANSI table."""
         return dict_as_ansitable(
             self,
             title=title.format(table=self),

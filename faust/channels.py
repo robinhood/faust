@@ -243,12 +243,12 @@ class Channel(ChannelT):
                               wait: bool = True) -> Awaitable[RecordMetadata]:
         """Publish message to channel.
 
-        This is the interace used by ``topic.send()``, etc.
+        This is the interface used by ``topic.send()``, etc.
         to actually publish the message on the channel
         after being buffered up or similar.
 
         It takes a :class:`~faust.types.FutureMessage` object,
-        wich contains all the information required to send
+        which contains all the information required to send
         the message, and acts as a promise that is resolved
         once the message has been fully transmitted.
         """
@@ -404,7 +404,7 @@ class Channel(ChannelT):
         """Signal that iteration over this channel was stopped.
 
         Tip:
-            Remember to call :keyword:`super` when overriding this method.
+            Remember to call ``super`` when overriding this method.
         """
         ...
 

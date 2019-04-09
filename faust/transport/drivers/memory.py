@@ -55,13 +55,16 @@ class Consumer(base.Consumer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic."""
         ...
 
     async def subscribe(self, topics: Iterable[str]) -> None:
+        """Subscribe to topics."""
         await cast(Transport, self.transport).subscribe(topics)
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        """Fetch batch of messages."""
         transport = cast(Transport, self.transport)
         max_per_partition = 100
         partitions = tuple(self.assignment())
@@ -88,43 +91,54 @@ class Consumer(base.Consumer):
         return TP(topic, partition)
 
     async def perform_seek(self) -> None:
+        """Seek all partitions to their current committed position."""
         ...
 
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         return True
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
+        """Pause fetching from partitions."""
         ...
 
     async def position(self, tp: TP) -> Optional[int]:
+        """Return the current offset position for partition."""
         return 0
 
     def resume_partitions(self, partitions: Iterable[TP]) -> None:
+        """Resume fetching from partitions."""
         ...
 
     async def seek_to_latest(self, *partitions: TP) -> None:
+        """Seek partition to last available offset."""
         ...
 
     async def seek_to_beginning(self, *partitions: TP) -> None:
+        """Seek partition to first available offset."""
         ...
 
     async def seek(self, partition: TP, offset: int) -> None:
+        """Seek partition to particular offset."""
         ...
 
     def assignment(self) -> Set[TP]:
+        """Return the current assignment."""
         return {
             TP(t, 0)
             for t in cast(Transport, self.transport)._subscription
         }
 
     def highwater(self, tp: TP) -> int:
+        """Return the last offset in a partition."""
         return 0
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
+        """Return the earliest available offsets for a list of partitions."""
         return {tp: 0 for tp in partitions}
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+        """Return highwater (last offset) for a list of partitions."""
         return {tp: 0 for tp in partitions}
 
 
@@ -142,6 +156,7 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create topic on broker."""
         ...
 
     async def send(self, topic: str, key: Optional[bytes],
@@ -151,6 +166,7 @@ class Producer(base.Producer):
                    headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        """Schedule message to be sent."""
         res = await self.send_and_wait(
             topic, key, value, partition, timestamp, headers)
         return cast(Awaitable[RecordMetadata], done_future(res))
@@ -162,6 +178,7 @@ class Producer(base.Producer):
                             headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
+        """Send message and wait for it to be fully delivered."""
         return await cast(Transport, self.transport).send(
             topic, value, key, partition, timestamp, headers)
 
@@ -188,6 +205,7 @@ class Transport(base.Transport):
         self._subscription_ready = asyncio.Event(loop=self.loop)
 
     async def subscribe(self, topics: Iterable[str]) -> None:
+        """Subscribe to new set of topics."""
         self._subscription_ready.clear()
         self._subscription.clear()
         self._subscription.update(topics)
@@ -198,6 +216,7 @@ class Transport(base.Transport):
                    partition: Optional[int],
                    timestamp: Optional[float],
                    headers: Optional[HeadersArg]) -> RecordMetadata:
+        """Deliver message to consumer."""
         if partition is None:
             partition = 0
         message = Message(

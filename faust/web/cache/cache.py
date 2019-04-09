@@ -79,6 +79,7 @@ class Cache(CacheT):
 
     async def get_view(self,
                        key: str, view: View) -> Optional[Response]:
+        """Get cached value for HTTP view request."""
         backend = self._view_backend(view)
         with suppress(backend.Unavailable):
             payload = await backend.get(key)
@@ -94,6 +95,7 @@ class Cache(CacheT):
                        view: View,
                        response: Response,
                        timeout: Seconds) -> None:
+        """Set cached value for HTTP view request."""
         backend = self._view_backend(view)
         with suppress(backend.Unavailable):
             return await backend.set(
@@ -103,17 +105,20 @@ class Cache(CacheT):
             )
 
     def can_cache_request(self, request: Request) -> bool:
+        """Return :const:`True` if we can cache this type of HTTP request."""
         return True
 
     def can_cache_response(self,
                            request: Request,
                            response: Response) -> bool:
+        """Return :const:`True` for HTTP status codes we CAN cache."""
         return response.status == 200
 
     def key_for_request(self,
                         request: Request,
                         prefix: str = None,
                         method: str = None) -> str:
+        """Return a cache key created from web request."""
         actual_method: str = request.method if method is None else method
         if prefix is None:
             prefix = self.key_prefix
@@ -124,6 +129,7 @@ class Cache(CacheT):
                   method: str,
                   prefix: str,
                   headers: List[str]) -> str:
+        """Build cache key from web request and environment."""
         context = hashlib.md5(
             b''.join(v.encode() for v in headers if v is not None)).hexdigest()
         url = hashlib.md5(

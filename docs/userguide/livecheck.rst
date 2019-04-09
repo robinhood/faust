@@ -1,5 +1,5 @@
 ================================================================
- LiveCheck: End-to-end test for prodiction/staging.
+ LiveCheck: End-to-end test for production/staging.
 ================================================================
 
 What is the problem with unit tests?
@@ -10,7 +10,7 @@ A staging environment is still desirable.
 
 Enables you to:
 
-    - track requests as they travel through your microservice architecture.
+    - track requests as they travel through your micro service architecture.
     - define contracts that should be met at every step
 
 all by writing a class that looks like a regular unit test.
@@ -20,9 +20,9 @@ subsystems are down. Tests are executed based on probability, so you can
 run tests for every requests, or for just 30%, 50%, or even 0.1% of your
 requests.
 
-This is not just for microservice architectures, it's for any asynchronous
+This is not just for micro service architectures, it's for any asynchronous
 system.  A monolith sending celery tasks is a good example, you could
-track and babysit at every step of a workflow to make sure things
+track and babysit at every step of a work flow to make sure things
 progress as they should.
 
 Every stage of your production pipeline could be tested for

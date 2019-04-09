@@ -53,6 +53,7 @@ class ConductorCompiler:  # pragma: no cover
               conductor: 'Conductor',
               tp: TP,
               channels: MutableSet[_Topic]) -> ConsumerCallback:
+        """Generate closure used to deliver messages."""
         # This method localizes variables and attribute access
         # for better performance.  This is part of the inner loop
         # of a Faust worker, so tiny improvements here has big impact.
@@ -192,9 +193,11 @@ class Conductor(ConductorT, Service):
         self.on_message = self._compile_message_handler()
 
     async def commit(self, topics: TPorTopicSet) -> bool:
+        """Commit offsets in topics."""
         return await self.app.consumer.commit(topics)
 
     def acks_enabled_for(self, topic: str) -> bool:
+        """Return :const:`True` if acks are enabled for topic by name."""
         return topic in self._acking_topics
 
     def _compile_message_handler(self) -> ConsumerCallback:
@@ -246,6 +249,7 @@ class Conductor(ConductorT, Service):
             notify(self._subscription_done)
 
     async def wait_for_subscriptions(self) -> None:
+        """Wait for consumer to be subscribed."""
         if self._subscription_done is not None:
             await self._subscription_done
 
@@ -263,6 +267,7 @@ class Conductor(ConductorT, Service):
         return self._topic_name_index
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        """Call when cluster is rebalancing and partitions are assigned."""
         T = traced_from_parent_span()
         self._tp_index.clear()
         T(self._update_tp_index)(assigned)
@@ -300,6 +305,7 @@ class Conductor(ConductorT, Service):
             return self._compiler.build(self, tp, channels)
 
     def clear(self) -> None:
+        """Clear all subscriptions."""
         self._topics.clear()
         self._topic_name_index.clear()
         self._tp_index.clear()
@@ -319,6 +325,7 @@ class Conductor(ConductorT, Service):
         return object.__hash__(self)
 
     def add(self, topic: Any) -> None:
+        """Register topic to be subscribed."""
         if topic not in self._topics:
             self._topics.add(topic)
             if self._topic_contain_unsubscribed_topics(topic):
@@ -329,6 +336,7 @@ class Conductor(ConductorT, Service):
         return bool(index and any(t not in index for t in topic.topics))
 
     def discard(self, topic: Any) -> None:
+        """Unregister topic from conductor."""
         self._topics.discard(topic)
 
     def _flag_changes(self) -> None:
@@ -339,8 +347,10 @@ class Conductor(ConductorT, Service):
 
     @property
     def label(self) -> str:
+        """Return label for use in logs."""
         return f'{type(self).__name__}({len(self._topics)})'
 
     @property
     def shortlabel(self) -> str:
+        """Return short label for use in logs."""
         return type(self).__name__

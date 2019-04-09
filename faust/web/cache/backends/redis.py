@@ -99,12 +99,14 @@ class CacheBackend(base.CacheBackend):
         await self.client.delete(key)
 
     async def on_start(self) -> None:
+        """Call when Redis backend starts."""
         if aredis is None:
             raise ImproperlyConfigured(
                 'Redis cache backend requires `pip install aredis`')
         await self.connect()
 
     async def connect(self) -> None:
+        """Connect to Redis/Redis Cluster server."""
         if self._client is None:
             self._client = self._new_client()
         await self.client.ping()
@@ -171,6 +173,7 @@ class CacheBackend(base.CacheBackend):
 
     @cached_property
     def client(self) -> _RedisClientT:
+        """Return Redis client instance."""
         if self._client is None:
             raise RuntimeError('Cache backend not started')
         return self._client

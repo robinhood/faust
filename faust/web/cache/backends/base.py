@@ -52,15 +52,18 @@ class CacheBackend(CacheBackendT, Service):
         ...
 
     async def get(self, key: str) -> Optional[bytes]:
+        """Get cached-value by key."""
         async with self._recovery_context(key):
             return await self._get(key)
 
     async def set(self, key: str, value: bytes, timeout: float) -> None:
+        """Set cached-value by key."""
         assert timeout is not None
         async with self._recovery_context(key):
             await self._set(key, value, timeout)
 
     async def delete(self, key: str) -> None:
+        """Forget value for cache key."""
         async with self._recovery_context(key):
             await self._delete(key)
 

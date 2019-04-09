@@ -63,6 +63,10 @@ class WindowedKeysView(KeysView):
         self.event = event
 
     def __iter__(self) -> Iterator:
+        """Iterate over keys.
+
+        The window is chosen based on the tables time-relativity setting.
+        """
         wrapper = cast(WindowWrapper, self._mapping)
         for key, _ in wrapper._items(self.event):
             yield key
@@ -71,16 +75,19 @@ class WindowedKeysView(KeysView):
         return len(self._mapping)
 
     def now(self) -> Iterator[Any]:
+        """Return all keys present in window closest to system time."""
         wrapper = cast(WindowWrapper, self._mapping)
         for key, _ in wrapper._items_now():
             yield key
 
     def current(self, event: EventT = None) -> Iterator[Any]:
+        """Return all keys present in window closest to stream time."""
         wrapper = cast(WindowWrapper, self._mapping)
         for key, _ in wrapper._items_current(event or self.event):
             yield key
 
     def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
+        """Return all keys present in window ±n seconds ago."""
         wrapper = cast(WindowWrapper, self._mapping)
         for key, _ in wrapper._items_delta(d, event or self.event):
             yield key
@@ -96,20 +103,27 @@ class WindowedItemsView(WindowedItemsViewT):
         self.event = event
 
     def __iter__(self) -> Iterator[Tuple[Any, Any]]:
+        """Iterate over items.
+
+        The window is chosen based on the tables time-relativity setting.
+        """
         wrapper = cast(WindowWrapper, self._mapping)
         return wrapper._items(self.event)
 
     def now(self) -> Iterator[Tuple[Any, Any]]:
+        """Return all items present in window closest to system time."""
         wrapper = cast(WindowWrapper, self._mapping)
         return wrapper._items_now()
 
     def current(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        """Return all items present in window closest to stream time."""
         wrapper = cast(WindowWrapper, self._mapping)
         return wrapper._items_current(event or self.event)
 
     def delta(self,
               d: Seconds,
               event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        """Return all items present in window ±n seconds ago."""
         wrapper = cast(WindowWrapper, self._mapping)
         return wrapper._items_delta(d, event or self.event)
 
@@ -124,21 +138,28 @@ class WindowedValuesView(WindowedValuesViewT):
         self.event = event
 
     def __iter__(self) -> Iterator[Any]:
+        """Iterate over values.
+
+        The window is chosen based on the tables time-relativity setting.
+        """
         wrapper = cast(WindowWrapper, self._mapping)
         for _, value in wrapper._items(self.event):
             yield value
 
     def now(self) -> Iterator[Any]:
+        """Return all values present in window closest to system time."""
         wrapper = cast(WindowWrapper, self._mapping)
         for _, value in wrapper._items_now():
             yield value
 
     def current(self, event: EventT = None) -> Iterator[Any]:
+        """Return all values present in window closest to stream time."""
         wrapper = cast(WindowWrapper, self._mapping)
         for _, value in wrapper._items_current(event or self.event):
             yield value
 
     def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
+        """Return all values present in window ±n seconds ago."""
         wrapper = cast(WindowWrapper, self._mapping)
         for _, value in wrapper._items_delta(d, event or self.event):
             yield value
@@ -184,6 +205,7 @@ class WindowSet(WindowSetT[KT, VT]):
               op: Callable[[VT, VT], VT],
               value: VT,
               event: EventT = None) -> WindowSetT[KT, VT]:
+        """Apply operation to all affected windows."""
         table = cast(_Table, self.table)
         wrapper = cast(WindowWrapper, self.wrapper)
         timestamp = wrapper.get_timestamp(event or self.event)
@@ -192,18 +214,27 @@ class WindowSet(WindowSetT[KT, VT]):
         return self
 
     def value(self, event: EventT = None) -> VT:
+        """Return current value.
+
+        The selected window depends on the current time-relativity
+        setting used (:meth:`relative_to_now`, :meth:`relative_to_stream`,
+        :meth:`relative_to_field`, etc.)
+        """
         return cast(_Table, self.table)._windowed_timestamp(
             self.key, self.wrapper.get_timestamp(event or self.event))
 
     def now(self) -> VT:
+        """Return current value, using the current system time."""
         return cast(_Table, self.table)._windowed_now(self.key)
 
     def current(self, event: EventT = None) -> VT:
+        """Return current value, using stream time-relativity."""
         t = cast(_Table, self.table)
         return t._windowed_timestamp(
             self.key, t._relative_event(event or self.event))
 
     def delta(self, d: Seconds, event: EventT = None) -> VT:
+        """Return value as it was ±n seconds ago."""
         table = cast(_Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
@@ -318,6 +349,7 @@ class WindowWrapper(WindowWrapperT):
         self._get_relative_timestamp = self._relative_handler(relative_to)
 
     def clone(self, relative_to: RelativeArg) -> WindowWrapperT:
+        """Clone this table using a new time-relativity configuration."""
         return type(self)(
             table=self.table,
             relative_to=relative_to or self._get_relative_timestamp,
@@ -327,21 +359,49 @@ class WindowWrapper(WindowWrapperT):
 
     @property
     def name(self) -> str:
+        """Return the name of this table."""
         return self.table.name
 
     def relative_to(self, ts: RelativeArg) -> WindowWrapperT:
+        """Configure the time-relativity of this windowed table."""
         return self.clone(relative_to=ts)
 
     def relative_to_now(self) -> WindowWrapperT:
+        """Configure table to be time-relative to the system clock."""
         return self.clone(relative_to=self.table._relative_now)
 
     def relative_to_field(self, field: FieldDescriptorT) -> WindowWrapperT:
+        """Configure table to be time-relative to a field in the stream.
+
+        This means the window will use the timestamp
+        from the event currently being processed in the stream.
+
+        Further it will not use the timestamp of the Kafka message,
+        but a field in the value of the event.
+
+        For example a model field:
+
+        .. sourcecode:: python
+
+            class Account(faust.Record):
+                created: float
+
+            table = app.Table('foo').hopping(
+                ...,
+            ).relative_to_field(Account.created)
+        """
         return self.clone(relative_to=self.table._relative_field(field))
 
     def relative_to_stream(self) -> WindowWrapperT:
+        """Configure table to be time-relative to the stream.
+
+        This means the window will use the timestamp
+        from the event currently being processed in the stream.
+        """
         return self.clone(relative_to=self.table._relative_event)
 
     def get_timestamp(self, event: EventT = None) -> float:
+        """Get timestamp from event."""
         event = event or current_event()
         get_relative_timestamp = self.get_relative_timestamp
         if get_relative_timestamp:
@@ -354,6 +414,7 @@ class WindowWrapper(WindowWrapperT):
         return event.message.timestamp
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
+        """Call after table recovery."""
         return self.table.on_recover(fun)
 
     def __contains__(self, key: Any) -> bool:
@@ -369,12 +430,14 @@ class WindowWrapper(WindowWrapperT):
             table._set_windowed(key, value, self.get_timestamp())
 
     def on_set_key(self, key: Any, value: Any) -> None:
+        """Call when the value for a key in this table is set."""
         key_index_table = self.key_index_table
         if key_index_table is not None:
             if key not in key_index_table:
                 key_index_table[key] = 1
 
     def on_del_key(self, key: Any) -> None:
+        """Call when a key is deleted from this table."""
         key_index_table = self.key_index_table
         if key_index_table is not None:
             key_index_table.pop(key, None)
@@ -408,6 +471,7 @@ class WindowWrapper(WindowWrapperT):
         return self._keys()
 
     def keys(self) -> KeysView:
+        """Return table keys view: iterate over keys found in this table."""
         return WindowedKeysView(self)
 
     def _keys(self) -> Iterator:
@@ -421,9 +485,11 @@ class WindowWrapper(WindowWrapperT):
                 'support .keys/.items/.values')
 
     def values(self, event: EventT = None) -> ValuesView:
+        """Return table values view: iterate over values in this table."""
         return WindowedValuesView(self, event or current_event())
 
     def items(self, event: EventT = None) -> ItemsView:
+        """Return table items view: iterate over ``(key, value)`` pairs."""
         return WindowedItemsView(self, event or current_event())
 
     def _items(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
@@ -464,6 +530,7 @@ class WindowWrapper(WindowWrapperT):
 
     def as_ansitable(self, title: str = '{table.name}',
                      **kwargs: Any) -> str:
+        """Draw table as a terminal ANSI table."""
         return dict_as_ansitable(
             self,
             title=title.format(table=self.table),
@@ -471,6 +538,7 @@ class WindowWrapper(WindowWrapperT):
 
     @property
     def get_relative_timestamp(self) -> Optional[RelativeHandler]:
+        """Return the current handler for extracting event timestamp."""
         return self._get_relative_timestamp
 
     @get_relative_timestamp.setter

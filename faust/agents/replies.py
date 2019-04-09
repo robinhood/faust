@@ -35,6 +35,7 @@ class ReplyPromise(asyncio.Future):
         super().__init__(**kwargs)
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
+        """Fulfill promise: a reply was received."""
         # If it wasn't for BarrierState we would just use .set_result()
         # directly, but BarrierState.fulfill requires the correlation_id
         # to be sent with it. That way it can mark that part of the map
@@ -77,10 +78,21 @@ class BarrierState(asyncio.Future):
         self._results = asyncio.Queue(maxsize=1000, loop=loop)
 
     def add(self, p: ReplyPromise) -> None:
+        """Add promise to barrier.
+
+        Note:
+            You can only add promises before the barrier is finalized
+            using :meth:`finalize`.
+        """
         self.pending.add(p)
         self.size += 1
 
     def finalize(self) -> None:
+        """Finalize this barrier.
+
+        After finalization you can not grow or shrink the size
+        of the barrier.
+        """
         self.total = self.size
         # The barrier may have been filled up already at this point,
         if self.fulfilled >= self.total:
@@ -88,6 +100,11 @@ class BarrierState(asyncio.Future):
             self._results.put_nowait(None)  # always wake-up .iterate()
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
+        """Fulfill one of the promises in this barrier.
+
+        Once all promises in this barrier is fulfilled, the barrier
+        will be ready.
+        """
         # ReplyConsumer calls this whenever a new reply is received.
         self._results.put_nowait(ReplyTuple(correlation_id, value))
         self.fulfilled += 1
@@ -105,7 +122,7 @@ class BarrierState(asyncio.Future):
         raise asyncio.QueueEmpty()
 
     async def iterate(self) -> AsyncIterator[ReplyTuple]:
-        """Iterate over results as arrive."""
+        """Iterate over results as they arrive."""
         get = self._results.get
         get_nowait = self._results.get_nowait
         is_done = self.done
@@ -136,10 +153,12 @@ class ReplyConsumer(Service):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
+        """Call when reply consumer starts."""
         if self.app.conf.reply_create_topic:
             await self._start_fetcher(self.app.conf.reply_to)
 
     async def add(self, correlation_id: str, promise: ReplyPromise) -> None:
+        """Register promise to start tracking when it arrives."""
         reply_topic = promise.reply_to
         if reply_topic not in self._fetchers:
             await self._start_fetcher(reply_topic)

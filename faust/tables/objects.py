@@ -42,14 +42,17 @@ class ChangeloggedObject:
 
     @abc.abstractmethod
     def sync_from_storage(self, value: Any) -> None:
+        """Sync value from storage."""
         ...
 
     @abc.abstractmethod
     def as_stored_value(self) -> Any:
+        """Return value as represented in storage."""
         ...
 
     @abc.abstractmethod
     def apply_changelog_event(self, operation: int, value: Any) -> None:
+        """Apply event in changelog topic to local table state."""
         ...
 
 
@@ -75,6 +78,7 @@ class ChangeloggedObjectManager(Store):
                              key: Any,
                              operation: int,
                              value: Any) -> None:
+        """Send changelog event to the tables changelog topic."""
         event = current_event()
         self._dirty.add(key)
         self.table._send_changelog(event, (operation, key), value)
@@ -96,15 +100,19 @@ class ChangeloggedObjectManager(Store):
         return f'{type(self.table).__name__}'
 
     async def on_start(self) -> None:
+        """Call when the changelogged object manager starts."""
         await self.add_runtime_dependency(self.storage)
 
     async def on_stop(self) -> None:
+        """Call when the changelogged object manager stops."""
         self.flush_to_storage()
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
+        """Get the last persisted offset for changelog topic partition."""
         return self.storage.persisted_offset(tp)
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
+        """Set the last persisted offset for changelog topic partition."""
         self.storage.set_persisted_offset(tp, offset)
 
     async def on_rebalance(self,
@@ -112,19 +120,23 @@ class ChangeloggedObjectManager(Store):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Call when cluster is rebalancing."""
         await self.storage.on_rebalance(
             table, assigned, revoked, newly_assigned)
 
     async def on_recovery_completed(self,
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
+        """Call when table recovery is completed after rebalancing."""
         self.sync_from_storage()
 
     def sync_from_storage(self) -> None:
+        """Sync set contents from storage."""
         for key, value in self.storage.items():
             self[key].sync_from_storage(value)
 
     def flush_to_storage(self) -> None:
+        """Flush set contents to storage."""
         for key in self._dirty:
             self.storage[key] = self.data[key].as_stored_value()
         self._dirty.clear()
@@ -134,11 +146,13 @@ class ChangeloggedObjectManager(Store):
         self.flush_to_storage()
 
     def reset_state(self) -> None:
+        """Reset table local state."""
         # delegate to underlying RocksDB store.
         self.storage.reset_state()
 
     @property
     def storage(self) -> StoreT:
+        """Return underlying storage used by this set table."""
         if self._storage is None:
             self._storage = self.table._new_store_by_url(
                 self.table._store or self.table.app.conf.store)
@@ -148,6 +162,7 @@ class ChangeloggedObjectManager(Store):
                               batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
+        """Apply batch of changelog events to local state."""
         tp_offsets: Dict[TP, int] = {}
         for event in batch:
             tp, offset = event.message.tp, event.message.offset

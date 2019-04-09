@@ -40,6 +40,7 @@ __all__ = ['TestRunner']
 
 
 class TestRunner:
+    """Execute and keep track of test instance."""
 
     case: _Case
 
@@ -73,6 +74,7 @@ class TestRunner:
         self.signal_latency = {}
 
     async def execute(self) -> None:
+        """Execute this test."""
         test = self.test
         with current_test_stack.push(test):
             if not self.case.active:
@@ -105,6 +107,7 @@ class TestRunner:
                 await self.on_pass()
 
     async def skip(self, reason: str) -> NoReturn:
+        """Skip this test execution."""
         exc = TestSkipped(f'Test {self.test.ident} skipped: {reason}')
         try:
             raise exc
@@ -134,17 +137,20 @@ class TestRunner:
         return f'[{self.test.shortident}] {msg}'
 
     async def on_skipped(self, exc: TestSkipped) -> None:
+        """Call when a test execution was skipped."""
         self.state = State.SKIP
         self.log.info('Skipped expired test: %s expires=%s',
                       self.test.ident, self.test.expires)
         await self.case.on_test_skipped(self)
 
     async def on_start(self) -> None:
+        """Call when a test starts executing."""
         self.log_info('≈≈≈ Test %s executing... (issued %s) ≈≈≈',
                       self.case.name, self.test.human_date)
         await self.case.on_test_start(self)
 
     async def on_signal_wait(self, signal: BaseSignal, timeout: float) -> None:
+        """Call when the test is waiting for a signal."""
         self.log_info('∆ %r/%r %s (%rs)...',
                       signal.index,
                       self.case.total_signals,
@@ -155,10 +161,12 @@ class TestRunner:
                                  signal: BaseSignal,
                                  time_start: float,
                                  time_end: float) -> None:
+        """Call when a signal related to this test is received."""
         latency = time_end - time_start
         self.signal_latency[signal.name] = latency
 
     async def on_failed(self, exc: BaseException) -> None:
+        """Call when an invariant in the test has failed."""
         self.end()
         self.error = exc
         self.state = State.FAIL
@@ -167,6 +175,7 @@ class TestRunner:
         await self._finalize_report()
 
     async def on_error(self, exc: BaseException) -> None:
+        """Call when test execution raises error."""
         self.end()
         self.state = State.ERROR
         self.error = exc
@@ -175,6 +184,7 @@ class TestRunner:
         await self._finalize_report()
 
     async def on_timeout(self, exc: BaseException) -> None:
+        """Call when test execution times out."""
         self.end()
         self.error = exc
         self.state = State.TIMEOUT
@@ -183,6 +193,7 @@ class TestRunner:
         await self._finalize_report()
 
     async def on_pass(self) -> None:
+        """Call when test execution returns successfully."""
         self.end()
         self.error = None
         self.state = State.PASS
@@ -213,12 +224,14 @@ class TestRunner:
         await self.case.post_report(self.report)
 
     def log_info(self, msg: str, *args: Any) -> None:
+        """Log information related to the current execution."""
         if self.case.realtime_logs:
             self.log.info(msg, *args)
         else:
             self.logs.append((msg, args))
 
     def end(self) -> None:
+        """End test execution."""
         self.ended = monotonic()
         self.runtime = self.ended - self.started
 

@@ -6,7 +6,7 @@ It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
 a radically more straightforward approach to stream processing.
 
 Modern web applications are increasingly built as a collection
-of microservices and even before this, it has been difficult to write
+of micro services and even before this, it has been difficult to write
 data reporting operations at scale.  In a reactive stream based system,
 you don't have to strain your database with costly queries. In Faust,
 a streaming data pipeline updates information as events happen

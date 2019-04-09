@@ -20,6 +20,7 @@ class models(AppCommand):
     ]
 
     async def run(self, *, builtins: bool) -> None:
+        """Dump list of available models in this application."""
         self.say(
             self.tabulate(
                 [self.model_to_row(model) for model in self.models(builtins)],
@@ -28,6 +29,7 @@ class models(AppCommand):
             ))
 
     def models(self, builtins: bool) -> Sequence[Type[ModelT]]:
+        """Convert list of models to terminal table rows."""
         sortkey = cast(Callable[[Type[ModelT]], Any], self.sortkey)
         return [
             model for model in sorted(registry.values(), key=sortkey)
@@ -35,6 +37,7 @@ class models(AppCommand):
         ]
 
     def model_to_row(self, model: Type[ModelT]) -> Sequence[str]:
+        """Convert model fields to terminal table columns."""
         return [
             self.bold_tail(self._name(model)),
             self.dark(self._help(model)),

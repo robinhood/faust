@@ -112,6 +112,7 @@ class Blueprint(BlueprintT):
               timeout: Seconds = None,
               key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
+        """Cache API."""
         if key_prefix is None:
             key_prefix = self.name
         return Cache(timeout, key_prefix, backend)
@@ -122,6 +123,7 @@ class Blueprint(BlueprintT):
               name: Optional[str] = None,
               cors_options: Mapping[str, ResourceOptions] = None,
               base: Type[View] = View) -> RouteDecoratorRet:
+        """Create route by decorating handler or view class."""
         def _inner(handler: PageArg) -> PageArg:
             route = FutureRoute(
                 uri=uri,
@@ -139,6 +141,7 @@ class Blueprint(BlueprintT):
                file_or_directory: Union[str, Path],
                *,
                name: Optional[str] = None) -> None:
+        """Add static route."""
         _name: str = name or 'static'
         if not _name.startswith(self.name + '.'):
             _name = f'{self.name}.{name}'
@@ -148,6 +151,7 @@ class Blueprint(BlueprintT):
     def register(self, app: AppT,
                  *,
                  url_prefix: Optional[str] = None) -> None:
+        """Register blueprint with app."""
         url_prefix = url_prefix or self.url_prefix
 
         # Apply routes
@@ -175,9 +179,11 @@ class Blueprint(BlueprintT):
         return self.view_name_separator.join([self.name, name])
 
     def init_webserver(self, web: Web) -> None:
+        """Init blueprint for web server start."""
         self.on_webserver_init(web)
 
     def on_webserver_init(self, web: Web) -> None:
+        """Call when web server starts."""
         ...
 
     def _url_with_prefix(self, url: str, prefix: str = None) -> str:

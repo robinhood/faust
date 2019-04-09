@@ -12,6 +12,7 @@ class TableList(web.View):
     """List routes for all tables."""
 
     async def get(self, request: web.Request) -> web.Response:
+        """Return JSON response with list of all table routes."""
         router = self.app.router
         return self.json(router.tables_metadata())
 
@@ -21,6 +22,7 @@ class TableDetail(web.View):
     """List route for specific table."""
 
     async def get(self, request: web.Request, name: str) -> web.Response:
+        """Return JSON response with table metadata."""
         router = self.app.router
         return self.json(router.table_metadata(name))
 
@@ -33,6 +35,16 @@ class TableKeyDetail(web.View):
                   request: web.Request,
                   name: str,
                   key: str) -> web.Response:
+        """Return JSON response after looking up the route of a table key.
+
+        Arguments:
+            name: Name of table.
+            key: Key to look up node for.
+
+        Raises:
+            faust.web.exceptions.ServiceUnavailable: if broker metadata
+                has not yet been received.
+        """
         router = self.app.router
         try:
             dest_url = router.key_store(name, key)

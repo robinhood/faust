@@ -54,6 +54,7 @@ Bryson
 Buckens
 Bujniewicz
 Buttu
+CLI
 CPython
 Carvalho
 Cassandra
@@ -88,6 +89,7 @@ Dein
 Delalande
 Demir
 Deo
+Deque
 Django
 Dmitry
 Dubus
@@ -496,6 +498,7 @@ dburi
 de
 deprecated
 deprecations
+deque
 der
 deserialization
 deserialize
@@ -563,6 +566,7 @@ memoize
 memoized
 metadata
 metavar
+middleware
 misconfiguration
 misconfigure
 misconfigured

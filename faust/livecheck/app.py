@@ -43,6 +43,7 @@ class LiveCheckSensor(Sensor):
                            offset: int,
                            stream: StreamT,
                            event: EventT) -> None:
+        """Call when stream starts processing event."""
         test = TestExecution.from_headers(event.headers)
         if test is not None:
             stream.current_test = test
@@ -53,6 +54,7 @@ class LiveCheckSensor(Sensor):
                             offset: int,
                             stream: StreamT,
                             event: EventT) -> None:
+        """Call when stream is finished handling event."""
         has_active_test = getattr(stream, 'current_test', None)
         if has_active_test:
             stream.current_test = None
@@ -98,6 +100,10 @@ class LiveCheck(faust.App):
                 test_concurrency: int = None,
                 send_reports: bool = None,
                 **kwargs: Any) -> 'LiveCheck':
+        """Create LiveCheck application targeting specific app.
+
+        The target app will be used to configure the LiveCheck app.
+        """
         app_id, passed_kwargs = app._default_options
         livecheck_id = f'{prefix}{app_id}'
         override = {
@@ -155,6 +161,7 @@ class LiveCheck(faust.App):
 
     @property
     def current_test(self) -> Optional[TestExecution]:
+        """Return the current test context (if any)."""
         return current_test()
 
     @cached_property
@@ -176,6 +183,7 @@ class LiveCheck(faust.App):
             timestamp: float = None,
             headers: List[Tuple[str, bytes]] = None,
             **kwargs: Any) -> None:
+        """Attach test headers to Kafka produce requests."""
         test = current_test()
         if test is not None:
             if headers is None:
@@ -200,6 +208,11 @@ class LiveCheck(faust.App):
              url_error_delay_backoff: float = None,
              url_error_delay_max: float = None,
              base: Type[_Case] = Case) -> Callable[[Type], _Case]:
+        """Decorate class to be used as a test case.
+
+        Returns:
+            :class:`faust.livecheck.Case`.
+        """
         base_case = base
 
         def _inner(cls: Type) -> _Case:
@@ -261,21 +274,25 @@ class LiveCheck(faust.App):
                 pass
 
     def add_case(self, case: _Case) -> _Case:
+        """Add and register new test case."""
         self.cases[case.name] = case
         return case
 
     async def post_report(self, report: TestReport) -> None:
+        """Publish test report to reporting topic."""
         key = None
         if report.test is not None:
             key = report.test.id
         await self.reports.send(key=key, value=report)
 
     async def on_start(self) -> None:
+        """Call when LiveCheck application starts."""
         await super().on_start()
         self._install_bus_agent()
         self._install_test_execution_agent()
 
     async def on_started(self) -> None:
+        """Call when LiveCheck application is fully started."""
         await super().on_started()
         for case in self.cases.values():
             await self.add_runtime_dependency(case)
@@ -316,6 +333,7 @@ class LiveCheck(faust.App):
 
     @cached_property
     def bus(self) -> TopicT:
+        """Topic used for signal communication."""
         return self.topic(
             self.bus_topic_name,
             key_type=str,
@@ -324,6 +342,7 @@ class LiveCheck(faust.App):
 
     @cached_property
     def pending_tests(self) -> TopicT:
+        """Topic used to keep pending test executions."""
         return self.topic(
             self.test_topic_name,
             key_type=str,
@@ -332,6 +351,7 @@ class LiveCheck(faust.App):
 
     @cached_property
     def reports(self) -> TopicT:
+        """Topic used to log test reports."""
         return self.topic(
             self.report_topic_name,
             key_type=str,

@@ -51,6 +51,7 @@ class Spinner:
         self.stopped = False
 
     def update(self) -> None:
+        """Draw spinner, single iteration."""
         if not self.stopped:
             if not self.count:
                 self.begin()
@@ -59,13 +60,16 @@ class Spinner:
             self.write(self.sprites[i])
 
     def stop(self) -> None:
+        """Stop spinner from being emitted."""
         self.stopped = True
 
     def reset(self) -> None:
+        """Reset state or allow restart."""
         self.stopped = False
         self.count = 0
 
     def write(self, s: str) -> None:
+        """Write spinner character to terminal."""
         if self.file.isatty():
             self._print(f'{self.bell * self.width}{s.ljust(self.width)}')
             self.width = max(self.width, len(s))
@@ -75,10 +79,12 @@ class Spinner:
         self.file.flush()
 
     def begin(self) -> None:
+        """Prepare terminal for spinner starting."""
         atexit.register(type(self)._finish, self.file, at_exit=True)
         self._print(self.cursor_hide)
 
     def finish(self) -> None:
+        """Finish spinner and reset terminal."""
         print(f'{self.bell * (self.width + 1)}', end='', file=self.file)
         self._finish(self.file)
         self.stop()
@@ -101,6 +107,7 @@ class SpinnerHandler(logging.Handler):
         super().__init__(**kwargs)
 
     def emit(self, _record: logging.LogRecord) -> None:
+        """Emit the next spinner character."""
         # the spinner is only in effect with WARN level and below.
         if self.spinner and not self.spinner.stopped:
             self.spinner.update()

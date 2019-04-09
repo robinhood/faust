@@ -384,6 +384,7 @@ class Model(ModelT):
         ...
 
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
+        """Derive new model with certain fields changed."""
         return self._derive(*objects, **fields)
 
     @abc.abstractmethod  # pragma: no cover
@@ -474,6 +475,10 @@ class FieldDescriptor(FieldDescriptorT):
         return instance.__dict__[self.field]
 
     def getattr(self, obj: ModelT) -> Any:
+        """Get attribute from model recursively.
+
+        Supports recursive lookups e.g. ``model.getattr('x.y.z')``.
+        """
         return attrgetter('.'.join(reversed(list(self._parents_path()))))(obj)
 
     def _parents_path(self) -> Iterable[str]:
@@ -492,4 +497,5 @@ class FieldDescriptor(FieldDescriptorT):
 
     @property
     def ident(self) -> str:
+        """Return the fields identifier."""
         return f'{self.model.__name__}.{self.field}'

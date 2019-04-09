@@ -179,5 +179,6 @@ class Registry(RegistryT):
 
     @cached_property
     def Model(self) -> Type[ModelT]:
+        """Return the :class:`faust.Model` class used by this serializer."""
         from faust.models.base import Model
         return Model

@@ -13,7 +13,7 @@ __all__ = [
 
 
 class LiveCheckError(Exception):
-    """Generic base class for livecheck test errors."""
+    """Generic base class for LiveCheck test errors."""
 
 
 class SuiteFailed(LiveCheckError):

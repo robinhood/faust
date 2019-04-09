@@ -1,3 +1,4 @@
+"""Locals - Current test & execution context."""
 import typing
 from typing import Optional
 from mode.locals import LocalStack
@@ -8,13 +9,23 @@ if typing.TYPE_CHECKING:
 else:  # pragma: no cover
     class _TestRunner: ...   # noqa
 
-__all__ = ['current_execution_stack', 'current_test', 'current_test_stack']
+__all__ = [
+    'current_execution',
+    'current_execution_stack',
+    'current_test',
+    'current_test_stack',
+]
 
 current_test_stack: LocalStack[TestExecution]
 current_test_stack = LocalStack()
 
 current_execution_stack: LocalStack[_TestRunner]
 current_execution_stack = LocalStack()
+
+
+def current_execution() -> Optional[_TestRunner]:
+    """Return the current :class:`~faust.livecheck.TestRunner`."""
+    return current_execution_stack.top
 
 
 def current_test() -> Optional[TestExecution]:

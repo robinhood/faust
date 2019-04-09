@@ -36,6 +36,7 @@ class DefaultSchedulingStrategy(SchedulingStrategyT):
 
     @classmethod
     def map_from_records(cls, records: Mapping[TP, List]) -> TopicIndexMap:
+        """Convert records to topic index map."""
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             try:
@@ -46,10 +47,12 @@ class DefaultSchedulingStrategy(SchedulingStrategyT):
         return topic_index
 
     def iterate(self, records: Mapping[TP, List]) -> Iterator[Tuple[TP, Any]]:
+        """Iterate over records in round-robin order."""
         return self.records_iterator(self.map_from_records(records))
 
     def records_iterator(self,
                          index: TopicIndexMap) -> Iterator[Tuple[TP, Any]]:
+        """Iterate over topic index map in round-robin order."""
         to_remove: Set[str] = set()
         sentinel = object()
         _next = next
@@ -83,6 +86,7 @@ class TopicBuffer(Iterator):
         self._it = None
 
     def add(self, tp: TP, buffer: List) -> None:
+        """Add topic partition buffer to the cycle."""
         assert tp not in self._buffers
         self._buffers[tp] = iter(buffer)
 

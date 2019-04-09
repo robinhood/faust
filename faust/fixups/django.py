@@ -53,6 +53,7 @@ class Fixup(base.Fixup):
     """
 
     def enabled(self) -> bool:
+        """Return :const:`True` if Django is used in this environment."""
         if os.environ.get('DJANGO_SETTINGS_MODULE'):
             try:
                 import django  # noqa
@@ -63,9 +64,16 @@ class Fixup(base.Fixup):
         return False
 
     def autodiscover_modules(self) -> Iterable[str]:
+        """Return list of additional autodiscover modules.
+
+        For Django we run autodiscovery in all packages
+        listed in the ``INSTALLED_APPS`` setting (with support for
+        custom app configurations).
+        """
         return [config.name for config in self.apps.get_app_configs()]
 
     def on_worker_init(self) -> None:
+        """Initialize Django before worker/CLI command starts."""
         import django
         from django.core.checks import run_checks
         django.setup()
@@ -75,8 +83,10 @@ class Fixup(base.Fixup):
 
     @cached_property
     def apps(self) -> _Apps:
+        """Return the Django app registry."""
         return symbol_by_name('django.apps:apps')
 
     @cached_property
     def settings(self) -> _Settings:
+        """Return the Django settings object."""
         return symbol_by_name('django.conf:settings')

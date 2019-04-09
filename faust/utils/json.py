@@ -147,6 +147,7 @@ class JSONEncoder(json.JSONEncoder):
 
     def default(self, o: Any, *,
                 callback: Callable[[Any], Any] = on_default) -> Any:
+        """Try to convert non-built-in json type to json."""
         return callback(o)
 
 

@@ -239,7 +239,7 @@ class Event(EventT):
 
         When the last stream processor acks the message, the
         offset in the source topic will be marked as safe-to-commit,
-        and the worker will commit and advance the commited offset.
+        and the worker will commit and advance the committed offset.
         """
         return self.message.ack(self.app.consumer)
 

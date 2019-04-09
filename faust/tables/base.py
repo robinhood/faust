@@ -180,11 +180,13 @@ class Collection(Service, CollectionT):
     @property  # type: ignore
     @no_type_check  # XXX https://github.com/python/mypy/issues/4125
     def data(self) -> StoreT:
+        """Underlying table storage."""
         if self._data is None:
             self._data = self._new_store()
         return self._data
 
     async def on_start(self) -> None:
+        """Call when table starts."""
         await self.add_runtime_dependency(self.data)
         await self.changelog_topic.maybe_declare()
 
@@ -195,6 +197,7 @@ class Collection(Service, CollectionT):
         return fun
 
     def info(self) -> Mapping[str, Any]:
+        """Return table attributes as dictionary."""
         # Used to recreate object in .clone()
         return {
             'app': self.app,
@@ -208,12 +211,15 @@ class Collection(Service, CollectionT):
         }
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
+        """Return the last persisted offset for topic partition."""
         return self.data.persisted_offset(tp)
 
     async def need_active_standby_for(self, tp: TP) -> bool:
+        """Return :const:`False` if we have access to partition data."""
         return await self.data.need_active_standby_for(tp)
 
     def reset_state(self) -> None:
+        """Reset local state."""
         self.data.reset_state()
 
     def _send_changelog(self,
@@ -329,15 +335,19 @@ class Collection(Service, CollectionT):
         return f'{self.app.conf.id}-{self.name}-changelog'
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Right join of this table and another stream/table."""
         return self._join(joins.RightJoin(stream=self, fields=fields))
 
     def left_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Left join of this table and another stream/table."""
         return self._join(joins.LeftJoin(stream=self, fields=fields))
 
     def inner_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Inner join of this table and another stream/table."""
         return self._join(joins.InnerJoin(stream=self, fields=fields))
 
     def outer_join(self, *fields: FieldDescriptorT) -> StreamT:
+        """Outer join of this table and another stream/table."""
         return self._join(joins.OuterJoin(stream=self, fields=fields))
 
     def _join(self, join_strategy: JoinT) -> StreamT:
@@ -345,18 +355,22 @@ class Collection(Service, CollectionT):
         raise NotImplementedError('TODO')
 
     def clone(self, **kwargs: Any) -> Any:
+        """Clone table instance."""
         return self.__class__(**{**self.info(), **kwargs})
 
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
+        """Combine tables and streams."""
         # TODO
         raise NotImplementedError('TODO')
 
     def contribute_to_stream(self, active: StreamT) -> None:
+        """Contribute table to stream join."""
         # TODO  See Stream.contribute_to_stream()
         # Should probably connect to Table changelog.
         ...
 
     async def remove_from_stream(self, stream: StreamT) -> None:
+        """Remove table from stream join after stream stopped."""
         # TODO See Stream.remove_from_stream()
         # Should stop any services started to support joining this table
         # with one or more streams.
@@ -470,32 +484,39 @@ class Collection(Service, CollectionT):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Call when cluster is rebalancing."""
         await self.data.on_rebalance(self, assigned, revoked, newly_assigned)
 
     async def on_recovery_completed(self,
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
+        """Call when recovery has completed after rebalancing."""
         await self.data.on_recovery_completed(active_tps, standby_tps)
         await self.call_recover_callbacks()
 
     async def call_recover_callbacks(self) -> None:
+        """Call any configured recovery callbacks after rebalancing."""
         for fun in self._recover_callbacks:
             await fun()
 
     async def on_changelog_event(self, event: EventT) -> None:
+        """Call when a new changelog event is received."""
         if self._on_changelog_event:
             await self._on_changelog_event(event)
 
     @property
     def label(self) -> str:
+        """Return human-readable label used to represent this table."""
         return f'{self.shortlabel}@{self._store}'
 
     @property
     def shortlabel(self) -> str:
+        """Return short label used to represent this table in logs."""
         return f'{type(self).__name__}: {self.name}'
 
     @property
     def changelog_topic(self) -> TopicT:
+        """Return the changelog topic used by this table."""
         if self._changelog_topic is None:
             self._changelog_topic = self._new_changelog_topic()
         return self._changelog_topic
@@ -505,6 +526,7 @@ class Collection(Service, CollectionT):
         self._changelog_topic = topic
 
     def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
+        """Apply batch of events from changelog topic local table storage."""
         self.data.apply_changelog_batch(
             batch,
             to_key=self._to_key,

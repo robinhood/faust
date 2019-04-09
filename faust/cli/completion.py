@@ -20,6 +20,7 @@ class completion(AppCommand):
     require_app = False
 
     async def run(self) -> None:
+        """Dump click completion script for Faust CLI."""
         if click_completion is None:
             raise self.UsageError(
                 'Missing required dependency, but this is easy to fix.\n'
@@ -28,5 +29,6 @@ class completion(AppCommand):
         self.say(click_completion.get_code(shell=self.shell()))
 
     def shell(self) -> str:
+        """Return the current shell used in this environment."""
         shell_path = Path(os.environ.get('SHELL', 'auto'))
         return shell_path.stem

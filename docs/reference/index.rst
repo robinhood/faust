@@ -57,7 +57,7 @@ Fixups
     faust.fixups.base
     faust.fixups.django
 
-Livecheck
+LiveCheck
 =========
 
 .. toctree::

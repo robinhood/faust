@@ -74,6 +74,7 @@ class Attachments:
 
     @cached_property
     def enabled(self) -> bool:
+        """Return :const:`True` if attachments are enabled."""
         return self.app.conf.stream_publish_on_commit
 
     async def maybe_put(self,
@@ -87,6 +88,11 @@ class Attachments:
                         value_serializer: CodecArg = None,
                         callback: MessageSentCallback = None,
                         force: bool = False) -> Awaitable[RecordMetadata]:
+        """Attach message to source topic offset.
+
+        This will send the message immediately if attachments
+        are disabled.
+        """
         # XXX The concept of attaching should be deprecated when we
         # have Kafka transaction support (:kip:`KIP-98`).
         # This is why the interface related to attaching is private.
@@ -130,6 +136,7 @@ class Attachments:
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
+        """Attach message to source topic offset."""
         # This attaches message to be published when source message' is
         # acknowledged.  To be replaced by transactions in :kip:`KIP-98`.
 
@@ -149,6 +156,7 @@ class Attachments:
         return fut
 
     async def commit(self, tp: TP, offset: int) -> None:
+        """Publish all messaged attached to topic partition and offset."""
         await asyncio.wait(
             await self.publish_for_tp_offset(tp, offset),
             return_when=asyncio.ALL_COMPLETED,
@@ -157,6 +165,7 @@ class Attachments:
 
     async def publish_for_tp_offset(
             self, tp: TP, offset: int) -> List[Awaitable[RecordMetadata]]:
+        """Publish messages attached to topic partition and offset."""
         # publish pending messages attached to this TP+offset
 
         # make shallow copy to allow concurrent modifications (append)

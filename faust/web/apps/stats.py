@@ -17,6 +17,7 @@ class Stats(web.View):
     """Monitor statistics."""
 
     async def get(self, request: web.Request) -> web.Response:
+        """Return JSON response with sensor information."""
         return self.json(
             {f'Sensor{i}': s.asdict()
              for i, s in enumerate(self.app.sensors)})
@@ -34,6 +35,7 @@ class Assignment(web.View):
         return dict(tps)
 
     async def get(self, request: web.Request) -> web.Response:
+        """Return current assignment as a JSON response."""
         assignor = self.app.assignor
         return self.json({
             'actives': self._topic_grouped(assignor.assigned_actives()),

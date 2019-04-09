@@ -115,16 +115,20 @@ RecordMap = Mapping[TP, List[Any]]
 
 
 class TopicPartitionGroup(NamedTuple):
+    """Tuple of ``(topic, partition, group)``."""
+
     topic: str
     partition: int
     group: int
 
 
 def ensure_TP(tp: Any) -> TP:
+    """Convert aiokafka ``TopicPartition`` to Faust ``TP``."""
     return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
 
 
 def ensure_TPset(tps: Iterable[Any]) -> Set[TP]:
+    """Convert set of aiokafka ``TopicPartition`` to Faust ``TP``."""
     return {ensure_TP(tp) for tp in tps}
 
 
@@ -141,6 +145,7 @@ class Fetcher(Service):
         super().__init__(**kwargs)
 
     async def on_stop(self) -> None:
+        """Call when the fetcher is stopping."""
         if self._drainer is not None and not self._drainer.done():
             self._drainer.cancel()
             while True:
@@ -172,6 +177,8 @@ class Fetcher(Service):
 
 
 class TransactionManager(Service, TransactionManagerT):
+    """Manage producer transactions."""
+
     app: AppT
 
     transactional_id_format = '{tpg.group}-{tpg.partition}'
@@ -188,15 +195,18 @@ class TransactionManager(Service, TransactionManagerT):
         super().__init__(**kwargs)
 
     async def flush(self) -> None:
+        """Wait for producer to transmit all pending messages."""
         await self.producer.flush()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call when the cluster is rebalancing and partitions are revoked."""
         await traced_from_parent_span()(self.flush)()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Call when the cluster is rebalancing."""
         T = traced_from_parent_span()
         # Stop producers for revoked partitions.
         revoked_tids = list(sorted(self._tps_to_transactional_ids(revoked)))
@@ -258,6 +268,7 @@ class TransactionManager(Service, TransactionManagerT):
                    headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        """Schedule message to be sent by producer."""
         p: int = self.consumer.key_partition(topic, key, partition)
         group = self.app.assignor.group_for_topic(topic)
         transactional_id = f'{group}-{p}'
@@ -273,11 +284,13 @@ class TransactionManager(Service, TransactionManagerT):
                             headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
+        """Send message and wait for it to be transmitted."""
         fut = await self.send(topic, key, value, partition, timestamp, headers)
         return await fut
 
     async def commit(self, offsets: Mapping[TP, int],
                      start_new_transaction: bool = True) -> bool:
+        """Commit offsets for partitions."""
         producer = self.producer
         group_id = self.app.conf.id
         by_transactional_id: MutableMapping[str, MutableMapping[TP, int]]
@@ -309,6 +322,7 @@ class TransactionManager(Service, TransactionManagerT):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic on server."""
         return await self.producer.create_topic(
             topic, partitions, replication,
             config=config,
@@ -320,6 +334,7 @@ class TransactionManager(Service, TransactionManagerT):
         )
 
     def supports_headers(self) -> bool:
+        """Return :const:`True` if the Kafka server supports headers."""
         return self.producer.supports_headers()
 
 
@@ -343,7 +358,7 @@ class Consumer(Service, ConsumerT):
     #: Keeps track of the currently read offset in each TP
     _read_offset: MutableMapping[TP, Optional[int]]
 
-    #: Keeps track of the currently commited offset in each TP.
+    #: Keeps track of the currently committed offset in each TP.
     _committed_offset: MutableMapping[TP, Optional[int]]
 
     #: The consumer.wait_empty() method will set this to be notified
@@ -427,6 +442,7 @@ class Consumer(Service, ConsumerT):
         )
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        """Return list of services this consumer depends on."""
         # We start the TransactionManager only if
         # processing_guarantee='exactly_once'
         if self.in_transaction:
@@ -442,6 +458,7 @@ class Consumer(Service, ConsumerT):
         self._time_start = monotonic()
 
     async def on_restart(self) -> None:
+        """Call when the consumer is restarted."""
         self._reset_state()
         self.on_init()
 
@@ -464,6 +481,7 @@ class Consumer(Service, ConsumerT):
         ...
 
     async def perform_seek(self) -> None:
+        """Seek all partitions to their current committed position."""
         read_offset = self._read_offset
         _committed_offsets = await self.seek_to_committed()
         read_offset.update({
@@ -479,9 +497,11 @@ class Consumer(Service, ConsumerT):
 
     @abc.abstractmethod
     async def seek_to_committed(self) -> Mapping[TP, int]:
+        """Seek all partitions to their committed offsets."""
         ...
 
     async def seek(self, partition: TP, offset: int) -> None:
+        """Seek partition to specific offset."""
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
         self._last_batch = None
@@ -494,19 +514,23 @@ class Consumer(Service, ConsumerT):
         ...
 
     def stop_flow(self) -> None:
+        """Block consumer from processing any more messages."""
         self.flow_active = False
         self.can_resume_flow.clear()
 
     def resume_flow(self) -> None:
+        """Allow consumer to process messages."""
         self.flow_active = True
         self.can_resume_flow.set()
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
+        """Pause fetching from partitions."""
         tpset = ensure_TPset(tps)
         self._get_active_partitions().difference_update(tpset)
         self._paused_partitions.update(tpset)
 
     def resume_partitions(self, tps: Iterable[TP]) -> None:
+        """Resume fetching from partitions."""
         tpset = ensure_TPset(tps)
         self._get_active_partitions().update(tps)
         self._paused_partitions.difference_update(tpset)
@@ -521,6 +545,7 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call during rebalancing when partitions are being revoked."""
         self.app.on_rebalance_start()
         span = self.app._start_span_from_rebalancing('on_partitions_revoked')
         T = traced_from_parent_span(span)
@@ -535,6 +560,7 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        """Call during rebalancing when partitions are being assigned."""
         span = self.app._start_span_from_rebalancing('on_partitions_assigned')
         T = traced_from_parent_span(span)
         with span:
@@ -557,6 +583,7 @@ class Consumer(Service, ConsumerT):
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        """Fetch batch of messages from server."""
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
         # normal order of iteration would be to process each
@@ -642,6 +669,7 @@ class Consumer(Service, ConsumerT):
         ...
 
     def track_message(self, message: Message) -> None:
+        """Track message and mark it as pending ack."""
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by transport.Conductor,
         # before delivering messages to streams.
@@ -650,6 +678,7 @@ class Consumer(Service, ConsumerT):
         self._on_message_in(message.tp, message.offset, message)
 
     def ack(self, message: Message) -> bool:
+        """Mark message as being acknowledged by stream."""
         if not message.acked:
             message.acked = True
             tp = message.tp
@@ -705,9 +734,11 @@ class Consumer(Service, ConsumerT):
         await T(self.commit_and_end_transactions)()
 
     async def commit_and_end_transactions(self) -> None:
+        """Commit all safe offsets and end transaction."""
         await self.commit(start_new_transaction=False)
 
     async def on_stop(self) -> None:
+        """Call when consumer is stopping."""
         if self.app.conf.stream_wait_empty:
             await self.wait_empty()
         else:
@@ -759,6 +790,7 @@ class Consumer(Service, ConsumerT):
             notify(fut)
 
     async def maybe_wait_for_commit_to_finish(self) -> bool:
+        """Wait for any existing commit operation to finish."""
         # Only one coroutine allowed to commit at a time,
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
@@ -777,6 +809,7 @@ class Consumer(Service, ConsumerT):
     async def force_commit(self,
                            topics: TPorTopicSet = None,
                            start_new_transaction: bool = True) -> bool:
+        """Force offset commit."""
         sensor_state = self.app.sensors.on_commit_initiated(self)
 
         # Go over the ack list in each topic/partition
@@ -914,6 +947,7 @@ class Consumer(Service, ConsumerT):
         return None
 
     async def on_task_error(self, exc: BaseException) -> None:
+        """Call when processing a message failed."""
         await self.commit()
 
     async def _drain_messages(
@@ -976,14 +1010,18 @@ class Consumer(Service, ConsumerT):
             unset_flag(flag_consumer_fetching)
 
     def close(self) -> None:
+        """Close consumer for graceful shutdown."""
         ...
 
     @property
     def unacked(self) -> Set[Message]:
+        """Return the set of currently unacknowledged messages."""
         return cast(Set[Message], self._unacked_messages)
 
 
 class ConsumerThread(QueueServiceThread):
+    """Consumer running in a dedicated thread."""
+
     app: AppT
     consumer: 'ThreadDelegateConsumer'
     transport: TransportT
@@ -996,56 +1034,69 @@ class ConsumerThread(QueueServiceThread):
 
     @abc.abstractmethod
     async def subscribe(self, topics: Iterable[str]) -> None:
+        """Reset subscription (requires rebalance)."""
         ...
 
     @abc.abstractmethod
     async def seek_to_committed(self) -> Mapping[TP, int]:
+        """Seek all partitions to their committed offsets."""
         ...
 
     @abc.abstractmethod
     async def commit(self, tps: Mapping[TP, int]) -> bool:
+        """Commit offsets in topic partitions."""
         ...
 
     @abc.abstractmethod
     async def position(self, tp: TP) -> Optional[int]:
+        """Return the current offset for partition."""
         ...
 
     @abc.abstractmethod
     async def seek_to_beginning(self, *partitions: TP) -> None:
+        """Seek to the earliest offsets available for partitions."""
         ...
 
     @abc.abstractmethod
     async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        """Seek partitions to specific offsets and wait."""
         ...
 
     @abc.abstractmethod
     def seek(self, partition: TP, offset: int) -> None:
+        """Seek partition to specific offset."""
         ...
 
     @abc.abstractmethod
     def assignment(self) -> Set[TP]:
+        """Return the current assignment."""
         ...
 
     @abc.abstractmethod
     def highwater(self, tp: TP) -> int:
+        """Return the last available offset in partition."""
         ...
 
     @abc.abstractmethod
     def topic_partitions(self, topic: str) -> Optional[int]:
+        """Return number of configured partitions for topic by name."""
         ...
 
     @abc.abstractmethod
     async def earliest_offsets(self, *partitions: TP) -> Mapping[TP, int]:
+        """Return the earliest available offset for list of partitions."""
         ...
 
     @abc.abstractmethod
     async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
+        """Return the last available offset for list of partitions."""
         ...
 
     @abc.abstractmethod
     async def getmany(self,
                       active_partitions: Set[TP],
                       timeout: float) -> RecordMap:
+        """Fetch batch of messages from server."""
         ...
 
     @abc.abstractmethod
@@ -1060,15 +1111,18 @@ class ConsumerThread(QueueServiceThread):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic on server."""
         ...
 
     async def on_partitions_revoked(
             self, revoked: Set[TP]) -> None:
+        """Call on rebalance when partitions are being revoked."""
         await self.consumer.threadsafe_partitions_revoked(
             self.thread_loop, revoked)
 
     async def on_partitions_assigned(
             self, assigned: Set[TP]) -> None:
+        """Call on rebalance when partitions are being assigned."""
         await self.consumer.threadsafe_partitions_assigned(
             self.thread_loop, assigned)
 
@@ -1077,6 +1131,7 @@ class ConsumerThread(QueueServiceThread):
                       topic: str,
                       key: Optional[bytes],
                       partition: int = None) -> int:
+        """Hash key to determine partition number."""
         ...
 
 
@@ -1107,6 +1162,7 @@ class ThreadDelegateConsumer(Consumer):
             self,
             receiver_loop: asyncio.AbstractEventLoop,
             revoked: Set[TP]) -> None:
+        """Call rebalancing callback in a thread-safe manner."""
         promise = await self._method_queue.call(
             receiver_loop.create_future(),
             self.on_partitions_revoked,
@@ -1119,6 +1175,7 @@ class ThreadDelegateConsumer(Consumer):
             self,
             receiver_loop: asyncio.AbstractEventLoop,
             assigned: Set[TP]) -> None:
+        """Call rebalancing callback in a thread-safe manner."""
         promise = await self._method_queue.call(
             receiver_loop.create_future(),
             self.on_partitions_assigned,
@@ -1133,43 +1190,54 @@ class ThreadDelegateConsumer(Consumer):
         return await self._thread.getmany(active_partitions, timeout)
 
     async def subscribe(self, topics: Iterable[str]) -> None:
+        """Reset subscription (requires rebalance)."""
         await self._thread.subscribe(topics=topics)
 
     async def seek_to_committed(self) -> Mapping[TP, int]:
+        """Seek all partitions to the committed offset."""
         return await self._thread.seek_to_committed()
 
     async def position(self, tp: TP) -> Optional[int]:
+        """Return the current position for partition."""
         return await self._thread.position(tp)
 
     async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        """Seek partitions to specific offsets and wait."""
         return await self._thread.seek_wait(partitions)
 
     async def _seek(self, partition: TP, offset: int) -> None:
         self._thread.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
+        """Return the current assignment."""
         return self._thread.assignment()
 
     def highwater(self, tp: TP) -> int:
+        """Return the last available offset for specific partition."""
         return self._thread.highwater(tp)
 
     def topic_partitions(self, topic: str) -> Optional[int]:
+        """Return the number of partitions configured for topic by name."""
         return self._thread.topic_partitions(topic)
 
     async def earliest_offsets(self, *partitions: TP) -> Mapping[TP, int]:
+        """Return the earliest offsets for a list of partitions."""
         return await self._thread.earliest_offsets(*partitions)
 
     async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
+        """Return the last offset for a list of partitions."""
         return await self._thread.highwaters(*partitions)
 
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         return await self._thread.commit(offsets)
 
     def close(self) -> None:
+        """Close consumer for graceful shutdown."""
         self._thread.close()
 
     def key_partition(self,
                       topic: str,
                       key: Optional[bytes],
                       partition: int = None) -> int:
+        """Hash key to determine partition number."""
         return self._thread.key_partition(topic, key, partition=partition)

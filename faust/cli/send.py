@@ -59,6 +59,7 @@ class send(AppCommand):
                   min_latency: float = 0.0,
                   max_latency: float = 0.0,
                   **kwargs: Any) -> Any:
+        """Send message to topic/agent/channel."""
         if key is not None:
             key = self.to_key(key_type, key)
         if value is not None:

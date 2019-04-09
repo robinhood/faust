@@ -248,6 +248,7 @@ class BootStrategy(BootStrategyT):
             self.enable_sensors = enable_sensors
 
     def server(self) -> Iterable[ServiceT]:
+        """Return services to start when app is in default mode."""
         return self._chain(
             # Sensors (Sensor): always start first and stop last.
             self.sensors(),
@@ -266,6 +267,7 @@ class BootStrategy(BootStrategyT):
         )
 
     def client_only(self) -> Iterable[ServiceT]:
+        """Return services to start when app is in client_only mode."""
         return self._chain(
             self.kafka_producer(),
             self.kafka_client_consumer(),
@@ -274,6 +276,7 @@ class BootStrategy(BootStrategyT):
         )
 
     def producer_only(self) -> Iterable[ServiceT]:
+        """Return services to start when app is in producer_only mode."""
         return self._chain(
             self.web_server(),
             self.kafka_producer(),
@@ -283,11 +286,13 @@ class BootStrategy(BootStrategyT):
         return cast(Iterable[ServiceT], chain(*arguments))
 
     def sensors(self) -> Iterable[ServiceT]:
+        """Return list of services required to start sensors."""
         if self.enable_sensors:
             return self.app.sensors
         return []
 
     def kafka_producer(self) -> Iterable[ServiceT]:
+        """Return list of services required to start Kafka producer."""
         if self._should_enable_kafka_producer():
             return [self.app.producer]
         return []
@@ -298,6 +303,7 @@ class BootStrategy(BootStrategyT):
         return self.enable_kafka_producer
 
     def kafka_consumer(self) -> Iterable[ServiceT]:
+        """Return list of services required to start Kafka consumer."""
         if self._should_enable_kafka_consumer():
             return [
                 self.app.consumer,
@@ -314,20 +320,24 @@ class BootStrategy(BootStrategyT):
         return self.enable_kafka_consumer
 
     def kafka_client_consumer(self) -> Iterable[ServiceT]:
+        """Return list of services required to start Kafka client consumer."""
         return [
             self.app.consumer,
             self.app._reply_consumer,
         ]
 
     def agents(self) -> Iterable[ServiceT]:
+        """Return list of services required to start agents."""
         return [self.app.agents]
 
     def kafka_conductor(self) -> Iterable[ServiceT]:
+        """Return list of services required to start Kafka conductor."""
         if self._should_enable_kafka_consumer():
             return [self.app.topics]
         return []
 
     def web_server(self) -> Iterable[ServiceT]:
+        """Return list of web-server services."""
         if self._should_enable_web():
             return list(self.web_components()) + [self.app.web]
         return []
@@ -338,9 +348,11 @@ class BootStrategy(BootStrategyT):
         return self.enable_web
 
     def web_components(self) -> Iterable[ServiceT]:
+        """Return list of web-related services (excluding web server)."""
         return [self.app.cache]
 
     def tables(self) -> Iterable[ServiceT]:
+        """Return list of table-related services."""
         return [self.app.tables]
 
 
@@ -510,6 +522,11 @@ class App(AppT, Service):
         return list(fixups(self))
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        """Return list of additional service dependencies.
+
+        The services returned will be started with the
+        app when the app starts.
+        """
         # Add the main Monitor sensor.
         # The beacon is also reattached in case the monitor
         # was created by the user.
@@ -525,12 +542,15 @@ class App(AppT, Service):
             return self.boot_strategy.server()
 
     async def on_first_start(self) -> None:
+        """Call first time app starts in this process."""
         self._create_directories()
 
     async def on_start(self) -> None:
+        """Call every time app start/restarts."""
         self.finalize()
 
     async def on_started(self) -> None:
+        """Call when app is fully started."""
         # Wait for table recovery to complete (returns True if app stopped)
         if not await self._wait_for_table_recovery_completed():
             # Add all asyncio.Tasks, like timers, etc.
@@ -552,10 +572,12 @@ class App(AppT, Service):
         return False
 
     async def on_started_init_extra_tasks(self) -> None:
+        """Call when started to start additional tasks."""
         for task in self._tasks:
             self.add_future(task())
 
     async def on_started_init_extra_services(self) -> None:
+        """Call when initializing extra services at startup."""
         if self._extra_service_instances is None:
             # instantiate the services added using the @app.service decorator.
             self._extra_service_instances = [
@@ -565,6 +587,7 @@ class App(AppT, Service):
 
     async def on_init_extra_service(
             self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
+        """Call when adding user services to this app."""
         s: ServiceT = self._prepare_subservice(service)
         # start the service now, or when the app is started.
         await self.add_runtime_dependency(s)
@@ -604,6 +627,7 @@ class App(AppT, Service):
             self._configure(silent=silent)
 
     def finalize(self) -> None:
+        """Finalize app configuration."""
         # Finalization signals that the application have been configured
         # and is ready to use.
 
@@ -622,6 +646,7 @@ class App(AppT, Service):
             await self._http_client.close()
 
     def worker_init(self) -> None:
+        """Init worker/CLI commands."""
         # This init is called by the `faust worker` command.
         for fixup in self.fixups:
             fixup.on_worker_init()
@@ -632,6 +657,7 @@ class App(AppT, Service):
                  *extra_modules: str,
                  categories: Iterable[str] = SCAN_CATEGORIES,
                  ignore: Iterable[Any] = SCAN_IGNORE) -> None:
+        """Discover decorators in packages."""
         # based on autodiscovery in Django,
         # but finds @app.agent decorators, and so on.
         modules = set(self._discovery_modules())
@@ -986,6 +1012,7 @@ class App(AppT, Service):
         return cls
 
     def is_leader(self) -> bool:
+        """Return :const:`True` if we are in leader worker process."""
         return self._leader_assignor.is_leader()
 
     def stream(self,
@@ -1055,6 +1082,7 @@ class App(AppT, Service):
                  start_manager: bool = False,
                  help: str = None,
                  **kwargs: Any) -> TableT:
+        """Table of sets."""
         table = self.tables.add(
             self.conf.SetTable(
                 self,
@@ -1070,6 +1098,7 @@ class App(AppT, Service):
              base: Type[View] = View,
              cors_options: Mapping[str, ResourceOptions] = None,
              name: str = None) -> Callable[[PageArg], Type[View]]:
+        """Decorate view to be included in the web server."""
         view_base: Type[View] = base if base is not None else View
 
         def _decorator(fun: PageArg) -> Type[View]:
@@ -1095,6 +1124,7 @@ class App(AppT, Service):
                     query_param: str = None,
                     match_info: str = None,
                     exact_key: str = None) -> ViewDecorator:
+        """Decorate view method to route request to table key destination."""
         def _decorator(fun: ViewHandlerFun) -> ViewHandlerFun:
             _query_param = query_param
             if shard_param is not None:
@@ -1135,6 +1165,7 @@ class App(AppT, Service):
                 *options: Any,
                 base: Optional[Type[_AppCommand]] = None,
                 **kwargs: Any) -> Callable[[Callable], Type[_AppCommand]]:
+        """Decorate ``async def`` function to be used as CLI command."""
         _base: Type[_AppCommand]
         if base is None:
             from faust.cli import base as cli_base
@@ -1167,6 +1198,7 @@ class App(AppT, Service):
               name: str,
               trace_enabled: bool = True,
               **extra_context: Any) -> ContextManager:
+        """Return new trace context to trace operation using OpenTracing."""
         if self.tracer is None or not trace_enabled:
             return nullcontext()
         else:
@@ -1178,6 +1210,7 @@ class App(AppT, Service):
                name: str = None,
                sample_rate: float = 1.0,
                **context: Any) -> Callable:
+        """Decorate function to be traced using the OpenTracing API."""
         assert fun
         operation: str = name or operation_name_from_fun(fun)
 
@@ -1253,12 +1286,14 @@ class App(AppT, Service):
 
     @cached_property
     def in_transaction(self) -> bool:
+        """Return :const:`True` if stream is using transactions."""
         return (
             self.in_worker and
             self.conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
         )
 
     def LiveCheck(self, **kwargs: Any) -> _LiveCheck:
+        """Return new LiveCheck instance testing features for this app."""
         from faust.livecheck import LiveCheck
         return LiveCheck.for_app(self, **kwargs)
 
@@ -1285,6 +1320,11 @@ class App(AppT, Service):
         return await self.topics.commit(topics)
 
     async def on_stop(self) -> None:
+        """Call when application stops.
+
+        Tip:
+            Remember to call ``super`` if you override this method.
+        """
         await self._stop_consumer()
         # send shutdown signal
         await self.on_before_shutdown.send()
@@ -1320,6 +1360,7 @@ class App(AppT, Service):
             await consumer.wait_empty()
 
     def on_rebalance_start(self) -> None:
+        """Call when rebalancing starts."""
         self.rebalancing = True
         self.rebalancing_count += 1
         if self.tracer:
@@ -1331,6 +1372,7 @@ class App(AppT, Service):
         self.tables.on_rebalance_start()
 
     def on_rebalance_end(self) -> None:
+        """Call when rebalancing is done."""
         self.rebalancing = False
         if self._rebalancing_span:
             self._rebalancing_span.finish()
@@ -1499,9 +1541,11 @@ class App(AppT, Service):
         )
 
     def Worker(self, **kwargs: Any) -> _Worker:
+        """Return application worker instance."""
         return self.conf.Worker(self, **kwargs)
 
     def on_webserver_init(self, web: Web) -> None:
+        """Call when the Web server is initializing."""
         ...
 
     def _create_directories(self) -> None:
@@ -1577,6 +1621,7 @@ class App(AppT, Service):
 
     @property
     def conf(self) -> _Settings:
+        """Application configuration."""
         if not self.finalized and STRICT:
             raise ImproperlyConfigured(
                 'App configuration accessed before app.finalize()')
@@ -1590,6 +1635,7 @@ class App(AppT, Service):
 
     @property
     def producer(self) -> ProducerT:
+        """Message producer."""
         if self._producer is None:
             self._producer = self._new_producer()
         return self._producer
@@ -1600,6 +1646,7 @@ class App(AppT, Service):
 
     @property
     def consumer(self) -> ConsumerT:
+        """Message consumer."""
         if self._consumer is None:
             self._consumer = self._new_consumer()
         return self._consumer
@@ -1621,6 +1668,7 @@ class App(AppT, Service):
 
     @property
     def cache(self) -> CacheBackendT:
+        """Cache backend."""
         if self._cache is None:
             self._cache = self._new_cache_backend()
         return self._cache
@@ -1685,7 +1733,7 @@ class App(AppT, Service):
 
     @property
     def http_client(self) -> HttpClientT:
-        """HTTP Client Session."""
+        """HTTP client Session."""
         if self._http_client is None:
             self._http_client = self.conf.HttpClient()
         return self._http_client
@@ -1729,6 +1777,7 @@ class App(AppT, Service):
 
     @cached_property
     def web(self) -> Web:
+        """Web driver."""
         return self._new_web()
 
     def _new_web(self) -> Web:
@@ -1736,7 +1785,7 @@ class App(AppT, Service):
 
     @cached_property
     def serializers(self) -> RegistryT:
-        # Serializer registry.
+        """Return serializer registry."""
         # Many things such as key_serializer/value_serializer configures
         # the serializer by name (e.g. "json"). The serializer registry
         # lets you extend Faust with support for additional
@@ -1749,8 +1798,10 @@ class App(AppT, Service):
 
     @property
     def label(self) -> str:
+        """Return human readable description of application."""
         return f'{self.shortlabel}: {self.conf.id}@{self.conf.broker}'
 
     @property
     def shortlabel(self) -> str:
+        """Return short description of application."""
         return type(self).__name__

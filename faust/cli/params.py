@@ -40,6 +40,7 @@ class CaseInsensitiveChoice(click.Choice):
                 value: str,
                 param: Optional[click.Parameter],
                 ctx: Optional[click.Context]) -> Any:
+        """Convert string to case-insensitive choice."""
         if value.lower() in self.choices:
             return value
         return super().convert(value, param, ctx)
@@ -71,6 +72,7 @@ class URLParam(ParamType):
                 value: str,
                 param: Optional[click.Parameter],
                 ctx: Optional[click.Context]) -> URL:
+        """Convert :class:`str` argument to :class:`yarl.URL`."""
         text_value = self._string_param.convert(value, param, ctx)
         return URL(text_value)
 

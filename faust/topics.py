@@ -271,7 +271,6 @@ class Topic(Channel, TopicT):
         """Return the number of configured partitions for this topic.
 
         Notes:
-
             This is only active for internal topics, fully owned
             and managed by Faust itself.
 

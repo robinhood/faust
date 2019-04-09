@@ -1,3 +1,4 @@
+"""Tables: Distributed object K/V-store."""
 from .base import Collection, CollectionT
 from .manager import TableManager, TableManagerT
 from .table import Table, TableT

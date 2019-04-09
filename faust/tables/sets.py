@@ -127,6 +127,25 @@ class SetManagerOperation(Record, Generic[VT],
 
 
 class SetTableManager(Service, Generic[KT, VT]):
+    """Manager used to perform operations on :class:`SetTable`.
+
+    Used when set table is configured with ``SetTable('name',
+    start_manager=True)``.
+
+    The workers will start an additional agent used to process
+    incoming set operations, and you can communicate with this
+    agent to modify your sets.
+
+    Examples:
+        >>> set_table = SetTable('sets', start_manager=True)
+
+        >>> await set_table.manager.add('active_orders', Order)
+        >>> await set_table.manager.discard('active_orders', Order)
+
+    The manager methods can be used from HTTP views and other agents
+    to safely route set operations to the correct worker.
+    """
+
     app: AppT
     set_table: 'SetTable[KT, VT]'
     enabled: bool
@@ -148,9 +167,11 @@ class SetTableManager(Service, Generic[KT, VT]):
             self._enable()
 
     async def add(self, key: KT, member: VT) -> None:
+        """Add member to set table using key."""
         await self._send_operation(SetAction.ADD, key, member)
 
     async def discard(self, key: KT, member: VT) -> None:
+        """Discard member from set table using key."""
         await self._send_operation(SetAction.DISCARD, key, member)
 
     def _add(self, key: KT, member: VT) -> None:
@@ -190,6 +211,7 @@ class SetTableManager(Service, Generic[KT, VT]):
 
     @cached_property
     def topic(self) -> TopicT:
+        """Return topic used by set table manager."""
         return self.app.topic(self.set_table.manager_topic_name,
                               key_type=str,
                               value_type=SetManagerOperation)
@@ -197,6 +219,7 @@ class SetTableManager(Service, Generic[KT, VT]):
 
 class SetTable(Table[KT, VT]):
     """Table that maintains a dictionary of sets."""
+
     Manager: ClassVar[Type[SetTableManager]] = SetTableManager
     start_manager: bool
     manager_topic_name: str
@@ -223,6 +246,7 @@ class SetTable(Table[KT, VT]):
         self.manager = self.Manager(self, loop=self.loop, beacon=self.beacon)
 
     async def on_start(self) -> None:
+        """Call when set table starts."""
         await self.add_runtime_dependency(self.manager)
         await super().on_start()
 

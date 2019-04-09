@@ -10,6 +10,7 @@ class tables(AppCommand):
     title = 'Tables'
 
     async def run(self) -> None:
+        """Dump list of application tables to terminal."""
         self.say(
             self.tabulate(
                 [(self.bold(table.name),

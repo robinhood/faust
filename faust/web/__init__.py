@@ -1,3 +1,4 @@
+"""Faust Web."""
 from .base import Request, Response, Web
 from .blueprints import Blueprint
 from .views import View, gives_model, takes_model

@@ -485,6 +485,7 @@ class Command(abc.ABC):
 
     @classmethod
     def as_click_command(cls) -> Callable:  # pragma: no cover
+        """Convert command into :pypi:`click` command."""
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
         # __init_subclass__ calls this for the side effect of being
@@ -554,24 +555,33 @@ class Command(abc.ABC):
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
+        """Override this method to define what your command does."""
         # NOTE: If you override __call__ below, you have a non-async command.
         # This is used by .worker to call the
         # Worker.execute_from_commandline() method.
         ...
 
     async def execute(self, *args: Any, **kwargs: Any) -> Any:
+        """Execute command."""
         try:
             await self.run(*args, **kwargs)
         finally:
             await self.on_stop()
 
     async def on_stop(self) -> None:
+        """Call after command executed."""
         ...
 
     def __call__(self, *args: Any, **kwargs: Any) -> NoReturn:
+        """Call command-line command.
+
+        This will raise :exc:`SystemExit` before returning,
+        and the exit code will be set accordingly.
+        """
         self.run_using_worker(*args, **kwargs)
 
     def run_using_worker(self, *args: Any, **kwargs: Any) -> NoReturn:
+        """Execute command using :class:`faust.Worker`."""
         loop = asyncio.get_event_loop()
         args = self.args + args
         kwargs = {**self.kwargs, **kwargs}
@@ -581,11 +591,13 @@ class Command(abc.ABC):
         raise worker.execute_from_commandline()
 
     def on_worker_created(self, worker: Worker) -> None:
+        """Call when creating :class:`faust.Worker` to execute this command."""
         ...
 
     def as_service(self,
                    loop: asyncio.AbstractEventLoop,
                    *args: Any, **kwargs: Any) -> Service:
+        """Wrap command in a :class:`mode.Service` object."""
         return Service.from_awaitable(
             self.execute(*args, **kwargs),
             name=type(self).__name__,
@@ -594,6 +606,7 @@ class Command(abc.ABC):
     def worker_for_service(self,
                            service: ServiceT,
                            loop: asyncio.AbstractEventLoop = None) -> Worker:
+        """Create :class:`faust.Worker` instance for this command."""
         return self._Worker(
             service,
             debug=self.debug,
@@ -716,10 +729,12 @@ class Command(abc.ABC):
             self.say(f'#-- {s}', **kwargs)
 
     def dumps(self, obj: Any) -> str:
+        """Serialize object using JSON."""
         return json.dumps(obj)
 
     @property
     def loglevel(self) -> str:
+        """Return the log level used for this command."""
         return self._loglevel or DEFAULT_LOGLEVEL
 
     @loglevel.setter
@@ -728,6 +743,7 @@ class Command(abc.ABC):
 
     @property
     def blocking_timeout(self) -> float:
+        """Return the blocking timeout used for this command."""
         return self._blocking_timeout or BLOCKING_TIMEOUT
 
     @blocking_timeout.setter
@@ -736,6 +752,7 @@ class Command(abc.ABC):
 
     @property
     def console_port(self) -> int:
+        """Return the :pypi:`aiomonitor` console port."""
         return self._console_port or CONSOLE_PORT
 
     @console_port.setter
@@ -765,6 +782,7 @@ class AppCommand(Command):
             cls,
             *options: Any,
             **kwargs: Any) -> Callable[[Callable], Type['AppCommand']]:
+        """Decorate ``async def`` command to create command class."""
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type['AppCommand']:
             target: Any = fun
             if not inspect.signature(fun).parameters:
@@ -841,6 +859,8 @@ class AppCommand(Command):
         return package
 
     async def on_stop(self) -> None:
+        """Call after command executed."""
+        await super().on_stop()
         app = self.app
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.

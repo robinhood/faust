@@ -1,3 +1,4 @@
+"""LiveCheck :pypi:`aiohttp` integration."""
 from contextlib import ExitStack
 from types import SimpleNamespace
 from typing import Any, List, Optional
@@ -10,10 +11,16 @@ __all__ = ['patch_all', 'patch_aiohttp_session', 'LiveCheckMiddleware']
 
 
 def patch_all() -> None:
+    """Patch all :pypi:`aiohttp` functions to integrate with LiveCheck."""
     patch_aiohttp_session()
 
 
 def patch_aiohttp_session() -> None:
+    """Patch :class:`aiohttp.ClientSession` to integrate with LiveCheck.
+
+    If there is any currently active test, we will
+    use that to forward LiveCheck HTTP headers to the new HTTP request.
+    """
     from aiohttp import TraceConfig
     from aiohttp import client
 
@@ -48,8 +55,17 @@ def patch_aiohttp_session() -> None:
 
 @web.middleware
 class LiveCheckMiddleware:
+    """LiveCheck support for :pypi:`aiohttp` web servers.
+
+    This middleware is applied to all incoming web requests,
+    and is used to extract LiveCheck HTTP headers.
+
+    If the web request is configured with the correct set of LiveCheck
+    headers, we will use that to set the "current test" context.
+    """
 
     async def __call__(self, request: web.Request, handler: Any) -> Any:
+        """Call to handle new web request."""
         related_test = TestExecution.from_headers(request.headers)
         with ExitStack() as stack:
             if related_test:

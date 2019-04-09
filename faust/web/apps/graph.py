@@ -12,6 +12,7 @@ class Graph(web.View):
     """Render image from graph of running services."""
 
     async def get(self, request: web.Request) -> web.Response:
+        """Draw image of the services running in this worker."""
         try:
             import pydot
         except ImportError:

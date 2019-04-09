@@ -76,6 +76,7 @@ logger = get_logger(__name__)
 
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
+    """Convert list of urls to list of servers accepted by :pypi:`aiokafka`."""
     default_host = '127.0.0.1'
     return [f'{u.host or default_host}:{u.port or default_port}' for u in urls]
 
@@ -88,10 +89,12 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
+        """Call when partitions are being revoked."""
         await self._thread.on_partitions_revoked(ensure_TPset(revoked))
 
     async def on_partitions_assigned(
             self, assigned: Iterable[_TopicPartition]) -> None:
+        """Call when partitions are being assigned."""
         await self._thread.on_partitions_assigned(ensure_TPset(assigned))
 
 
@@ -121,6 +124,7 @@ class Consumer(ThreadDelegateConsumer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic on server."""
         await self._thread.create_topic(
             topic,
             partitions,
@@ -157,6 +161,7 @@ class Consumer(ThreadDelegateConsumer):
         )
 
     async def on_stop(self) -> None:
+        """Call when consumer is stopping."""
         await super().on_stop()
         transport = cast(Transport, self.transport)
         transport._topic_waiters.clear()
@@ -165,16 +170,18 @@ class Consumer(ThreadDelegateConsumer):
 class AIOKafkaConsumerThread(ConsumerThread):
     _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
 
-    def on_init(self) -> None:
+    def __post_init__(self) -> None:
         self._partitioner: PartitionerT = (
             self.app.conf.producer_partitioner or DefaultPartitioner())
         self._rebalance_listener = self.consumer.RebalanceListener(self)
 
     async def on_start(self) -> None:
+        """Call when consumer starts."""
         self._consumer = self._create_consumer(loop=self.thread_loop)
         await self._consumer.start()
 
     async def on_thread_stop(self) -> None:
+        """Call when consumer thread is stopping."""
         if self._consumer is not None:
             await self._consumer.stop()
 
@@ -239,11 +246,13 @@ class AIOKafkaConsumerThread(ConsumerThread):
         )
 
     def close(self) -> None:
+        """Close consumer for graceful shutdown."""
         if self._consumer is not None:
             self._consumer.set_close()
             self._consumer._coordinator.set_close()
 
     async def subscribe(self, topics: Iterable[str]) -> None:
+        """Reset subscription (requires rebalance)."""
         # XXX pattern does not work :/
         await self.call_thread(
             self._ensure_consumer().subscribe,
@@ -252,10 +261,12 @@ class AIOKafkaConsumerThread(ConsumerThread):
         )
 
     async def seek_to_committed(self) -> Mapping[TP, int]:
+        """Seek partitions to the last committed offset."""
         return await self.call_thread(
             self._ensure_consumer().seek_to_committed)
 
     async def commit(self, offsets: Mapping[TP, int]) -> bool:
+        """Commit topic offsets."""
         return await self.call_thread(self._commit, offsets)
 
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
@@ -281,14 +292,17 @@ class AIOKafkaConsumerThread(ConsumerThread):
         return True
 
     async def position(self, tp: TP) -> Optional[int]:
+        """Return the current position for topic partition."""
         return await self.call_thread(
             self._ensure_consumer().position, tp)
 
     async def seek_to_beginning(self, *partitions: _TopicPartition) -> None:
+        """Seek list of offsets to the first available offset."""
         await self.call_thread(
             self._ensure_consumer().seek_to_beginning, *partitions)
 
     async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        """Seek partitions to specific offset and wait for operation."""
         consumer = self._ensure_consumer()
         await self.call_thread(self._seek_wait, consumer, partitions)
 
@@ -305,28 +319,34 @@ class AIOKafkaConsumerThread(ConsumerThread):
         ])
 
     def seek(self, partition: TP, offset: int) -> None:
+        """Seek partition to specific offset."""
         self._ensure_consumer().seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
+        """Return the current assignment."""
         return ensure_TPset(self._ensure_consumer().assignment())
 
     def highwater(self, tp: TP) -> int:
+        """Return the last offset in a specific partition."""
         if self.consumer.in_transaction:
             return self._ensure_consumer().last_stable_offset(tp)
         else:
             return self._ensure_consumer().highwater(tp)
 
     def topic_partitions(self, topic: str) -> Optional[int]:
+        """Return the number of partitions configured for topic by name."""
         if self._consumer is not None:
             return self._consumer._coordinator._metadata_snapshot.get(topic)
         return None
 
     async def earliest_offsets(self,
                                *partitions: TP) -> Mapping[TP, int]:
+        """Return the earliest offsets for a list of partitions."""
         return await self.call_thread(
             self._ensure_consumer().beginning_offsets, partitions)
 
     async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
+        """Return the last offsets for a list of partitions."""
         return await self.call_thread(self._highwaters, partitions)
 
     async def _highwaters(self, partitions: List[TP]) -> Mapping[TP, int]:
@@ -348,6 +368,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
     async def getmany(self,
                       active_partitions: Set[TP],
                       timeout: float) -> RecordMap:
+        """Fetch batch of messages from server."""
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
         # NOTE: Since we are enqueing the fetch request,
@@ -390,6 +411,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic on server."""
         transport = cast(Transport, self.consumer.transport)
         _consumer = self._ensure_consumer()
         _retention = (int(want_seconds(retention) * 1000.0)
@@ -413,6 +435,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                       topic: str,
                       key: Optional[bytes],
                       partition: int = None) -> int:
+        """Hash key to determine partition destination."""
         consumer = self._ensure_consumer()
         metadata = consumer._client.cluster
         if partition is not None:
@@ -433,7 +456,7 @@ class Producer(base.Producer):
 
     _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
-    def on_init(self) -> None:
+    def __post_init__(self) -> None:
         self._send_on_produce_message = self.app.on_produce_message.send
 
     def _settings_default(self) -> Mapping[str, Any]:
@@ -458,18 +481,23 @@ class Producer(base.Producer):
             self.credentials, self.ssl_context)
 
     async def begin_transaction(self, transactional_id: str) -> None:
+        """Begin transaction by id."""
         await self._ensure_producer().begin_transaction(transactional_id)
 
     async def commit_transaction(self, transactional_id: str) -> None:
+        """Commit transaction by id."""
         await self._ensure_producer().commit_transaction(transactional_id)
 
     async def abort_transaction(self, transactional_id: str) -> None:
+        """Abort and rollback transaction by id."""
         await self._ensure_producer().abort_transaction(transactional_id)
 
     async def stop_transaction(self, transactional_id: str) -> None:
+        """Stop transaction by id."""
         await self._ensure_producer().stop_transaction(transactional_id)
 
     async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        """Begin transaction (if one does not already exist)."""
         await self._ensure_producer().maybe_begin_transaction(transactional_id)
 
     async def commit_transactions(
@@ -477,6 +505,7 @@ class Producer(base.Producer):
             tid_to_offset_map: Mapping[str, Mapping[TP, int]],
             group_id: str,
             start_new_transaction: bool = True) -> None:
+        """Commit transactions."""
         await self._ensure_producer().commit(
             tid_to_offset_map, group_id,
             start_new_transaction=start_new_transaction,
@@ -519,6 +548,7 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create/declare topic on server."""
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
         producer = self._ensure_producer()
@@ -542,12 +572,14 @@ class Producer(base.Producer):
         return self._producer
 
     async def on_start(self) -> None:
+        """Call when producer starts."""
         producer = self._producer = self._new_producer()
         self.beacon.add(producer)
         self._last_batch = None
         await producer.start()
 
     async def on_stop(self) -> None:
+        """Call when producer stops."""
         cast(Transport, self.transport)._topic_waiters.clear()
         self._last_batch = None
         producer, self._producer = self._producer, None
@@ -561,6 +593,7 @@ class Producer(base.Producer):
                    headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        """Schedule message to be transmitted by producer."""
         producer = self._ensure_producer()
         if headers is not None and isinstance(headers, Mapping):
             headers = list(headers.items())
@@ -590,6 +623,7 @@ class Producer(base.Producer):
                             headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
+        """Send message and wait for it to be transmitted."""
         fut = await self.send(
             topic,
             key=key,
@@ -602,10 +636,12 @@ class Producer(base.Producer):
         return await fut
 
     async def flush(self) -> None:
+        """Wait for producer to finish transmitting all buffered messages."""
         if self._producer is not None:
             await self._producer.flush()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
+        """Hash key to determine partition destination."""
         producer = self._ensure_producer()
         partition = producer._partition(
             topic,
@@ -618,6 +654,7 @@ class Producer(base.Producer):
         return TP(topic, partition)
 
     def supports_headers(self) -> bool:
+        """Return :const:`True` if message headers are supported."""
         producer = self._ensure_producer()
         client = producer.client
         if client is None:

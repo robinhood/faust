@@ -80,6 +80,7 @@ class Consumer(ThreadDelegateConsumer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create topic on broker."""
         return  # XXX
         await self._thread.create_topic(
             topic,
@@ -443,7 +444,7 @@ class Producer(base.Producer):
     _producer_thread: ProducerThread
     _quick_produce: Any = None
 
-    def on_init(self) -> None:
+    def __post_init__(self) -> None:
         self._producer_thread = ProducerThread(
             self, loop=self.loop, beacon=self.beacon)
         self._quick_produce = self._producer_thread.produce
@@ -455,6 +456,7 @@ class Producer(base.Producer):
         await self.crash(exc)
 
     async def on_restart(self) -> None:
+        """Call when producer is restarting."""
         self.on_init()
 
     async def create_topic(self,
@@ -468,6 +470,7 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
+        """Create topic on broker."""
         return  # XXX
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
@@ -486,11 +489,13 @@ class Producer(base.Producer):
         )
 
     async def on_start(self) -> None:
+        """Call when producer is starting."""
         await self._producer_thread.start()
         await self.sleep(0.5)  # cannot remember why, necessary? [ask]
         self._last_batch = None
 
     async def on_stop(self) -> None:
+        """Call when producer is stopping."""
         self._last_batch = None
         await self._producer_thread.stop()
 
@@ -501,6 +506,7 @@ class Producer(base.Producer):
                    headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        """Send message for future delivery."""
         fut = ProducerProduceFuture(loop=self.loop)
         self._quick_produce(
             topic, value, key, partition,
@@ -521,15 +527,22 @@ class Producer(base.Producer):
                             headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
+        """Send message and wait for it to be delivered to broker(s)."""
         fut = await self.send(
             topic, key, value, partition, timestamp, headers,
         )
         return await fut
 
     async def flush(self) -> None:
+        """Flush producer buffer.
+
+        This will wait until the producer has written
+        all buffered up messages to any connected brokers.
+        """
         await self._producer_thread.flush()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
+        """Return topic and partition destination for key."""
         raise NotImplementedError()
 
 

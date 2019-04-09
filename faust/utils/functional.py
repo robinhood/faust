@@ -28,6 +28,6 @@ def deque_prune(l: Deque[T], max: int = None) -> Optional[T]:
 
 
 def deque_pushpopmax(l: Deque[T], item: T, max: int = None) -> Optional[T]:
-    """Append to deque and remove oldest element if size exceeeds ``max``."""
+    """Append to deque and remove oldest element if size exceeds ``max``."""
     l.append(item)
     return deque_prune(l, max)

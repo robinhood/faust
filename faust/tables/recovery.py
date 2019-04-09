@@ -125,32 +125,38 @@ class Recovery(Service):
 
     @property
     def signal_recovery_start(self) -> Event:
+        """Event used to signal that recovery has started."""
         if self._signal_recovery_start is None:
             self._signal_recovery_start = Event(loop=self.loop)
         return self._signal_recovery_start
 
     @property
     def signal_recovery_end(self) -> Event:
+        """Event used to signal that recovery has ended."""
         if self._signal_recovery_end is None:
             self._signal_recovery_end = Event(loop=self.loop)
         return self._signal_recovery_end
 
     @property
     def signal_recovery_reset(self) -> Event:
+        """Event used to signal that recovery is restarting."""
         if self._signal_recovery_reset is None:
             self._signal_recovery_reset = Event(loop=self.loop)
         return self._signal_recovery_reset
 
     async def on_stop(self) -> None:
+        """Call when recovery service stops."""
         # Flush buffers when stopping.
         self.flush_buffers()
 
     def add_active(self, table: CollectionT, tp: TP) -> None:
+        """Add changelog partition to be used for active recovery."""
         self.active_tps.add(tp)
         self.actives_for_table[table].add(tp)
         self._add(table, tp, self.active_offsets)
 
     def add_standby(self, table: CollectionT, tp: TP) -> None:
+        """Add changelog partition to be used for standby recovery."""
         self.standby_tps.add(tp)
         self.standbys_for_table[table].add(tp)
         self._add(table, tp, self.standby_offsets)
@@ -163,12 +169,14 @@ class Recovery(Service):
         offsets.setdefault(tp, None)
 
     def revoke(self, tp: TP) -> None:
+        """Revoke assignment of table changelog partition."""
         self.standby_offsets.pop(tp, None)
         self.standby_highwaters.pop(tp, None)
         self.active_offsets.pop(tp, None)
         self.active_highwaters.pop(tp, None)
 
     def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        """Call when rebalancing and partitions are revoked."""
         T = traced_from_parent_span()
         T(self.flush_buffers)()
         self.signal_recovery_reset.set()
@@ -177,6 +185,7 @@ class Recovery(Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        """Call when cluster is rebalancing."""
         app = self.app
         assigned_standbys = app.assignor.assigned_standbys()
         assigned_actives = app.assignor.assigned_actives()
@@ -435,6 +444,7 @@ class Recovery(Service):
             return None
 
     async def on_recovery_completed(self) -> None:
+        """Call when active table recovery is completed."""
         consumer = self.app.consumer
         self.log.info('Restore complete!')
         await self.app.on_rebalance_complete.send()
@@ -588,14 +598,17 @@ class Recovery(Service):
                 self.tables.on_standbys_ready()
 
     def flush_buffers(self) -> None:
+        """Flush changelog buffers."""
         for table, buffer in self.buffers.items():
             table.apply_changelog_batch(buffer)
             buffer.clear()
 
     def need_recovery(self) -> bool:
+        """Return :const:`True` if recovery is required."""
         return any(v for v in self.active_remaining().values())
 
     def active_remaining(self) -> Counter[TP]:
+        """Return counter of remaining changes by active partition."""
         highwaters = self.active_highwaters
         offsets = self.active_offsets
         return Counter({
@@ -605,6 +618,7 @@ class Recovery(Service):
         })
 
     def standby_remaining(self) -> Counter[TP]:
+        """Return counter of remaining changes by standby partition."""
         highwaters = self.standby_highwaters
         offsets = self.standby_offsets
         return Counter({
@@ -614,12 +628,15 @@ class Recovery(Service):
         })
 
     def active_remaining_total(self) -> int:
+        """Return number of changes remaining for actives to be up-to-date."""
         return sum(self.active_remaining().values())
 
     def standby_remaining_total(self) -> int:
+        """Return number of changes remaining for standbys to be up-to-date."""
         return sum(self.standby_remaining().values())
 
     def active_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
+        """Return current active recovery statistics."""
         offsets = self.active_offsets
         return {
             tp: (highwater, offsets[tp], highwater - offsets[tp])
@@ -628,6 +645,7 @@ class Recovery(Service):
         }
 
     def standby_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
+        """Return current standby recovery statistics."""
         offsets = self.standby_offsets
         return {
             tp: (highwater, offsets[tp], highwater - offsets[tp])

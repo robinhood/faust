@@ -1,3 +1,4 @@
+"""Models."""
 from .base import FieldDescriptor, Model, ModelOptions, maybe_model, registry
 from .record import Record
 

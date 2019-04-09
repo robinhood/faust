@@ -27,6 +27,7 @@ class CacheStorage(Generic[KT, VT]):
         self._expires: Dict[KT, float] = {}
 
     def get(self, key: KT) -> Optional[VT]:
+        """Get value for key, or :const:`None` if missing."""
         with suppress(KeyError):
             expires = self._expires[key]
             now = TIME_MONOTONIC()
@@ -39,20 +40,25 @@ class CacheStorage(Generic[KT, VT]):
             return self._data[key]
 
     def last_set_ttl(self, key: KT) -> Optional[float]:
+        """Return the last set TTL for key, or :const:`None` if missing."""
         return self._expires.get(key)
 
     def expire(self, key: KT) -> None:
+        """Expire value for key immediately."""
         self._time_index[key] -= self._expires[key]
 
     def set(self, key: KT, value: VT) -> None:
+        """Set value for key."""
         self._data[key] = value
 
     def setex(self, key: KT, timeout: float, value: VT) -> None:
+        """Set value & set timeout for key."""
         self._expires[key] = timeout
         self._time_index[key] = TIME_MONOTONIC()
         self.set(key, value)
 
     def ttl(self, key: KT) -> Optional[float]:
+        """Return the remaining TTL for key."""
         try:
             return (
                 self._expires[key] - TIME_MONOTONIC() - self._time_index[key])
@@ -60,11 +66,13 @@ class CacheStorage(Generic[KT, VT]):
             return None
 
     def delete(self, key: KT) -> None:
+        """Delete value for key."""
         self._expires.pop(key, None)
         self._data.pop(key, None)  # type: ignore
         self._time_index.pop(key, None)
 
     def clear(self) -> None:
+        """Clear all data."""
         self._expires.clear()
         self._data.clear()
         self._time_index.clear()
@@ -73,7 +81,7 @@ class CacheStorage(Generic[KT, VT]):
 class CacheBackend(base.CacheBackend):
     """In-memory backend for cache operations."""
 
-    def on_init(self) -> None:
+    def __post_init__(self) -> None:
         # we reuse this in t/conftest to mock a Redis server :D
         self.storage: CacheStorage[str, bytes] = CacheStorage()
 
