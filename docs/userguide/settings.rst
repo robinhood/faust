@@ -943,12 +943,16 @@ send messages or update tables.
 ``stream_recovery_delay``
 -------------------------
 :type: ``Union[float, datetime.timedelta]``
-:default: ``3.0``
+:default: ``0.0``
 
 Number of seconds to sleep before continuing after rebalance.
 We wait for a bit to allow for more nodes to join/leave before
 starting recovery tables and then processing streams. This to minimize
 the chance of errors rebalancing loops.
+
+.. versionchanged::
+
+    - 1.5.3: Disabled by default.
 
 .. setting:: stream_wait_empty
 
