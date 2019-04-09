@@ -27,6 +27,7 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
+from aiokafka.util import parse_kafka_version
 from kafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
@@ -431,7 +432,17 @@ class Producer(base.Producer):
 
     logger = logger
 
+    allow_headers: bool = True
+    wanted_api_version: Optional[Tuple[int, ...]] = None
     _producer: Optional[aiokafka.AIOKafkaProducer] = None
+
+    def __post_init__(self) -> None:
+        if self.partitioner is None:
+            self.partitioner = DefaultPartitioner()
+        if self._api_version != 'auto':
+            self.wanted_api_version = parse_kafka_version(self._api_version)
+            if self.wanted_api_version < (0, 11):
+                self.allow_headers = False
 
     def _settings_default(self) -> Mapping[str, Any]:
         transport = cast(Transport, self.transport)
@@ -446,8 +457,9 @@ class Producer(base.Producer):
             'compression_type': self.compression_type,
             'on_irrecoverable_error': self._on_irrecoverable_error,
             'security_protocol': 'SSL' if self.ssl_context else 'PLAINTEXT',
-            'partitioner': self.partitioner or DefaultPartitioner(),
+            'partitioner': self.partitioner,
             'request_timeout_ms': int(self.request_timeout * 1000),
+            'api_version': self._api_version,
         }
 
     def _settings_auth(self) -> Mapping[str, Any]:
@@ -559,8 +571,13 @@ class Producer(base.Producer):
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         producer = self._ensure_producer()
-        if headers is not None and isinstance(headers, Mapping):
-            headers = list(headers.items())
+        if headers is not None:
+            if self.allow_headers:
+                if isinstance(headers, Mapping):
+                    headers = list(headers.items())
+            else:
+                headers = None
+        timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
         try:
             timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
             return cast(Awaitable[RecordMetadata], await producer.send(

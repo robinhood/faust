@@ -834,6 +834,31 @@ Timeout for producer operations.
 This is set high by default, as this is also the time when producer batches
 expire and will no longer be retried.
 
+.. setting:: producer_api_version
+
+``producer_api_version``
+------------------------
+
+.. versionadded:: 1.5.3
+
+:type: :class:`str`
+:default: ``"auto"``
+
+Negotiate producer protocol version.
+
+The default value - "auto" means use the latest version supported by both
+client and server.
+
+Any other version set means you are requesting a specific version of the
+protocol.
+
+Example Kafka uses:
+
+Disable sending headers for all messages produced
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Kafka headers support was added in Kafka 0.11, so you can specify
+``api_version="0.10"`` to remove the headers from messages.
 
 .. setting:: producer_partitioner
 

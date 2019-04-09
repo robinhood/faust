@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import faust
 import pytest
 import aiokafka
 from aiokafka.errors import CommitFailedError, IllegalStateError, KafkaError
@@ -302,7 +303,8 @@ class test_AIOKafkaConsumerThread:
 
     def assert_create_worker_consumer(self, cthread, app,
                                       in_transaction=False,
-                                      isolation_level='read_uncommitted'):
+                                      isolation_level='read_uncommitted',
+                                      api_version=None):
         loop = Mock(name='loop')
         transport = cthread.transport
         conf = app.conf
@@ -644,6 +646,13 @@ class test_AIOKafkaConsumerThread:
                 method, *args, **kwargs)
 
 
+class MyPartitioner:
+    ...
+
+
+my_partitioner = MyPartitioner()
+
+
 class test_Producer:
 
     @pytest.fixture()
@@ -668,6 +677,10 @@ class test_Producer:
             send=AsyncMock(),
             flush=AsyncMock(),
         )
+
+    @pytest.mark.conf(producer_partitioner=my_partitioner)
+    def test_producer__uses_custom_partitioner(self, *, producer):
+        assert producer.partitioner is my_partitioner
 
     @pytest.mark.asyncio
     async def test_begin_transaction(self, *, producer, _producer):
@@ -707,6 +720,87 @@ class test_Producer:
         assert producer._settings_extra() == {'acks': 'all'}
         app.in_transaction = False
         assert producer._settings_extra() == {}
+
+    def test__new_producer(self, *, producer):
+        self.assert_new_producer(producer)
+
+    @pytest.mark.parametrize('expected_args', [
+        pytest.param({'api_version': '0.10'},
+                     marks=pytest.mark.conf(
+                         producer_api_version='0.10')),
+        pytest.param({'acks': 'all'},
+                     marks=pytest.mark.conf(
+                         producer_acks='all')),
+        pytest.param({'bootstrap_servers': ['a:9092', 'b:9092']},
+                     marks=pytest.mark.conf(
+                         broker='kafka://a:9092;b:9092')),
+        pytest.param({'client_id': 'foo'},
+                     marks=pytest.mark.conf(
+                         broker_client_id='foo')),
+        pytest.param({'compression_type': 'snappy'},
+                     marks=pytest.mark.conf(
+                         producer_compression_type='snappy')),
+        pytest.param({'linger_ms': 9345},
+                     marks=pytest.mark.conf(
+                         producer_linger_ms=9345)),
+        pytest.param({'max_batch_size': 41223},
+                     marks=pytest.mark.conf(
+                         producer_max_batch_size=41223)),
+        pytest.param({'max_request_size': 183831},
+                     marks=pytest.mark.conf(
+                         producer_max_request_size=183831)),
+        pytest.param({'request_timeout_ms': 1234134000},
+                     marks=pytest.mark.conf(
+                         producer_request_timeout=1234134)),
+        pytest.param(
+            {'security_protocol': 'SASL_PLAINTEXT',
+             'sasl_mechanism': 'PLAIN',
+             'sasl_plain_username': 'uname',
+             'sasl_plain_password': 'pw',
+             'ssl_context': None},
+            marks=pytest.mark.conf(
+                broker_credentials=auth.SASLCredentials(
+                    username='uname',
+                    password='pw',
+                    mechanism='PLAIN'),
+            ),
+        ),
+    ])
+    def test__new_producer__using_settings(self, expected_args, *,
+                                           app, producer):
+        self.assert_new_producer(producer, **expected_args)
+
+    def assert_new_producer(self, producer,
+                            acks=-1,
+                            api_version='auto',
+                            bootstrap_servers=['localhost:9092'],  # noqa,
+                            client_id=f'faust-{faust.__version__}',
+                            compression_type=None,
+                            linger_ms=0,
+                            max_batch_size=16384,
+                            max_request_size=1000000,
+                            request_timeout_ms=1200000,
+                            security_protocol='PLAINTEXT',
+                            **kwargs):
+        with patch('aiokafka.AIOKafkaProducer') as AIOKafkaProducer:
+            p = producer._new_producer()
+            assert p is AIOKafkaProducer.return_value
+            AIOKafkaProducer.assert_called_once_with(
+                acks=acks,
+                api_version=api_version,
+                bootstrap_servers=bootstrap_servers,
+                client_id=client_id,
+                compression_type=compression_type,
+                linger_ms=linger_ms,
+                max_batch_size=max_batch_size,
+                max_request_size=max_request_size,
+                request_timeout_ms=request_timeout_ms,
+                security_protocol=security_protocol,
+                loop=producer.loop,
+                partitioner=producer.partitioner,
+                on_irrecoverable_error=producer._on_irrecoverable_error,
+                **kwargs,
+            )
 
     def test__new_producer__default(self, *, producer):
         p = producer._new_producer()
@@ -804,6 +898,54 @@ class test_Producer:
     async def test_send(self, producer, _producer):
         await producer.send(
             'topic', 'k', 'v', 3, 100, {'foo': 'bar'},
+            transactional_id='tid',
+        )
+        _producer.send.assert_called_once_with(
+            'topic', 'v',
+            key='k',
+            partition=3,
+            timestamp_ms=100 * 1000.0,
+            headers=[('foo', 'bar')],
+            transactional_id='tid',
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.conf(producer_api_version='0.10')
+    async def test_send__request_no_headers(self, producer, _producer):
+        await producer.send(
+            'topic', 'k', 'v', 3, 100, {'foo': 'bar'},
+            transactional_id='tid',
+        )
+        _producer.send.assert_called_once_with(
+            'topic', 'v',
+            key='k',
+            partition=3,
+            timestamp_ms=100 * 1000.0,
+            headers=None,
+            transactional_id='tid',
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.conf(producer_api_version='0.11')
+    async def test_send__kafka011_supports_headers(self, producer, _producer):
+        await producer.send(
+            'topic', 'k', 'v', 3, 100, {'foo': 'bar'},
+            transactional_id='tid',
+        )
+        _producer.send.assert_called_once_with(
+            'topic', 'v',
+            key='k',
+            partition=3,
+            timestamp_ms=100 * 1000.0,
+            headers=[('foo', 'bar')],
+            transactional_id='tid',
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.conf(producer_api_version='auto')
+    async def test_send__auto_passes_headers(self, producer, _producer):
+        await producer.send(
+            'topic', 'k', 'v', 3, 100, [('foo', 'bar')],
             transactional_id='tid',
         )
         _producer.send.assert_called_once_with(
