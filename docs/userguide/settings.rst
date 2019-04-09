@@ -975,9 +975,9 @@ We wait for a bit to allow for more nodes to join/leave before
 starting recovery tables and then processing streams. This to minimize
 the chance of errors rebalancing loops.
 
-.. versionchanged::
+.. versionchanged:: 1.5.3
 
-    - 1.5.3: Disabled by default.
+    Disabled by default.
 
 .. setting:: stream_wait_empty
 
