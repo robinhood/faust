@@ -176,7 +176,7 @@ class test_SetTableManager:
         man._send_operation = AsyncMock()
         await man.add('key', 'member')
         man._send_operation.coro.assert_called_once_with(
-            SetAction.ADD, 'key', 'member',
+            SetAction.ADD, 'key', ['member'],
         )
 
     @pytest.mark.asyncio
@@ -184,18 +184,69 @@ class test_SetTableManager:
         man._send_operation = AsyncMock()
         await man.discard('key', 'member')
         man._send_operation.coro.assert_called_once_with(
-            SetAction.DISCARD, 'key', 'member',
+            SetAction.DISCARD, 'key', ['member'],
         )
 
-    def test__add(self, *, man):
-        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
-        man._add('a', 'v1')
-        man.set_table['a'].add.assert_called_once_with('v1')
+    @pytest.mark.asyncio
+    async def test_clear(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.clear('key')
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.CLEAR, 'key', [],
+        )
 
-    def test__discard(self, *, man):
+    @pytest.mark.asyncio
+    async def test_difference_update(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.difference_update('key', ['v1', 'v2'])
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.DISCARD, 'key', ['v1', 'v2'],
+        )
+
+    @pytest.mark.asyncio
+    async def test_intersection_update(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.intersection_update('key', ['v1', 'v2'])
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.INTERSECTION, 'key', ['v1', 'v2'],
+        )
+
+    @pytest.mark.asyncio
+    async def test_symmetric_difference_update(self, *, man):
+        man._send_operation = AsyncMock()
+        await man.symmetric_difference_update('key', ['v1', 'v2'])
+        man._send_operation.coro.assert_called_once_with(
+            SetAction.SYMDIFF, 'key', ['v1', 'v2'],
+        )
+
+    def test__update(self, *, man):
         man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
-        man._discard('a', 'v1')
-        man.set_table['a'].discard.assert_called_once_with('v1')
+        man._update('a', ['v1'])
+        man.set_table['a'].update.assert_called_once_with(['v1'])
+
+    def test__difference_update(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._difference_update('a', ['v1'])
+        man.set_table['a'].difference_update.assert_called_once_with(['v1'])
+
+    def test__clear(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._clear('a', [])
+        man.set_table['a'].clear.assert_called_once_with()
+
+    def test__intersection_update(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._intersection_update('a', ['v1', 'v2', 'v3'])
+        man.set_table['a'].intersection_update.assert_called_once_with(
+            ['v1', 'v2', 'v3'],
+        )
+
+    def test__symmetric_difference_update(self, *, man):
+        man.set_table = {'a': Mock(name='a'), 'b': Mock(name='b')}
+        man._symmetric_difference_update('a', ['v1', 'v2', 'v3'])
+        man.set_table['a'].symmetric_difference_update.assert_called_once_with(
+            ['v1', 'v2', 'v3'],
+        )
 
     @pytest.mark.asyncio
     async def test__send_operation__disabled(self, *, man):
@@ -207,10 +258,23 @@ class test_SetTableManager:
     async def test__send_operation__enabled(self, *, man):
         man.enabled = True
         man.topic.send = AsyncMock()
-        await man._send_operation(SetAction.ADD, 'k', 'v')
+        await man._send_operation(SetAction.ADD, 'k', ['v'])
         man.topic.send.assert_called_once_with(
             key='k',
-            value=SetManagerOperation(action=SetAction.ADD, member='v'),
+            value=SetManagerOperation(action=SetAction.ADD, members=['v']),
+        )
+
+    @pytest.mark.asyncio
+    async def test__send_operation__enabled__iterator(self, *, man):
+        man.enabled = True
+        man.topic.send = AsyncMock()
+        await man._send_operation(SetAction.ADD, 'k', iter(['a', 'b']))
+        man.topic.send.assert_called_once_with(
+            key='k',
+            value=SetManagerOperation(
+                action=SetAction.ADD,
+                members=['a', 'b'],
+            ),
         )
 
     @pytest.mark.asyncio
@@ -218,10 +282,14 @@ class test_SetTableManager:
     async def test__modify_set(self, *, man):
         stream = Mock()
         man.set_table = {
-            'k1': Mock(),
-            'k2': Mock(),
-            'k3': Mock(),
-            'k4': Mock(),
+            'k1': Mock(name='k1'),
+            'k2': Mock(name='k2'),
+            'k3': Mock(name='k3'),
+            'k4': Mock(name='k4'),
+            'k5': Mock(name='k5'),
+            'k6': Mock(name='k6'),
+            'k7': Mock(name='k7'),
+            'k8': Mock(name='k8'),
         }
 
         class X(faust.Record):
@@ -230,32 +298,76 @@ class test_SetTableManager:
 
         unknown_set_op = SetManagerOperation(
             action=SetAction.ADD,
-            member='v4',
+            members=['v4'],
         )
         unknown_set_op.action = 'UNKNOWN'
 
         async def stream_items():
             yield ('k1', SetManagerOperation(
                 action=SetAction.ADD,
-                member='v',
+                members=['v'],
             ))
             yield ('k2', SetManagerOperation(
                 action=SetAction.DISCARD,
-                member='v2',
+                members=['v2'],
             ))
             yield ('k3', SetManagerOperation(
                 action=SetAction.DISCARD,
-                member=X(10, 30).to_representation(),
+                members=[X(10, 30).to_representation()],
             ))
             yield ('k4', unknown_set_op)
+            yield ('k5', SetManagerOperation(
+                action=SetAction.ADD,
+                members=[
+                    X(10, 30).to_representation(),
+                    X(20, 40).to_representation(),
+                    'v3',
+                ],
+            ))
+            yield ('k6', SetManagerOperation(
+                action=SetAction.INTERSECTION,
+                members=[
+                    X(10, 30).to_representation(),
+                    X(20, 40).to_representation(),
+                    'v3',
+                ],
+            ))
+            yield ('k7', SetManagerOperation(
+                action=SetAction.SYMDIFF,
+                members=[
+                    X(10, 30).to_representation(),
+                    X(20, 40).to_representation(),
+                    'v3',
+                ],
+            ))
+            yield ('k8', SetManagerOperation(
+                action=SetAction.CLEAR,
+                members=[],
+            ))
 
         stream.items.side_effect = stream_items
 
         await man._modify_set(stream)
 
-        man.set_table['k1'].add.assert_called_with('v')
-        man.set_table['k2'].discard.assert_called_with('v2')
-        man.set_table['k3'].discard.assert_called_with(X(10, 30))
+        man.set_table['k1'].update.assert_called_with(['v'])
+        man.set_table['k2'].difference_update.assert_called_with(['v2'])
+        man.set_table['k3'].difference_update.assert_called_with([X(10, 30)])
+        man.set_table['k5'].update.assert_called_with([
+            X(10, 30),
+            X(20, 40),
+            'v3',
+        ])
+        man.set_table['k6'].intersection_update.assert_called_with([
+            X(10, 30),
+            X(20, 40),
+            'v3',
+        ])
+        man.set_table['k7'].symmetric_difference_update.assert_called_with([
+            X(10, 30),
+            X(20, 40),
+            'v3',
+        ])
+        man.set_table['k8'].clear.assert_called_once_with()
 
 
 class test_SetTable:

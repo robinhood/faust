@@ -112,6 +112,7 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
 
 class ChangeloggedSetManager(ChangeloggedObjectManager):
     """Store that maintains a dictionary of sets."""
+
     url = cast(URL, None)  # fix deep going test case error.
 
     ValueType = ChangeloggedSet
@@ -120,12 +121,15 @@ class ChangeloggedSetManager(ChangeloggedObjectManager):
 class SetAction(Enum):
     ADD = 'ADD'
     DISCARD = 'DISCARD'
+    CLEAR = 'CLEAR'
+    INTERSECTION = 'INTERSECTION'
+    SYMDIFF = 'SYMDIFF'
 
 
 class SetManagerOperation(Record,
                           namespace='@SetManagerOperation'):
     action: SetAction
-    member: Any
+    members: List[Any]
 
 
 class SetTableManager(Service, Generic[KT, VT]):
@@ -153,7 +157,7 @@ class SetTableManager(Service, Generic[KT, VT]):
     enabled: bool
 
     agent: Optional[AgentT]
-    actions: Dict[SetAction, Callable[[KT, VT], None]]
+    actions: Dict[SetAction, Callable[[KT, List[VT]], None]]
 
     def __init__(self, set_table: 'SetTable[KT, VT]',
                  **kwargs: Any) -> None:
@@ -162,36 +166,76 @@ class SetTableManager(Service, Generic[KT, VT]):
         self.app = self.set_table.app
         self.enabled = self.set_table.start_manager
         self.actions = {
-            SetAction.ADD: self._add,
-            SetAction.DISCARD: self._discard,
+            SetAction.ADD: self._update,
+            SetAction.DISCARD: self._difference_update,
+            SetAction.CLEAR: self._clear,
+            SetAction.INTERSECTION: self._intersection_update,
+            SetAction.SYMDIFF: self._symmetric_difference_update,
         }
         if self.enabled:
             self._enable()
 
     async def add(self, key: KT, member: VT) -> None:
         """Add member to set table using key."""
-        await self._send_operation(SetAction.ADD, key, member)
+        await self._send_operation(SetAction.ADD, key, [member])
 
     async def discard(self, key: KT, member: VT) -> None:
         """Discard member from set table using key."""
-        await self._send_operation(SetAction.DISCARD, key, member)
+        await self._send_operation(SetAction.DISCARD, key, [member])
 
-    def _add(self, key: KT, member: VT) -> None:
-        self.set_table[key].add(member)
+    async def clear(self, key: KT) -> None:
+        """Clear all members from set table using key."""
+        await self._send_operation(SetAction.CLEAR, key, [])
 
-    def _discard(self, key: KT, member: VT) -> None:
-        self.set_table[key].discard(member)
+    async def difference_update(self, key: KT, members: Iterable[VT]) -> None:
+        """Remove members from set with key."""
+        await self._send_operation(SetAction.DISCARD, key, members)
+
+    async def intersection_update(self,
+                                  key: KT,
+                                  members: Iterable[VT]) -> None:
+        """Update the set with key to be the intersection of another set.
+
+        This will keep all members that are in both sets.
+        """
+        await self._send_operation(SetAction.INTERSECTION, key, members)
+
+    async def symmetric_difference_update(self,
+                                          key: KT,
+                                          members: Iterable[VT]) -> None:
+        """Update set by key to be the symmetric difference of another set.
+
+        Members common to both sets will be removed.
+        """
+        await self._send_operation(SetAction.SYMDIFF, key, members)
+
+    def _update(self, key: KT, members: List[VT]) -> None:
+        self.set_table[key].update(members)
+
+    def _difference_update(self, key: KT, members: List[VT]) -> None:
+        self.set_table[key].difference_update(members)
+
+    def _clear(self, key: KT, members: List[VT]) -> None:
+        self.set_table[key].clear()
+
+    def _intersection_update(self, key: KT, members: List[VT]) -> None:
+        self.set_table[key].intersection_update(members)
+
+    def _symmetric_difference_update(self, key: KT, members: List[VT]) -> None:
+        self.set_table[key].symmetric_difference_update(members)
 
     async def _send_operation(self,
                               action: SetAction,
                               key: KT,
-                              member: VT) -> None:
+                              members: Iterable[VT]) -> None:
         if not self.enabled:
             raise RuntimeError(
                 f'Set table {self.set_table} is start_manager=False')
+        if iter(members) is members:
+            members = list(members)
         await self.topic.send(
             key=key,
-            value=SetManagerOperation(action=action, member=member),
+            value=SetManagerOperation(action=action, members=members),
         )
 
     def _enable(self) -> None:
@@ -201,6 +245,8 @@ class SetTableManager(Service, Generic[KT, VT]):
         )(self._modify_set)
 
     async def _modify_set(self, stream: StreamT[SetManagerOperation]) -> None:
+        actions = self.actions
+        _maybe_model = maybe_model
         async for set_key, set_operation in stream.items():
             try:
                 action = SetAction(set_operation.action)
@@ -208,9 +254,9 @@ class SetTableManager(Service, Generic[KT, VT]):
                 self.log.exception(
                     'Unknown set operation: %r', set_operation.action)
             else:
-                member_obj = maybe_model(set_operation.member)
-                handler = self.actions[action]
-                handler(set_key, member_obj)
+                members = [_maybe_model(m) for m in set_operation.members]
+                handler = actions[action]
+                handler(set_key, members)
 
     @cached_property
     def topic(self) -> TopicT:
