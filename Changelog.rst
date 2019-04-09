@@ -8,8 +8,32 @@ This document contain change notes for bugfix releases in
 the Faust 1.5 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.5.4:
+
+1.5.4
+=====
+:release-date: 2019-04-9 2:09 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- New :setting:`producer_api_version` setting.
+
+    This can be set to the value "0.10" to remove headers
+    from all messages produced.
+
+    Use this if you have downstream consumers that do not
+    support the new Kafka protocol format yet.
+
+- The :setting:`stream_recovery_delay` setting has been disabled by default.
+
+    After rebalancing the worker will sleep a bit before starting
+    recovery, the idea being that another recovery may be waiting just behind
+    it so we wait a bit, but this has shown to be not as effective
+    as intended.
+
 .. _version-1.5.3:
 
+1.5.3
+=====
 :release-date: 2019-04-06 11:25 P.M PST
 :release-by: Ask Solem (:github_user:`ask`)
 
