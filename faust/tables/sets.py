@@ -121,7 +121,7 @@ class SetAction(Enum):
     DISCARD = 'DISCARD'
 
 
-class SetManagerOperation(Record, Generic[VT],
+class SetManagerOperation(Record,
                           namespace='@SetManagerOperation'):
     action: SetAction
     member: VT
