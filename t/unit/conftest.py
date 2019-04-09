@@ -7,12 +7,15 @@ from mode.utils.mocks import AsyncMock, Mock
 
 
 @pytest.fixture()
-def app(event_loop):
+def app(event_loop, request):
+    settings = request.node.get_closest_marker('conf')
+    kwargs = settings.kwargs or {} if settings else {}
+
     os.environ.pop('F_DATADIR', None)
     os.environ.pop('FAUST_DATADIR', None)
     os.environ.pop('F_WORKDIR', None)
     os.environ.pop('FAUST_WORKDIR', None)
-    instance = faust.App('testid')
+    instance = faust.App('testid', **kwargs)
     instance.producer = Mock(
         name='producer',
         autospec=Producer,

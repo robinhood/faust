@@ -21,6 +21,8 @@ class Producer(Service, ProducerT):
 
     app: AppT
 
+    _api_version: str
+
     def __init__(self, transport: TransportT,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
@@ -37,6 +39,8 @@ class Producer(Service, ProducerT):
         self.ssl_context = conf.ssl_context
         self.credentials = conf.broker_credentials
         self.partitioner = conf.producer_partitioner
+        api_version = self._api_version = conf.producer_api_version
+        assert api_version is not None
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     async def send(self, topic: str, key: Optional[bytes],

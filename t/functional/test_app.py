@@ -76,6 +76,7 @@ class test_settings:
         assert conf.producer_partitioner is None
         assert (conf.producer_request_timeout ==
                 settings.PRODUCER_REQUEST_TIMEOUT)
+        assert conf.producer_api_version == 'auto'
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
         assert conf.stream_wait_empty
@@ -181,6 +182,7 @@ class test_settings:
                                  broker_check_crcs=False,
                                  producer_partitioner=_dummy_partitioner,
                                  producer_request_timeout=2.66,
+                                 producer_api_version='0.10',
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
@@ -242,6 +244,7 @@ class test_settings:
             broker_max_poll_records=broker_max_poll_records,
             producer_partitioner=producer_partitioner,
             producer_request_timeout=producer_request_timeout,
+            producer_api_version=producer_api_version,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -295,6 +298,7 @@ class test_settings:
         assert conf.broker_check_crcs == broker_check_crcs
         assert conf.producer_partitioner is producer_partitioner
         assert conf.producer_request_timeout == producer_request_timeout
+        assert conf.producer_api_version == producer_api_version
         assert conf.table_cleanup_interval == table_cleanup_interval
         assert conf.key_serializer == key_serializer
         assert conf.value_serializer == value_serializer
