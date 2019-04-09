@@ -17,6 +17,7 @@ from typing import (
 from mode import Service
 from mode.utils.collections import ManagedUserSet
 from mode.utils.objects import cached_property
+from yarl import URL
 
 from faust.models import Record, maybe_model
 from faust.types import AgentT, AppT, EventT, StreamT, TopicT
@@ -111,7 +112,7 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
 
 class ChangeloggedSetManager(ChangeloggedObjectManager):
     """Store that maintains a dictionary of sets."""
-    url = None
+    url = cast(URL, None)  # fix deep going test case error.
 
     ValueType = ChangeloggedSet
 
@@ -124,7 +125,7 @@ class SetAction(Enum):
 class SetManagerOperation(Record,
                           namespace='@SetManagerOperation'):
     action: SetAction
-    member: VT
+    member: Any
 
 
 class SetTableManager(Service, Generic[KT, VT]):
