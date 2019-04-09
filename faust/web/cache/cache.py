@@ -14,6 +14,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+from mode.utils.compat import want_bytes
 from mode.utils.times import Seconds, want_seconds
 from mode.utils.logging import get_logger
 
@@ -141,7 +142,8 @@ class Cache(CacheT):
                   headers: Mapping[str, str]) -> str:
         """Build cache key from web request and environment."""
         context = hashlib.md5(b''.join(
-            (k + v).encode() for k, v in headers.items())).hexdigest()
+            want_bytes(k) + want_bytes(v)
+            for k, v in headers.items())).hexdigest()
         url = hashlib.md5(iri_to_uri(str(
             request.url)).encode('ascii')).hexdigest()
         return f'{self.ident}.{prefix}.{method}.{url}.{context}'
