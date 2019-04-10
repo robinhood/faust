@@ -1,6 +1,6 @@
 """Base-interface for sensors."""
 from time import monotonic
-from typing import Any, Iterator, Mapping, Set
+from typing import Any, Iterator, Mapping, Optional, Set
 
 from mode import Service
 
@@ -26,12 +26,12 @@ class Sensor(SensorT, Service):
         ...
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> None:
+                           event: EventT) -> Optional[Mapping]:
         """Message sent to a stream as an event."""
-        ...
+        return None
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         """Event was acknowledged by stream.
 
         Notes:
@@ -146,16 +146,20 @@ class SensorDelegate(SensorDelegateT):
             sensor.on_message_in(tp, offset, message)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> None:
+                           event: EventT) -> Optional[Mapping]:
         """Call when stream starts processing an event."""
-        for sensor in self._sensors:
-            sensor.on_stream_event_in(tp, offset, stream, event)
+        return {
+            sensor: sensor.on_stream_event_in(tp, offset, stream, event)
+            for sensor in self._sensors
+        }
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         """Call when stream is done processing an event."""
+        sensor_state = state or {}
         for sensor in self._sensors:
-            sensor.on_stream_event_out(tp, offset, stream, event)
+            sensor.on_stream_event_out(tp, offset, stream, event,
+                                       sensor_state.get(sensor))
 
     def on_topic_buffer_full(self, topic: TopicT) -> None:
         """Call when conductor topic buffer is full and has to wait."""

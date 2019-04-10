@@ -797,6 +797,7 @@ class Stream(StreamT[T_co], Service):
         sleep = asyncio.sleep
         trace = self.app.trace
         _shortlabel = shortlabel
+        sensor_state: Optional[Mapping] = None
 
         try:
             while not self.should_stop:
@@ -845,7 +846,8 @@ class Stream(StreamT[T_co], Service):
                                 consumer._last_batch = monotonic()
 
                         # call Sensors
-                        on_stream_event_in(tp, offset, self, event)
+                        sensor_state = on_stream_event_in(
+                            tp, offset, self, event)
 
                         # set task-local current_event
                         _current_event_contextvar.set(create_ref(event))
@@ -857,6 +859,7 @@ class Stream(StreamT[T_co], Service):
                     else:
                         value = channel_value
                         self.current_event = None
+                        sensor_state = None
 
                     # reduce using processors
                     for processor in processors:
@@ -873,7 +876,8 @@ class Stream(StreamT[T_co], Service):
                         message = event.message
                         tp = event.message.tp
                         offset = event.message.offset
-                        on_stream_event_out(tp, offset, self, event)
+                        on_stream_event_out(
+                            tp, offset, self, event, sensor_state)
                         if last_stream_to_ack:
                             on_message_out(tp, offset, message)
         except StopAsyncIteration:

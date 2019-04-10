@@ -22,8 +22,8 @@ class test_LiveCheckSensor:
         stream.current_test = None
         event = Mock()
         event.headers = {}
-        sensor.on_stream_event_in(('topic', 'foo'), 3, stream, event)
-        sensor.on_stream_event_out(('topic', 'foo'), 3, stream, event)
+        state = sensor.on_stream_event_in(('topic', 'foo'), 3, stream, event)
+        sensor.on_stream_event_out(('topic', 'foo'), 3, stream, event, state)
 
     def test_on_stream_event(self, *, sensor, execution):
         stream = Mock()
@@ -31,10 +31,10 @@ class test_LiveCheckSensor:
         event = Mock()
         event.headers = execution.as_headers()
         assert current_test_stack.top is None
-        sensor.on_stream_event_in(('topic', 'foo'), 3, stream, event)
+        state = sensor.on_stream_event_in(('topic', 'foo'), 3, stream, event)
         assert current_test_stack.top.id == execution.id
         assert stream.current_test.id == execution.id
-        sensor.on_stream_event_out(('topic', 'foo'), 3, stream, event)
+        sensor.on_stream_event_out(('topic', 'foo'), 3, stream, event, state)
         assert current_test_stack.top is None
         assert stream.current_test is None
 

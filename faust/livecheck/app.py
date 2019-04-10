@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Tuple,
     Type,
@@ -42,7 +43,7 @@ class LiveCheckSensor(Sensor):
                            tp: TP,
                            offset: int,
                            stream: StreamT,
-                           event: EventT) -> None:
+                           event: EventT) -> Optional[Mapping]:
         """Call when stream starts processing event."""
         test = TestExecution.from_headers(event.headers)
         if test is not None:
@@ -53,7 +54,8 @@ class LiveCheckSensor(Sensor):
                             tp: TP,
                             offset: int,
                             stream: StreamT,
-                            event: EventT) -> None:
+                            event: EventT,
+                            state: Optional[Mapping] = None) -> None:
         """Call when stream is finished handling event."""
         has_active_test = getattr(stream, 'current_test', None)
         if has_active_test:

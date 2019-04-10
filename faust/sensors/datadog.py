@@ -169,17 +169,18 @@ class DatadogMonitor(Monitor):
         self.client.gauge('read_offset', offset, labels=labels)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> None:
+                           event: EventT) -> Optional[Mapping]:
         """Call when stream starts processing an event."""
-        super().on_stream_event_in(tp, offset, stream, event)
+        state = super().on_stream_event_in(tp, offset, stream, event)
         labels = self._format_label(tp, stream)
         self.client.increment('events', labels=labels)
         self.client.increment('events_active', labels=labels)
+        return state
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         """Call when stream is done processing an event."""
-        super().on_stream_event_out(tp, offset, stream, event)
+        super().on_stream_event_out(tp, offset, stream, event, state)
         labels = self._format_label(tp, stream)
         self.client.decrement('events_active', labels=labels)
         self.client.timing(
