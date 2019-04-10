@@ -1,7 +1,7 @@
 """Monitor using datadog."""
 import re
 from time import monotonic
-from typing import Any, Dict, List, Mapping, Optional, Pattern, cast
+from typing import Any, Dict, List, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -168,7 +168,7 @@ class DatadogMonitor(Monitor):
         self.client.gauge('read_offset', offset, labels=labels)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
+                           event: EventT) -> Optional[Dict]:
         """Call when stream starts processing an event."""
         state = super().on_stream_event_in(tp, offset, stream, event)
         labels = self._format_label(tp, stream)
@@ -177,7 +177,7 @@ class DatadogMonitor(Monitor):
         return state
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
+                            event: EventT, state: Dict = None) -> None:
         """Call when stream is done processing an event."""
         super().on_stream_event_out(tp, offset, stream, event, state)
         labels = self._format_label(tp, stream)
@@ -258,7 +258,7 @@ class DatadogMonitor(Monitor):
 
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Mapping,
+                            state: Dict,
                             exc: BaseException) -> None:
         super().on_assignment_error(assignor, state, exc)
         self.client.increment('assignments_error')
@@ -269,7 +269,8 @@ class DatadogMonitor(Monitor):
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Mapping) -> None:
+                                state: Dict) -> None:
+        """Partition assignor completed assignment."""
         super().on_assignment_completed(assignor, state)
         self.client.increment('assignments_complete')
         self.client.timing(

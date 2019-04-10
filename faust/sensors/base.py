@@ -1,6 +1,6 @@
 """Base-interface for sensors."""
 from time import monotonic
-from typing import Any, Iterator, Mapping, Optional, Set
+from typing import Any, Dict, Iterator, Mapping, Optional, Set
 
 from mode import Service
 
@@ -26,12 +26,12 @@ class Sensor(SensorT, Service):
         ...
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
+                           event: EventT) -> Optional[Dict]:
         """Message sent to a stream as an event."""
         return None
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
+                            event: EventT, state: Dict = None) -> None:
         """Event was acknowledged by stream.
 
         Notes:
@@ -96,18 +96,20 @@ class Sensor(SensorT, Service):
         ...
 
     def on_assignment_start(self,
-                            assignor: PartitionAssignorT) -> Mapping:
+                            assignor: PartitionAssignorT) -> Dict:
+        """Partition assignor is starting to assign partitions."""
         return {'time_start': monotonic()}
 
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Mapping,
+                            state: Dict,
                             exc: BaseException) -> None:
         ...
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Mapping) -> None:
+                                state: Dict) -> None:
+        """Partition assignor completed assignment."""
         ...
 
     def asdict(self) -> Mapping:
@@ -139,7 +141,7 @@ class SensorDelegate(SensorDelegateT):
             sensor.on_message_in(tp, offset, message)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
+                           event: EventT) -> Optional[Dict]:
         """Call when stream starts processing an event."""
         return {
             sensor: sensor.on_stream_event_in(tp, offset, stream, event)
@@ -147,7 +149,7 @@ class SensorDelegate(SensorDelegateT):
         }
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
+                            event: EventT, state: Dict = None) -> None:
         """Call when stream is done processing an event."""
         sensor_state = state or {}
         for sensor in self._sensors:
@@ -214,7 +216,8 @@ class SensorDelegate(SensorDelegateT):
             sensor.on_send_error(producer, exc, state[sensor])
 
     def on_assignment_start(self,
-                            assignor: PartitionAssignorT) -> Mapping:
+                            assignor: PartitionAssignorT) -> Dict:
+        """Partition assignor is starting to assign partitions."""
         return {
             sensor: sensor.on_assignment_start(assignor)
             for sensor in self._sensors
@@ -222,14 +225,15 @@ class SensorDelegate(SensorDelegateT):
 
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Mapping,
+                            state: Dict,
                             exc: BaseException) -> None:
         for sensor in self._sensors:
             sensor.on_assignment_error(assignor, state[sensor], exc)
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Mapping) -> None:
+                                state: Dict) -> None:
+        """Partition assignor completed assignment."""
         for sensor in self._sensors:
             sensor.on_assignment_completed(assignor, state[sensor])
 

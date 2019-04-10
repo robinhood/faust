@@ -6,6 +6,7 @@ from time import monotonic
 from typing import (
     Any,
     Callable,
+    Dict,
     Mapping,
     MutableMapping,
     Optional,
@@ -348,7 +349,7 @@ class Monitor(Sensor, KeywordReduce):
         message.time_in = self.time()
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
+                           event: EventT) -> Optional[Dict]:
         """Call when stream starts processing an event."""
         self.events_total += 1
         self.events_by_stream[stream] += 1
@@ -361,9 +362,9 @@ class Monitor(Sensor, KeywordReduce):
         }
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
+                            event: EventT, state: Dict = None) -> None:
         """Call when stream is done processing an event."""
-        if state:
+        if state is not None:
             time_out = self.time()
             time_in = state['time_in']
             time_total = time_out - time_in
@@ -449,12 +450,13 @@ class Monitor(Sensor, KeywordReduce):
         self.tp_end_offsets[tp] = offset
 
     def on_assignment_start(self,
-                            assignor: PartitionAssignorT) -> Mapping:
+                            assignor: PartitionAssignorT) -> Dict:
+        """Partition assignor is starting to assign partitions."""
         return {'time_start': self.time()}
 
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Mapping,
+                            state: Dict,
                             exc: BaseException) -> None:
         time_total = self.time() - state['time_start']
         deque_pushpopmax(
@@ -464,7 +466,8 @@ class Monitor(Sensor, KeywordReduce):
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Mapping) -> None:
+                                state: Dict) -> None:
+        """Partition assignor completed assignment."""
         time_total = self.time() - state['time_start']
         deque_pushpopmax(
             self.assignment_latency, time_total,
