@@ -19,6 +19,7 @@ from typing import (
     AsyncIterable,
     Awaitable,
     Callable,
+    ClassVar,
     ContextManager,
     Iterable,
     Iterator,
@@ -369,6 +370,7 @@ class App(AppT, Service):
         :ref:`application-configuration` -- for supported keyword arguments.
 
     """
+    SCAN_CATEGORIES: ClassVar[List[str]] = list(SCAN_CATEGORIES)
 
     BootStrategy = BootStrategy
     Settings = _Settings
@@ -655,11 +657,13 @@ class App(AppT, Service):
 
     def discover(self,
                  *extra_modules: str,
-                 categories: Iterable[str] = SCAN_CATEGORIES,
+                 categories: Iterable[str] = None,
                  ignore: Iterable[Any] = SCAN_IGNORE) -> None:
         """Discover decorators in packages."""
         # based on autodiscovery in Django,
         # but finds @app.agent decorators, and so on.
+        if categories is None:
+            categories = self.SCAN_CATEGORIES
         modules = set(self._discovery_modules())
         modules |= set(extra_modules)
         for fixup in self.fixups:

@@ -202,12 +202,20 @@ class test_LiveCheck:
             key=b'k',
             value=b'v',
         )
+        signal2 = SignalEvent(
+            signal_name='foo',
+            case_name='bar',
+            key=b'k2',
+            value=b'v2',
+        )
         case = livecheck.cases[execution.case_name] = Mock(
             resolve_signal=AsyncMock(),
         )
+        livecheck.cases.pop('bar', None)  # make sure 'bar' is missing
 
         async def iterate_events():
             yield execution.id, signal
+            yield execution.id, signal2
 
         events.items.side_effect = iterate_events
 
@@ -219,14 +227,18 @@ class test_LiveCheck:
     async def test__excecute_tests(self, *, livecheck, execution):
         tests = Mock()
 
+        execution2 = execution.derive(case_name='bar')
+
         async def iterate_tests():
             yield execution.id, execution
+            yield execution.id, execution2
 
         tests.items.side_effect = iterate_tests
 
         case = livecheck.cases[execution.case_name] = Mock(
             execute=AsyncMock(),
         )
+        livecheck.cases.pop('bar', None)  # ensure 'bar' is missing.
 
         await livecheck._execute_tests(tests)
         case.execute.assert_called_once_with(execution)

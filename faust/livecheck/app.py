@@ -18,8 +18,10 @@ from mode.utils.objects import annotations, cached_property, qualname
 from mode.utils.times import Seconds
 
 import faust
+from faust.app.base import SCAN_CATEGORIES
 from faust.sensors.base import Sensor
 from faust.types import AgentT, AppT, ChannelT, EventT, StreamT, TP, TopicT
+from faust.utils import venusian
 
 from . import patches
 from .case import Case
@@ -29,6 +31,8 @@ from .models import SignalEvent, TestExecution, TestReport
 from .signals import BaseSignal, Signal
 
 __all__ = ['LiveCheck']
+
+SCAN_CASE = 'livecheck.case'
 
 #: alias for mypy bug
 _Case = Case
@@ -65,6 +69,8 @@ class LiveCheckSensor(Sensor):
 
 class LiveCheck(faust.App):
     """LiveCheck application."""
+
+    SCAN_CATEGORIES = list(SCAN_CATEGORIES) + [SCAN_CASE]
 
     Signal: ClassVar[Type[BaseSignal]]
     Signal = Signal
@@ -235,7 +241,7 @@ class LiveCheck(faust.App):
                 else:
                     signal.index = i + 1
 
-            return self.add_case(case_cls(
+            case = self.add_case(case_cls(
                 app=self,
                 name=self._prepare_case_name(name or qualname(cls)),
                 active=active,
@@ -253,6 +259,9 @@ class LiveCheck(faust.App):
                 url_error_delay_backoff=url_error_delay_backoff,
                 url_error_delay_max=url_error_delay_max,
             ))
+            venusian.attach(case, category=SCAN_CASE)
+            return case
+
         return _inner
 
     def _extract_signals(
@@ -315,17 +324,27 @@ class LiveCheck(faust.App):
     async def _populate_signals(self, events: StreamT[SignalEvent]) -> None:
         async for test_id, event in events.items():
             event.case_name = self._prepare_case_name(event.case_name)
-            case = self.cases[event.case_name]
-            await case.resolve_signal(test_id, event)
+            try:
+                case = self.cases[event.case_name]
+            except KeyError:
+                self.log.error('Received signal %r for unregistered case %r',
+                               event, (test_id, event.case_name))
+            else:
+                await case.resolve_signal(test_id, event)
 
     async def _execute_tests(self, tests: StreamT[TestExecution]) -> None:
         async for test_id, test in tests.items():
             test.case_name = self._prepare_case_name(test.case_name)
-            case = self.cases[test.case_name]
             try:
-                await case.execute(test)
-            except LiveCheckError:
-                pass
+                case = self.cases[test.case_name]
+            except KeyError:
+                self.log.error('Unregistered test case %r with id %r: %r',
+                               test.case_name, test_id, test)
+            else:
+                try:
+                    await case.execute(test)
+                except LiveCheckError:
+                    pass
 
     def _prepare_case_name(self, name: str) -> str:
         if name.startswith('__main__.'):
