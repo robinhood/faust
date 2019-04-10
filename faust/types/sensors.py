@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 from mode import ServiceT
 
@@ -22,12 +22,12 @@ class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> None:
+                           event: EventT) -> Optional[Mapping]:
         ...
 
     @abc.abstractmethod
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         ...
 
     @abc.abstractmethod

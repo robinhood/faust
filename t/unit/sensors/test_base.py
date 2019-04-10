@@ -63,7 +63,9 @@ class test_Sensor:
         sensor.on_stream_event_in(TP1, 3, stream, event)
 
     def test_on_stream_event_out(self, *, sensor, stream, event):
-        sensor.on_stream_event_out(TP1, 3, stream, event)
+        state = sensor.on_stream_event_in(TP1, 3, stream, event)
+        sensor.on_stream_event_out(TP1, 3, stream, event, state)
+        sensor.on_stream_event_out(TP1, 3, stream, event, None)
 
     def test_on_message_out(self, *, sensor, message):
         sensor.on_message_out(TP1, 3, message)
@@ -128,15 +130,13 @@ class test_SensorDelegate:
         sensors.on_message_in(TP1, 303, message)
         sensor.on_message_in.assert_called_once_with(TP1, 303, message)
 
-    def test_on_stream_event_in(self, *, sensors, sensor, stream, event):
-        sensors.on_stream_event_in(TP1, 303, stream, event)
+    def test_on_stream_event_in_out(self, *, sensors, sensor, stream, event):
+        state = sensors.on_stream_event_in(TP1, 303, stream, event)
         sensor.on_stream_event_in.assert_called_once_with(
             TP1, 303, stream, event)
-
-    def test_on_stream_event_out(self, *, sensors, sensor, stream, event):
-        sensors.on_stream_event_out(TP1, 303, stream, event)
+        sensors.on_stream_event_out(TP1, 303, stream, event, state)
         sensor.on_stream_event_out.assert_called_once_with(
-            TP1, 303, stream, event)
+            TP1, 303, stream, event, state[sensor])
 
     def test_on_topic_buffer_full(self, *, sensors, sensor, topic):
         sensors.on_topic_buffer_full(topic)
