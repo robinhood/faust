@@ -1,15 +1,6 @@
 import pytest
 from yarl import URL
-from faust.utils.urls import ensure_scheme, urllist
-
-
-@pytest.mark.parametrize('default,url,expected', [
-    (None, 'kafka://', URL('kafka://')),
-    ('', 'kafka://', URL('kafka://')),
-    ('http', 'localhost', URL('http://localhost')),
-])
-def test_ensure_scheme(default, url, expected):
-    assert ensure_scheme(default, url) == expected
+from faust.utils.urls import urllist
 
 
 def test_urllist_URL():
@@ -53,6 +44,13 @@ def test_urllist_strsep_no_scheme():
         URL('bar://bar.com'),
         URL('bar://example.com'),
     ]
+
+
+def test_urllist_list_of_strings():
+    assert urllist(['kafka://kafka1.example.com:9092',
+                    'kafka://kafka2.example.com:9092',
+                    ]) == [URL('kafka://kafka1.example.com:9092'),
+                           URL('kafka://kafka2.example.com:9092')]
 
 
 def test_urllist_URLs():
