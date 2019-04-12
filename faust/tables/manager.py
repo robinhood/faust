@@ -1,5 +1,6 @@
 """Tables (changelog stream)."""
 import asyncio
+
 from typing import Any, MutableMapping, Optional, Set, Tuple
 
 from mode import Service

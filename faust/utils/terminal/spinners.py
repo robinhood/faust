@@ -3,6 +3,7 @@ import atexit
 import logging
 import random
 import sys
+
 from typing import Any, IO, Sequence
 
 __all__ = ['Spinner', 'SpinnerHandler']

@@ -1,11 +1,14 @@
 """Agent manager."""
 import asyncio
+
 from collections import defaultdict
 from typing import Any, Dict, MutableMapping, MutableSet, Set
 from weakref import WeakSet
+
 from mode import Service
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
+
 from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
 from faust.utils.tracing import traced_from_parent_span

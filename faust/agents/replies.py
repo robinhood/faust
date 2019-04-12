@@ -1,5 +1,6 @@
 """Agent replies: waiting for replies, sending them, etc."""
 import asyncio
+
 from collections import defaultdict
 from typing import (
     Any,
@@ -10,7 +11,9 @@ from typing import (
     Optional,
 )
 from weakref import WeakSet
+
 from mode import Service
+
 from faust.types import AppT, ChannelT, TopicT
 from .models import ReqRepResponse
 

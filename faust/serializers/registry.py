@@ -1,5 +1,6 @@
 """Registry of supported codecs (serializers, compressors, etc.)."""
 import sys
+
 from decimal import Decimal
 from typing import Any, Optional, Tuple, Type, cast
 

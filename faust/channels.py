@@ -6,6 +6,7 @@ The stream will iterate over incoming events in the channel.
 
 """
 import asyncio
+
 from typing import (
     Any,
     Awaitable,

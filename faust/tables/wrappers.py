@@ -1,6 +1,7 @@
 """Wrappers for windowed tables."""
 import operator
 import typing
+
 from datetime import datetime
 from typing import (
     Any,

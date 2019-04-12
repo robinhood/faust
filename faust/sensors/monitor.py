@@ -1,5 +1,6 @@
 """Monitor - sensor tracking metrics."""
 import asyncio
+
 from collections import deque
 from statistics import median
 from time import monotonic

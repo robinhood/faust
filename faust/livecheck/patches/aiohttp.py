@@ -2,8 +2,10 @@
 from contextlib import ExitStack
 from types import SimpleNamespace
 from typing import Any, List, Optional
+
 import aiohttp
 from aiohttp import web
+
 from faust.livecheck.locals import current_test_stack
 from faust.livecheck.models import TestExecution
 

@@ -1,6 +1,7 @@
 """Message transport using :pypi:`confluent_kafka`."""
 import asyncio
 import typing
+
 from collections import defaultdict
 from typing import (
     Any,

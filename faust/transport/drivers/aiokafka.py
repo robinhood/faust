@@ -1,5 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
+
 from typing import (
     Any,
     Awaitable,

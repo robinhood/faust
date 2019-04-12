@@ -159,6 +159,7 @@ At this point may want to publish this on PyPI to share
 the extension with other Faust users.
 """
 import pickle as _pickle
+
 from base64 import b64decode, b64encode
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 

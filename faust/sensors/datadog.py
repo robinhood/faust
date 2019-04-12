@@ -1,5 +1,6 @@
 """Monitor using datadog."""
 import re
+
 from time import monotonic
 from typing import Any, Dict, List, Optional, Pattern, cast
 

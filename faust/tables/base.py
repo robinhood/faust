@@ -1,6 +1,7 @@
 """Base class Collection for Table and future data structures."""
 import abc
 import time
+
 from contextlib import suppress
 from collections import defaultdict
 from datetime import datetime

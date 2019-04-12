@@ -1,5 +1,6 @@
 """Using :pypi:`terminaltables` to draw ANSI tables."""
 import sys
+
 from operator import itemgetter
 from typing import (
     Any,
@@ -16,6 +17,7 @@ from typing import (
 from mode.utils import logging
 from mode.utils import text
 from mode.utils.compat import isatty
+
 from terminaltables import AsciiTable, SingleTable
 from terminaltables.base_table import BaseTable as Table
 

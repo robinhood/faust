@@ -1,6 +1,7 @@
 """LiveCheck - Test cases."""
 import traceback
 import typing
+
 from collections import deque
 from contextlib import ExitStack
 from datetime import datetime, timedelta, timezone

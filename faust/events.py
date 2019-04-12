@@ -1,7 +1,9 @@
 """Events received in streams."""
 import typing
+
 from types import TracebackType
 from typing import Any, Awaitable, Optional, Type, Union, cast
+
 from faust.types import (
     AppT,
     ChannelT,

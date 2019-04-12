@@ -1,6 +1,7 @@
 """Redis cache backend."""
 import socket
 import typing
+
 from enum import Enum
 from typing import Any, Mapping, Optional, Type, Union
 

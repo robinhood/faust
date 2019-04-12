@@ -1,6 +1,8 @@
 """Route messages to Faust nodes by partitioning."""
 from typing import Tuple
+
 from yarl import URL
+
 from faust.exceptions import SameNode
 from faust.types.app import AppT
 from faust.types.assignor import PartitionAssignorT

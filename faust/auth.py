@@ -1,5 +1,6 @@
 """Authentication Credentials."""
 import ssl
+
 from typing import Any, Optional, Union
 from faust.types.auth import AuthProtocol, CredentialsT, SASLMechanism
 
