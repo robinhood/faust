@@ -2,18 +2,12 @@ import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.sensors.statsd import StatsdMonitor
 from faust.types import TP
-from mode.utils.mocks import Mock, call
+from mode.utils.mocks import ANY, Mock, call
 
 TP1 = TP('foo', 3)
 
 
 class test_StatsdMonitor:
-
-    @pytest.fixture
-    def time(self):
-        timefun = Mock(name='time()')
-        timefun.return_value = 101.1
-        return timefun
 
     @pytest.fixture()
     def statsd(self, *, monkeypatch):
@@ -38,8 +32,8 @@ class test_StatsdMonitor:
         return table
 
     @pytest.fixture()
-    def mon(self, *, statsd, time):
-        return StatsdMonitor(time=time)
+    def mon(self, *, statsd):
+        return StatsdMonitor()
 
     def test_statsd(self, *, mon):
         assert mon.client
@@ -75,7 +69,7 @@ class test_StatsdMonitor:
         mon.client.decr.assert_called_once_with('events_active', rate=mon.rate)
         mon.client.timing.assert_called_once_with(
             'events_runtime',
-            mon.secs_to_ms(mon.events_runtime[-1]),
+            mon._time(mon.events_runtime[-1]),
             rate=mon.rate,
         )
 
@@ -102,7 +96,7 @@ class test_StatsdMonitor:
         state = mon.on_commit_initiated(consumer)
         mon.on_commit_completed(consumer, state)
         mon.client.timing.assert_called_once_with(
-            'commit_latency', mon.ms_since(float(state)), rate=mon.rate,
+            'commit_latency', ANY, rate=mon.rate,
         )
 
     def test_on_send_initiated_completed(self, *, mon):
@@ -116,8 +110,7 @@ class test_StatsdMonitor:
             call('messages_sent', rate=mon.rate),
         ])
         mon.client.timing.assert_called_once_with(
-            'send_latency',
-            mon.ms_since(float(state)), rate=mon.rate,
+            'send_latency', ANY, rate=mon.rate,
         )
 
         mon.on_send_error(producer, KeyError('foo'), state)
@@ -125,8 +118,7 @@ class test_StatsdMonitor:
             call('messages_sent_error', rate=mon.rate),
         ])
         mon.client.timing.assert_has_calls([
-            call('send_latency_for_error',
-                 mon.ms_since(float(state)), rate=mon.rate),
+            call('send_latency_for_error', ANY, rate=mon.rate),
         ])
 
     def test_on_assignment_start_completed(self, *, mon):
@@ -138,8 +130,7 @@ class test_StatsdMonitor:
             call('assignments_complete', rate=mon.rate),
         ])
         mon.client.timing.assert_has_calls([
-            call('assignment_latency',
-                 mon.ms_since(state['time_start']), rate=mon.rate),
+            call('assignment_latency', ANY, rate=mon.rate),
         ])
 
     def test_on_assignment_start_failed(self, *, mon):
@@ -151,44 +142,7 @@ class test_StatsdMonitor:
             call('assignments_error', rate=mon.rate),
         ])
         mon.client.timing.assert_has_calls([
-            call('assignment_latency',
-                 mon.ms_since(state['time_start']), rate=mon.rate),
-        ])
-
-    def test_on_rebalance(self, *, mon):
-        app = Mock(name='app')
-        state = mon.on_rebalance_start(app)
-
-        mon.client.incr.assert_has_calls([
-            call('rebalances', rate=mon.rate),
-        ])
-
-        mon.on_rebalance_return(app, state)
-
-        mon.client.incr.assert_has_calls([
-            call('rebalances', rate=mon.rate),
-            call('rebalances_recovering', rate=mon.rate),
-        ])
-        mon.client.decr.assert_has_calls([
-            call('rebalances', rate=mon.rate),
-        ])
-        mon.client.timing.assert_has_calls([
-            call('rebalance_return_latency',
-                 mon.ms_since(state['time_return']), rate=mon.rate),
-        ])
-
-        mon.on_rebalance_end(app, state)
-
-        mon.client.decr.assert_has_calls([
-            call('rebalances', rate=mon.rate),
-            call('rebalances_recovering', rate=mon.rate),
-        ])
-
-        mon.client.timing.assert_has_calls([
-            call('rebalance_return_latency',
-                 mon.ms_since(state['time_return']), rate=mon.rate),
-            call('rebalance_end_latency',
-                 mon.ms_since(state['time_end']), rate=mon.rate),
+            call('assignment_latency', ANY, rate=mon.rate),
         ])
 
     def test_count(self, *, mon):
@@ -214,3 +168,6 @@ class test_StatsdMonitor:
         mon.client.gauge.assert_called_once_with(
             'end_offset.foo.0', 4004,
         )
+
+    def test__time(self, *, mon):
+        assert mon._time(1.03) == 1030.0

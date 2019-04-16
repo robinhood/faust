@@ -3,7 +3,7 @@ import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.types import TP
 from mode.utils.contexts import nullcontext
-from mode.utils.mocks import Mock, call
+from mode.utils.mocks import ANY, Mock, call
 
 if sys.version_info >= (3, 7):
     _catch_warnings = pytest.warns(DeprecationWarning)
@@ -76,15 +76,9 @@ class test_DatadogStatsClient:
 
 class test_DatadogMonitor:
 
-    @pytest.fixture
-    def time(self):
-        timefun = Mock(name='time()')
-        timefun.return_value = 101.1
-        return timefun
-
     @pytest.fixture()
-    def mon(self, *, statsd, dogstatsd, time):
-        mon = DatadogMonitor(time=time)
+    def mon(self, *, statsd, dogstatsd):
+        mon = DatadogMonitor()
         return mon
 
     @pytest.fixture()
@@ -165,7 +159,7 @@ class test_DatadogMonitor:
         )
         client.timing.assert_called_once_with(
             'events_runtime',
-            value=mon.secs_to_ms(mon.events_runtime[-1]),
+            value=mon._time(mon.events_runtime[-1]),
             sample_rate=mon.rate,
             tags=['topic:foo', 'partition:3', 'stream:topic_foo'],
         )
@@ -203,9 +197,7 @@ class test_DatadogMonitor:
         mon.on_commit_completed(consumer, state)
         client = mon.client.client
         client.timing.assert_called_once_with(
-            'commit_latency',
-            value=mon.ms_since(float(state)),
-            sample_rate=mon.rate, tags=None,
+            'commit_latency', value=ANY, sample_rate=mon.rate, tags=None,
         )
 
     def test_on_send_initiated_completed(self, *, mon):
@@ -223,9 +215,7 @@ class test_DatadogMonitor:
             call('messages_sent', sample_rate=mon.rate, tags=None, value=1.0),
         ])
         client.timing.assert_called_once_with(
-            'send_latency',
-            value=mon.ms_since(float(state)),
-            sample_rate=mon.rate, tags=None,
+            'send_latency', value=ANY, sample_rate=mon.rate, tags=None,
         )
 
         mon.on_send_error(producer, KeyError('foo'), state)
@@ -237,8 +227,7 @@ class test_DatadogMonitor:
         ])
         client.timing.assert_has_calls([
             call('send_latency_for_error',
-                 value=mon.ms_since(float(state)),
-                 sample_rate=mon.rate, tags=None),
+                 value=ANY, sample_rate=mon.rate, tags=None),
         ])
 
     def test_on_assignment_start_completed(self, *, mon):
@@ -254,9 +243,7 @@ class test_DatadogMonitor:
                  value=1.0),
         ])
         client.timing.assert_called_once_with(
-            'assignment_latency',
-            value=mon.ms_since(state['time_start']),
-            sample_rate=mon.rate, tags=None,
+            'assignment_latency', value=ANY, sample_rate=mon.rate, tags=None,
         )
 
     def test_on_assignment_start_error(self, *, mon):
@@ -272,73 +259,8 @@ class test_DatadogMonitor:
                  value=1.0),
         ])
         client.timing.assert_called_once_with(
-            'assignment_latency',
-            value=mon.ms_since(state['time_start']),
-            sample_rate=mon.rate,
-            tags=None,
+            'assignment_latency', value=ANY, sample_rate=mon.rate, tags=None,
         )
-
-    def test_on_rebalance(self, *, mon):
-        app = Mock(name='app')
-        client = mon.client.client
-
-        state = mon.on_rebalance_start(app)
-
-        client.increment.assert_called_once_with(
-            'rebalances',
-            sample_rate=mon.rate,
-            tags=None,
-            value=1.0,
-        )
-
-        mon.on_rebalance_return(app, state)
-
-        client.increment.assert_has_calls([
-            call('rebalances',
-                 sample_rate=mon.rate,
-                 tags=None,
-                 value=1.0),
-            call('rebalances_recovering',
-                 sample_rate=mon.rate,
-                 tags=None,
-                 value=1.0),
-        ])
-        client.decrement.assert_called_once_with(
-            'rebalances',
-            sample_rate=mon.rate,
-            tags=None,
-            value=1.0,
-        )
-        client.timing.assert_called_once_with(
-            'rebalance_return_latency',
-            value=mon.ms_since(state['time_return']),
-            sample_rate=mon.rate,
-            tags=None,
-        )
-
-        mon.on_rebalance_end(app, state)
-
-        client.decrement.assert_has_calls([
-            call('rebalances',
-                 sample_rate=mon.rate,
-                 tags=None,
-                 value=1.0),
-            call('rebalances_recovering',
-                 sample_rate=mon.rate,
-                 tags=None,
-                 value=1.0),
-        ])
-
-        client.timing.assert_has_calls([
-            call('rebalance_return_latency',
-                 value=mon.ms_since(state['time_return']),
-                 sample_rate=mon.rate,
-                 tags=None),
-            call('rebalance_end_latency',
-                 value=mon.ms_since(state['time_end']),
-                 sample_rate=mon.rate,
-                 tags=None),
-        ])
 
     def test_count(self, *, mon):
         mon.count('metric_name', count=3)
@@ -377,3 +299,6 @@ class test_DatadogMonitor:
             tags=['topic:foo', 'partition:0'],
             sample_rate=mon.rate,
         )
+
+    def test__time(self, *, mon):
+        assert mon._time(1.03) == 1030.0

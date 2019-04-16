@@ -87,18 +87,9 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
     def __init__(self, thread: ConsumerThread) -> None:
         self._thread: ConsumerThread = thread
 
-    def on_partitions_revoked(
-            self, revoked: Iterable[_TopicPartition]) -> Awaitable:
-        """Call when partitions are being revoked."""
-        thread = self._thread
-        # XXX Must call app.on_rebalance_start as early as possible.
-        # we call this in the sync method, this way when we know
-        # that it will be called even if await never returns to the coroutine.
-        thread.app.on_rebalance_start()
-
-        # this way we should also get a warning if the coroutine
-        # is never awaited.
-        return thread.on_partitions_revoked(ensure_TPset(revoked))
+    async def on_partitions_revoked(
+            self, revoked: Iterable[_TopicPartition]) -> None:
+        await self._thread.on_partitions_revoked(ensure_TPset(revoked))
 
     async def on_partitions_assigned(
             self, assigned: Iterable[_TopicPartition]) -> None:

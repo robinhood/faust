@@ -112,18 +112,6 @@ class Sensor(SensorT, Service):
         """Partition assignor completed assignment."""
         ...
 
-    def on_rebalance_start(self, app: AppT) -> Dict:
-        """Cluster rebalance in progress."""
-        return {'time_start': monotonic()}
-
-    def on_rebalance_return(self, app: AppT, state: Dict) -> None:
-        """Consumer replied assignment is done to broker."""
-        ...
-
-    def on_rebalance_end(self, app: AppT, state: Dict) -> None:
-        """Cluster rebalance fully completed (including recovery)."""
-        ...
-
     def asdict(self) -> Mapping:
         return {}
 
@@ -248,23 +236,6 @@ class SensorDelegate(SensorDelegateT):
         """Partition assignor completed assignment."""
         for sensor in self._sensors:
             sensor.on_assignment_completed(assignor, state[sensor])
-
-    def on_rebalance_start(self, app: AppT) -> Dict:
-        """Cluster rebalance in progress."""
-        return {
-            sensor: sensor.on_rebalance_start(app)
-            for sensor in self._sensors
-        }
-
-    def on_rebalance_return(self, app: AppT, state: Dict) -> None:
-        """Consumer replied assignment is done to broker."""
-        for sensor in self._sensors:
-            sensor.on_rebalance_return(app, state[sensor])
-
-    def on_rebalance_end(self, app: AppT, state: Dict) -> None:
-        """Cluster rebalance fully completed (including recovery)."""
-        for sensor in self._sensors:
-            sensor.on_rebalance_end(app, state[sensor])
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'

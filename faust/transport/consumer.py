@@ -522,11 +522,7 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        """Call during rebalancing when partitions are being revoked."""
-        # NOTE:
-        # The ConsumerRebalanceListener is responsible for calling
-        # app.on_rebalance_start(), and this must have happened
-        # before we get to this point (see aiokafka implementation).
+        self.app.on_rebalance_start()
         span = self.app._start_span_from_rebalancing('on_partitions_revoked')
         T = traced_from_parent_span(span)
         with span:
@@ -553,7 +549,6 @@ class Consumer(Service, ConsumerT):
             self._last_batch = None
             await T(self._on_partitions_assigned, partitions=assigned)(
                 assigned)
-        self.app.on_rebalance_return()
 
     @abc.abstractmethod
     async def _getmany(self,
