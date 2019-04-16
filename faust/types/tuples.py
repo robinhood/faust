@@ -6,7 +6,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     MutableMapping,
     NamedTuple,
     Optional,
@@ -128,7 +127,6 @@ class Message:
         'tp',
         'tracked',
         'span',
-        'stream_meta',
         '__weakref__',
     )
 
@@ -177,16 +175,6 @@ class Message:
         #: Total processing time (in seconds), or None if the event is
         #: still processing.
         self.time_total: Optional[float] = time_total
-
-        #: Monitor stores timing information for every stream
-        #: processing this message here.  It's stored as::
-        #:
-        #: message.stream_meta[id(stream)] = {
-        #:     'time_in': float,
-        #:     'time_out': float,
-        #:     'time_total': float,
-        #: }
-        self.stream_meta: Dict[int, Any] = {}
 
     def ack(self, consumer: _ConsumerT, n: int = 1) -> bool:
         if not self.acked:
