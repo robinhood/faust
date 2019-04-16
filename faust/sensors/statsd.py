@@ -2,7 +2,7 @@
 import re
 import typing
 from time import monotonic
-from typing import Any, Mapping, Optional, Pattern, cast
+from typing import Any, Mapping, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -82,16 +82,14 @@ class StatsdMonitor(Monitor):
         self.client.gauge(f'read_offset.{tp.topic}.{tp.partition}', offset)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
-        """Call when stream starts processing an event."""
-        state = super().on_stream_event_in(tp, offset, stream, event)
+                           event: EventT) -> None:
+        super().on_stream_event_in(tp, offset, stream, event)
         self.client.incr('events', rate=self.rate)
         self.client.incr(
             f'stream.{self._stream_label(stream)}.events',
             rate=self.rate,
         )
         self.client.incr('events_active', rate=self.rate)
-        return state
 
     def _stream_label(self, stream: StreamT) -> str:
         return self._normalize(
@@ -99,9 +97,8 @@ class StatsdMonitor(Monitor):
         ).strip('_').lower()
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
-        """Call when stream is done processing an event."""
-        super().on_stream_event_out(tp, offset, stream, event, state)
+                            event: EventT) -> None:
+        super().on_stream_event_out(tp, offset, stream, event)
         self.client.decr('events_active', rate=self.rate)
         self.client.timing(
             'events_runtime',

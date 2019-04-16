@@ -124,7 +124,6 @@ class test_Stream:
     @pytest.mark.asyncio
     @pytest.mark.allow_lingering_tasks(count=1)
     async def test_aiter_tracked(self, *, stream, app):
-        print('TEST AITER TRACKED')
         event = await self._assert_stream_aiter(
             stream,
             side_effect=None,

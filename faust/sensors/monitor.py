@@ -3,15 +3,7 @@ import asyncio
 from collections import deque
 from statistics import median
 from time import monotonic
-from typing import (
-    Any,
-    Callable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import Any, Callable, Mapping, MutableMapping, Tuple, cast
 
 from mode import Service, label
 from mode.timers import timer_intervals
@@ -348,35 +340,29 @@ class Monitor(Sensor, KeywordReduce):
         message.time_in = self.time()
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Mapping]:
-        """Call when stream starts processing an event."""
+                           event: EventT) -> None:
         self.events_total += 1
         self.events_by_stream[stream] += 1
         self.events_by_task[stream.task_owner] += 1
         self.events_active += 1
-        return {
+        event.message.stream_meta[id(stream)] = {
             'time_in': self.time(),
             'time_out': None,
             'time_total': None,
         }
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Mapping = None) -> None:
-        """Call when stream is done processing an event."""
-        if state:
-            time_out = self.time()
-            time_in = state['time_in']
-            time_total = time_out - time_in
-            self.events_active -= 1
-            state.update(
-                time_out=time_out,
-                time_total=time_total,
-            )
-            deque_pushpopmax(
-                self.events_runtime, time_total, self.max_avg_history)
-        else:
-            self.log.warning('Monitor lost event in state for %r:%r',
-                             tp, offset)
+                            event: EventT) -> None:
+        time_out = self.time()
+        state = event.message.stream_meta[id(stream)]
+        time_in = state['time_in']
+        time_total = time_out - time_in
+        self.events_active -= 1
+        state.update(
+            time_out=time_out,
+            time_total=time_total,
+        )
+        deque_pushpopmax(self.events_runtime, time_total, self.max_avg_history)
 
     def on_topic_buffer_full(self, topic: TopicT) -> None:
         self.topic_buffer_full[topic] += 1

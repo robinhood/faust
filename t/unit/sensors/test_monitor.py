@@ -157,13 +157,14 @@ class test_Monitor:
 
     def test_on_stream_event_in(self, *, event, mon, stream, time):
         for i in range(1, 11):
-            state = mon.on_stream_event_in(TP1, 3 + i, stream, event)
+            event.message.stream_meta = {}
+            mon.on_stream_event_in(TP1, 3 + i, stream, event)
 
             assert mon.events_total == i
             assert mon.events_by_stream[stream] == i
             assert mon.events_by_task[stream.task_owner] == i
             assert mon.events_active == i
-            assert state == {
+            assert event.message.stream_meta[id(stream)] == {
                 'time_in': time(),
                 'time_out': None,
                 'time_total': None,
@@ -173,28 +174,21 @@ class test_Monitor:
         other_time = 303.3
         mon.events_active = 10
         for i in range(1, 11):
-            state = {
+            event.message.stream_meta = {}
+            event.message.stream_meta[id(stream)] = {
                 'time_in': other_time,
                 'time_out': None,
                 'time_total': None,
             }
-            mon.on_stream_event_out(TP1, 3 + i, stream, event, state)
+            mon.on_stream_event_out(TP1, 3 + i, stream, event)
 
             assert mon.events_active == 10 - i
-            assert state == {
+            assert event.message.stream_meta[id(stream)] == {
                 'time_in': other_time,
                 'time_out': time(),
                 'time_total': time() - other_time,
             }
             assert mon.events_runtime[-1] == time() - other_time
-
-    def test_on_stream_event_out__missing_state(
-            self, *, event, mon, stream, time):
-        assert mon.log
-        assert mon.log.warning
-        mon.log.warning = Mock()
-        mon.on_stream_event_out(TP1, 3, stream, event, None)
-        mon.log.warning.assert_called_once()
 
     def test_on_topic_buffer_full(self, *, mon, topic):
         for i in range(1, 11):

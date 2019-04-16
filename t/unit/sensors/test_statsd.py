@@ -23,7 +23,9 @@ class test_StatsdMonitor:
 
     @pytest.fixture()
     def event(self):
-        return Mock(name='event')
+        event = Mock(name='event')
+        event.message.stream_meta = {}
+        return event
 
     @pytest.fixture()
     def table(self):
@@ -59,13 +61,13 @@ class test_StatsdMonitor:
             'messages_active', rate=mon.rate)
 
     def test_on_stream_event_in_out(self, *, mon, stream, event):
-        state = mon.on_stream_event_in(TP1, 401, stream, event)
+        mon.on_stream_event_in(TP1, 401, stream, event)
         mon.client.incr.assert_has_calls([
             call('events', rate=mon.rate),
             call('stream.topic_foo.events', rate=mon.rate),
             call('events_active', rate=mon.rate),
         ])
-        mon.on_stream_event_out(TP1, 401, stream, event, state)
+        mon.on_stream_event_out(TP1, 401, stream, event)
         mon.client.decr.assert_called_once_with('events_active', rate=mon.rate)
         mon.client.timing.assert_called_once_with(
             'events_runtime',

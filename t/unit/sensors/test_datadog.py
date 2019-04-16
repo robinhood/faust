@@ -89,7 +89,9 @@ class test_DatadogMonitor:
 
     @pytest.fixture()
     def event(self):
-        return Mock(name='event')
+        event = Mock(name='event')
+        event.message.stream_meta = {}
+        return event
 
     @pytest.fixture()
     def table(self):
@@ -138,7 +140,7 @@ class test_DatadogMonitor:
             value=1.0)
 
     def test_on_stream_event_in_out(self, *, mon, stream, event):
-        state = mon.on_stream_event_in(TP1, 401, stream, event)
+        mon.on_stream_event_in(TP1, 401, stream, event)
         client = mon.client.client
         client.increment.assert_has_calls([
             call('events',
@@ -150,7 +152,7 @@ class test_DatadogMonitor:
                  tags=['topic:foo', 'partition:3', 'stream:topic_foo'],
                  value=1.0),
         ])
-        mon.on_stream_event_out(TP1, 401, stream, event, state)
+        mon.on_stream_event_out(TP1, 401, stream, event)
         client.decrement.assert_called_once_with(
             'events_active',
             sample_rate=mon.rate,

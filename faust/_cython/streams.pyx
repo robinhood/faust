@@ -69,12 +69,9 @@ cdef class StreamIterator:
             object value
             object channel_value
             object stream
-            object sensor_state
             bint enable_acks
-        sensor_state = None
         stream = self.stream
         do_ack = stream.enable_acks
-
         value = None
 
         while value is None:
@@ -82,14 +79,14 @@ cdef class StreamIterator:
             need_slow_get, channel_value = self._try_get_quick_value()
             if need_slow_get:
                 channel_value = await self.chan_slow_get()
-            value, sensor_state = self._prepare_event(channel_value)
+            value = self._prepare_event(channel_value)
 
             for processor in self.processors:
                 value = await maybe_async(processor(value))
             value = await self.on_merge(value)
-        return value, sensor_state
+        return value
 
-    cpdef object after(self, object event, object do_ack, object sensor_state):
+    cpdef object after(self, object event, object do_ack):
         cdef:
             bint last_stream_to_ack
             int refcount
@@ -126,8 +123,7 @@ cdef class StreamIterator:
                             notify(consumer._waiting_for_ack)
             tp = event.message.tp
             offset = event.message.offset
-            self.on_stream_event_out(
-                tp, offset, self.stream, event, sensor_state)
+            self.on_stream_event_out(tp, offset, self.stream, event)
             if last_stream_to_ack:
                 self.on_message_out(tp, offset, message)
 
@@ -139,8 +135,6 @@ cdef class StreamIterator:
             object tp
             object offset
             object consumer
-            object stream_state
-        stream_state = None
         if isinstance(channel_value, EventT):
             event = channel_value
             message = event.message
@@ -156,13 +150,12 @@ cdef class StreamIterator:
                 if consumer._last_batch is None:
                     consumer._last_batch = monotonic()
 
-                stream_state = self.on_stream_event_in(
-                    tp, offset, self.stream, event)
+                self.on_stream_event_in(tp, offset, self.stream, event)
             self.stream._set_current_event(event)
-            return (event.value, stream_state)
+            return event.value
         else:
             self.stream._set_current_event(None)
-            return channel_value, stream_state
+            return channel_value
 
     cdef object _try_get_quick_value(self):
         if self.chan_is_channel:
