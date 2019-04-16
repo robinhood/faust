@@ -1,3 +1,4 @@
+from collections import deque
 from statistics import median
 from typing import Any
 import pytest
@@ -114,6 +115,9 @@ class test_Monitor:
             max_assignment_latency_history=33,
         ).max_assignment_latency_history == 33
 
+    def test_init_rebalances(self):
+        assert Monitor(rebalances=99).rebalances == 99
+
     def test_asdict(self):
         mon = self.create_populated_monitor()
         assert mon.asdict() == {
@@ -143,6 +147,11 @@ class test_Monitor:
             'topic_committed_offsets': {},
             'topic_read_offsets': {},
             'topic_end_offsets': {},
+            'rebalance_end_avg': mon.rebalance_end_avg,
+            'rebalance_end_latency': mon.rebalance_end_latency,
+            'rebalance_return_avg': mon.rebalance_return_avg,
+            'rebalance_return_latency': mon.rebalance_return_latency,
+            'rebalances': mon.rebalances,
         }
 
     def test_on_message_in(self, *, message, mon, time):
@@ -288,6 +297,29 @@ class test_Monitor:
         assert mon.assignment_latency[-1] == time() - other_time
         assert mon.assignments_failed == 1
 
+    def test_on_rebalance_start(self, *, mon, time, app):
+        assert mon.rebalances == 0
+        app.rebalancing_count = 1
+        state = mon.on_rebalance_start(app)
+        assert state['time_start'] == time()
+        assert mon.rebalances == 1
+
+    def test_on_rebalance_return(self, *, mon, time, app):
+        other_time = 56.7
+        state = {'time_start': other_time}
+        mon.on_rebalance_return(app, state)
+        assert mon.rebalance_return_latency[-1] == time() - other_time
+        assert state['time_return'] == time()
+        assert state['latency_return'] == time() - other_time
+
+    def test_on_rebalance_end(self, *, mon, time, app):
+        other_time = 56.7
+        state = {'time_start': other_time}
+        mon.on_rebalance_end(app, state)
+        assert mon.rebalance_end_latency[-1] == time() - other_time
+        assert state['time_end'] == time()
+        assert state['latency_end'] == time() - other_time
+
     def test_TableState_asdict(self, *, mon, table):
         state = mon._table_or_create(table)
         assert isinstance(state, TableState)
@@ -352,10 +384,15 @@ class test_Monitor:
         prev_message_total = 0
         mon.events_runtime = []
         mon._sample(prev_event_total, prev_message_total)
-        mon.events_runtime = list(range(100))
+        mon.events_runtime = deque(range(100))
+        mon.rebalance_return_latency = deque(range(100))
+        mon.rebalance_end_latency = deque(range(100))
         prev_event_total = 0
         prev_message_total = 0
         mon._sample(prev_event_total, prev_message_total)
 
         assert mon.events_runtime_avg == median(mon.events_runtime)
         assert mon.events_s == 0  # XXX this is wrong!
+
+        assert mon.rebalance_return_avg == median(mon.rebalance_return_latency)
+        assert mon.rebalance_end_avg == median(mon.rebalance_end_latency)

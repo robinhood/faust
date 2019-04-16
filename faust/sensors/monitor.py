@@ -19,7 +19,7 @@ from mode import Service, label
 from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter, Deque
 
-from faust.types import CollectionT, EventT, StreamT, TopicT
+from faust.types import AppT, CollectionT, EventT, StreamT, TopicT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
@@ -174,6 +174,14 @@ class Monitor(Sensor, KeywordReduce):
     #: Number of partitions assignments that failed.
     assignments_failed = 0
 
+    #: Number of rebalances seen by this worker.
+    rebalances = 0
+
+    rebalance_return_latency: Deque[float] = cast(Deque[float], None)
+    rebalance_end_latency: Deque[float] = cast(Deque[float], None)
+    rebalance_return_avg: float
+    rebalance_end_avg: float
+
     def __init__(self,
                  *,
                  max_avg_history: int = None,
@@ -197,6 +205,12 @@ class Monitor(Sensor, KeywordReduce):
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
                  topic_buffer_full: Counter[TopicT] = None,
+                 rebalances: int = None,
+                 rebalance_return_latency: Deque[float] = None,
+                 rebalance_end_latency: Deque[float] = None,
+                 rebalance_return_avg: float = 0.0,
+                 rebalance_end_avg: float = 0.0,
+                 time: Callable[[], float] = monotonic,
                  **kwargs: Any) -> None:
         if max_avg_history is not None:
             self.max_avg_history = max_avg_history
@@ -207,6 +221,8 @@ class Monitor(Sensor, KeywordReduce):
         if max_assignment_latency_history is not None:
             self.max_assignment_latency_history = (
                 max_assignment_latency_history)
+        if rebalances is not None:
+            self.rebalances = rebalances
 
         self.tables = {} if tables is None else tables
         self.commit_latency = (
@@ -214,6 +230,14 @@ class Monitor(Sensor, KeywordReduce):
         self.send_latency = deque() if send_latency is None else send_latency
         self.assignment_latency = (
             deque() if assignment_latency is None else assignment_latency)
+        self.rebalance_return_latency = (
+            deque() if rebalance_return_latency is None
+            else rebalance_return_latency)
+        self.rebalance_end_latency = (
+            deque() if rebalance_end_latency is None
+            else rebalance_end_latency)
+        self.rebalance_return_avg = rebalance_return_avg
+        self.rebalance_end_avg = rebalance_end_avg
 
         self.messages_active = messages_active
         self.messages_received_total = messages_received_total
@@ -231,7 +255,7 @@ class Monitor(Sensor, KeywordReduce):
         self.events_runtime = (
             deque() if events_runtime is None else events_runtime)
         self.topic_buffer_full = Counter()
-        self.time: Callable[[], float] = monotonic
+        self.time: Callable[[], float] = time
 
         self.metric_counts = Counter()
 
@@ -239,6 +263,18 @@ class Monitor(Sensor, KeywordReduce):
         self.tp_read_offsets = {}
         self.tp_end_offsets = {}
         Service.__init__(self, **kwargs)
+
+    def secs_since(self, start_time: float) -> float:
+        """Given timestamp start, return number of seconds since that time."""
+        return self.time() - start_time
+
+    def ms_since(self, start_time: float) -> float:
+        """Given timestamp start, return number of ms since that time."""
+        return self.secs_to_ms(self.secs_since(start_time))
+
+    def secs_to_ms(self, timestamp: float) -> float:
+        """Convert seconds to milliseconds."""
+        return timestamp * 1000.
 
     @Service.task
     async def _sampler(self) -> None:
@@ -266,6 +302,12 @@ class Monitor(Sensor, KeywordReduce):
         self.messages_s, prev_message_total = (
             self.messages_received_total - prev_message_total,
             self.messages_received_total)
+
+        if self.rebalance_return_latency:
+            self.rebalance_return_avg = median(self.rebalance_return_latency)
+
+        if self.rebalance_end_latency:
+            self.rebalance_end_avg = median(self.rebalance_end_latency)
 
         return prev_event_total, prev_message_total
 
@@ -298,6 +340,11 @@ class Monitor(Sensor, KeywordReduce):
             'topic_committed_offsets': self._tp_committed_offsets_dict(),
             'topic_read_offsets': self._tp_read_offsets_dict(),
             'topic_end_offsets': self._tp_end_offsets_dict(),
+            'rebalances': self.rebalances,
+            'rebalance_return_latency': self.rebalance_return_latency,
+            'rebalance_end_latency': self.rebalance_end_latency,
+            'rebalance_return_avg': self.rebalance_return_avg,
+            'rebalance_end_avg': self.rebalance_end_avg,
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -482,3 +529,34 @@ class Monitor(Sensor, KeywordReduce):
             self.assignment_latency, time_total,
             self.max_assignment_latency_history)
         self.assignments_completed += 1
+
+    def on_rebalance_start(self, app: AppT) -> Dict:
+        """Cluster rebalance in progress."""
+        self.rebalances = app.rebalancing_count
+        return {'time_start': self.time()}
+
+    def on_rebalance_return(self, app: AppT, state: Dict) -> None:
+        """Consumer replied assignment is done to broker."""
+        time_start = state['time_start']
+        time_return = self.time()
+        latency_return = time_return - time_start
+        state.update(
+            time_return=time_return,
+            latency_return=latency_return,
+        )
+        deque_pushpopmax(
+            self.rebalance_return_latency,
+            latency_return,
+            self.max_avg_history)
+
+    def on_rebalance_end(self, app: AppT, state: Dict) -> None:
+        """Cluster rebalance fully completed (including recovery)."""
+        time_start = state['time_start']
+        time_end = self.time()
+        latency_end = time_end - time_start
+        state.update(
+            time_end=time_end,
+            latency_end=latency_end,
+        )
+        deque_pushpopmax(
+            self.rebalance_end_latency, latency_end, self.max_avg_history)

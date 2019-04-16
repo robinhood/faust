@@ -1,7 +1,6 @@
 """Monitor using datadog."""
 import re
 
-from time import monotonic
 from typing import Any, Dict, List, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
@@ -9,6 +8,7 @@ from mode.utils.objects import cached_property
 from faust.exceptions import ImproperlyConfigured
 from faust.sensors.monitor import Monitor, TPOffsetMapping
 from faust.types import (
+    AppT,
     CollectionT,
     EventT,
     Message,
@@ -186,7 +186,7 @@ class DatadogMonitor(Monitor):
         self.client.decrement('events_active', labels=labels)
         self.client.timing(
             'events_runtime',
-            self._time(self.events_runtime[-1]),
+            self.secs_to_ms(self.events_runtime[-1]),
             labels=labels,
         )
 
@@ -228,7 +228,7 @@ class DatadogMonitor(Monitor):
         super().on_commit_completed(consumer, state)
         self.client.timing(
             'commit_latency',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
         )
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
@@ -251,7 +251,7 @@ class DatadogMonitor(Monitor):
         self.client.increment('messages_sent')
         self.client.timing(
             'send_latency',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
         )
 
     def on_send_error(self,
@@ -263,7 +263,7 @@ class DatadogMonitor(Monitor):
         self.client.increment('messages_send_failed')
         self.client.timing(
             'send_latency_for_error',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
         )
 
     def on_assignment_error(self,
@@ -275,7 +275,7 @@ class DatadogMonitor(Monitor):
         self.client.increment('assignments_error')
         self.client.timing(
             'assignment_latency',
-            self._time(monotonic() - state['time_start']),
+            self.ms_since(state['time_start']),
         )
 
     def on_assignment_completed(self,
@@ -286,8 +286,31 @@ class DatadogMonitor(Monitor):
         self.client.increment('assignments_complete')
         self.client.timing(
             'assignment_latency',
-            self._time(monotonic() - state['time_start']),
+            self.ms_since(state['time_start']),
         )
+
+    def on_rebalance_start(self, app: AppT) -> Dict:
+        """Cluster rebalance in progress."""
+        state = super().on_rebalance_start(app)
+        self.client.increment('rebalances')
+        return state
+
+    def on_rebalance_return(self, app: AppT, state: Dict) -> None:
+        """Consumer replied assignment is done to broker."""
+        super().on_rebalance_return(app, state)
+        self.client.decrement('rebalances')
+        self.client.increment('rebalances_recovering')
+        self.client.timing(
+            'rebalance_return_latency',
+            self.ms_since(state['time_return']))
+
+    def on_rebalance_end(self, app: AppT, state: Dict) -> None:
+        """Cluster rebalance fully completed (including recovery)."""
+        super().on_rebalance_end(app, state)
+        self.client.decrement('rebalances_recovering')
+        self.client.timing(
+            'rebalance_end_latency',
+            self.ms_since(state['time_end']))
 
     def count(self, metric_name: str, count: int = 1) -> None:
         """Count metric by name."""
@@ -311,9 +334,6 @@ class DatadogMonitor(Monitor):
                    pattern: Pattern = RE_NORMALIZE,
                    substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
         return pattern.sub(substitution, name)
-
-    def _time(self, time: float) -> float:
-        return time * 1000.
 
     def _format_label(self, tp: Optional[TP] = None,
                       stream: Optional[StreamT] = None,

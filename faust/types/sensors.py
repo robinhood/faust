@@ -1,4 +1,5 @@
 import abc
+import typing
 from typing import Any, Dict, Iterable, Optional
 
 from mode import ServiceT
@@ -10,6 +11,11 @@ from .tables import CollectionT
 from .topics import TopicT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, PendingMessage, RecordMetadata, TP
+
+if typing.TYPE_CHECKING:
+    from .app import AppT as _AppT
+else:
+    class _AppT: ...  # noqa
 
 __all__ = ['SensorInterfaceT', 'SensorT', 'SensorDelegateT']
 
@@ -96,6 +102,18 @@ class SensorInterfaceT(abc.ABC):
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
                                 state: Dict) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_start(self, app: _AppT) -> Dict:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_return(self, app: _AppT, state: Dict) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_end(self, app: _AppT, state: Dict) -> None:
         ...
 
 

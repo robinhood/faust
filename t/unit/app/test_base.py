@@ -171,23 +171,56 @@ class test_App:
         app.flow_control.suspend.assert_called_once_with()
         app._stop_fetcher.assert_called_once_with()
 
+    def test_on_rebalance_start__existing_state(self, *, app):
+        app._rebalancing_sensor_state = {'foo': 'bar'}
+        app.log.warning = Mock()
+        app.on_rebalance_start()
+        app.log.warning.assert_called_once()
+
+    def test_on_rebalance_return__no_state(self, *, app):
+        app._rebalancing_sensor_state = None
+        app.log.warning = Mock()
+        app.on_rebalance_return()
+        app.log.warning.assert_called_once()
+
+    def test_on_rebalance_return__has_state(self, *, app):
+        app._rebalancing_sensor_state = {'time_start': 100.0}
+        app.sensors.on_rebalance_return = Mock()
+        app.on_rebalance_return()
+        app.sensors.on_rebalance_return.assert_called_once_with(
+            app, app._rebalancing_sensor_state,
+        )
+
     def test_on_rebalance_start_end(self, *, app):
         app.tables = Mock()
+        app.sensors = Mock()
+        app.sensors.on_rebalance_start.return_value = {
+            'time_start': 100.,
+        }
         assert not app.rebalancing
 
         app.on_rebalance_start()
+        assert app._rebalancing_sensor_state
         assert app.rebalancing
         app.tables.on_rebalance_start.assert_called_once_with()
 
+        app.on_rebalance_return()
+
         app.on_rebalance_end()
         assert not app.rebalancing
+        assert not app._rebalancing_sensor_state
 
         app.tracer = Mock(name='tracer')
         app.on_rebalance_start()
         span = app._rebalancing_span
         assert span is not None
+        app._rebalancing_sensor_state = None
+        app.log.warning = Mock()
         app.on_rebalance_end()
         span.finish.assert_called_once_with()
+        app.log.warning.assert_called_once()
+
+        assert not app.rebalancing
 
     def test_trace(self, *, app):
         app.tracer = None

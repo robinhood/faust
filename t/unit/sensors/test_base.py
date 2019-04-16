@@ -101,6 +101,12 @@ class test_Sensor:
         sensor.on_assignment_error(assignor, state, KeyError())
         sensor.on_assignment_completed(assignor, state)
 
+    def test_on_rebalance(self, *, sensor, app):
+        state = sensor.on_rebalance_start(app)
+        assert state['time_start']
+        sensor.on_rebalance_return(app, state)
+        sensor.on_rebalance_end(app, state)
+
     def test_on_send_error(self, *, sensor, producer):
         sensor.on_send_error(
             producer, KeyError('foo'), Mock(name='state'))
@@ -194,6 +200,18 @@ class test_SensorDelegate:
         sensors.on_assignment_error(assignor, state, exc)
         sensor.on_assignment_error.assert_called_once_with(
             assignor, state[sensor], exc)
+
+    def test_on_rebalance(self, *, sensors, sensor, app):
+        state = sensors.on_rebalance_start(app)
+        sensor.on_rebalance_start.assert_called_once_with(app)
+
+        sensors.on_rebalance_return(app, state)
+        sensor.on_rebalance_return.assert_called_once_with(
+            app, state[sensor])
+
+        sensors.on_rebalance_end(app, state)
+        sensor.on_rebalance_end.assert_called_once_with(
+            app, state[sensor])
 
     def test_repr(self, *, sensors):
         assert repr(sensors)

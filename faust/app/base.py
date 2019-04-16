@@ -21,6 +21,7 @@ from typing import (
     Callable,
     ClassVar,
     ContextManager,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -423,6 +424,7 @@ class App(AppT, Service):
     #: Optional tracing support.
     tracer: Optional[Any] = None
     _rebalancing_span: Optional[opentracing.Span] = None
+    _rebalancing_sensor_state: Optional[Dict] = None
 
     def __init__(self,
                  id: str,
@@ -1367,6 +1369,10 @@ class App(AppT, Service):
         """Call when rebalancing starts."""
         self.rebalancing = True
         self.rebalancing_count += 1
+        if self._rebalancing_sensor_state:
+            self.log.warning('Previous rebalance did not clear state: %r',
+                             self._rebalancing_sensor_state)
+        self._rebalancing_sensor_state = self.sensors.on_rebalance_start(self)
         if self.tracer:
             tracer = self.tracer.get_tracer('_faust')
             self._rebalancing_span = tracer.start_span(
@@ -1375,12 +1381,29 @@ class App(AppT, Service):
             )
         self.tables.on_rebalance_start()
 
+    def on_rebalance_return(self) -> None:
+        sensor_state = self._rebalancing_sensor_state
+        if not sensor_state:
+            self.log.warning('Missing sensor state for rebalance #%s',
+                             self.rebalancing_count)
+        else:
+            self.sensors.on_rebalance_return(self, sensor_state)
+
     def on_rebalance_end(self) -> None:
         """Call when rebalancing is done."""
         self.rebalancing = False
         if self._rebalancing_span:
             self._rebalancing_span.finish()
         self._rebalancing_span = None
+        sensor_state = self._rebalancing_sensor_state
+        try:
+            if not sensor_state:
+                self.log.warning('Missing sensor state for rebalance #%s',
+                                 self.rebalancing_count)
+            else:
+                self.sensors.on_rebalance_end(self, sensor_state)
+        finally:
+            self._rebalancing_sensor_state = None
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
