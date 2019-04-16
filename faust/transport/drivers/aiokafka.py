@@ -3,6 +3,7 @@ import asyncio
 from typing import (
     Any,
     Awaitable,
+    Callable,
     ClassVar,
     Iterable,
     List,
@@ -232,7 +233,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
             isolation_level=isolation_level,
-            traced_from_parent_span=traced_from_parent_span,
+            traced_from_parent_span=self.traced_from_parent_span,
             start_rebalancing_span=self.start_rebalancing_span,
             start_coordinator_span=self.start_coordinator_span,
             **auth_settings,
@@ -269,6 +270,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
             return span
         else:
             return noop_span()
+
+    def traced_from_parent_span(self,
+                                parent_span: opentracing.Span,
+                                **extra_context: Any) -> Callable:
+        return traced_from_parent_span(parent_span, **extra_context)
 
     def start_rebalancing_span(self) -> opentracing.Span:
         return self._start_span('rebalancing')

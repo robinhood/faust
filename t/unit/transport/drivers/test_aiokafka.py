@@ -332,6 +332,9 @@ class test_AIOKafkaConsumerThread:
                 heartbeat_interval_ms=int(
                     conf.broker_heartbeat_interval * 1000.0),
                 isolation_level=isolation_level,
+                traced_from_parent_span=cthread.traced_from_parent_span,
+                start_rebalancing_span=cthread.start_rebalancing_span,
+                start_coordinator_span=cthread.start_coordinator_span,
                 **auth_settings,
             )
 
