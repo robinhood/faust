@@ -486,7 +486,7 @@ class Recovery(Service):
         highwaters = await consumer.highwaters(*tps)
         highwaters = {
             # FIXME the -1 here is because of the way we commit offsets
-            tp: value - 1
+            tp: value - 1 if value is not None else -1
             for tp, value in highwaters.items()
         }
         table = terminal.logtable(
