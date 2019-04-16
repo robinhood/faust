@@ -1,9 +1,9 @@
 """Monitor - sensor tracking metrics."""
 import asyncio
+import statistics
 from collections import deque
-from statistics import median
 from time import monotonic
-from typing import Any, Callable, Mapping, MutableMapping, Tuple, cast
+from typing import Any, Callable, Mapping, MutableMapping, cast
 
 from mode import Service, label
 from mode.timers import timer_intervals
@@ -232,6 +232,7 @@ class Monitor(Sensor, KeywordReduce):
 
     @Service.task
     async def _sampler(self) -> None:
+        median = statistics.median
         prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
 
@@ -240,32 +241,24 @@ class Monitor(Sensor, KeywordReduce):
             if self.should_stop:
                 break
 
-            prev_event_total, prev_message_total = self._sample(
-                prev_event_total, prev_message_total)
+            # Update average event runtime.
+            if self.events_runtime:
+                self.events_runtime_avg = median(self.events_runtime)
+
+            # Update events/s
+            self.events_s, prev_event_total = (
+                self.events_total - prev_event_total,
+                self.events_total,
+            )
+
+            # Update messages/s
+            self.messages_s, prev_message_total = (
+                self.messages_received_total - prev_message_total,
+                self.messages_received_total)
 
             await self.sleep(sleep_time)
             if self.should_stop:
                 break
-
-    def _sample(self,
-                prev_event_total: int,
-                prev_message_total: int) -> Tuple[int, int]:
-        # Update average event runtime.
-        if self.events_runtime:
-            self.events_runtime_avg = median(self.events_runtime)
-
-        # Update events/s
-        self.events_s, prev_event_total = (
-            self.events_total - prev_event_total,
-            self.events_total,
-        )
-
-        # Update messages/s
-        self.messages_s, prev_message_total = (
-            self.messages_received_total - prev_message_total,
-            self.messages_received_total)
-
-        return prev_event_total, prev_message_total
 
     def asdict(self) -> Mapping:
         return {
