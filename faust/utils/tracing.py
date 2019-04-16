@@ -116,8 +116,9 @@ def call_with_trace(span: opentracing.Span,
             # if async def method, we attach our span to
             # when it completes.
             async def corowrapped() -> Any:
+                await_ret = None
                 try:
-                    await ret
+                    await_ret = await ret
                 except BaseException:
                     span.__exit__(*sys.exc_info())
                     if cb:
@@ -127,6 +128,7 @@ def call_with_trace(span: opentracing.Span,
                     span.__exit__(None, None, None)
                     if cb:
                         cb(*cb_args)
+                    return await_ret
             return corowrapped()
         else:
             # for non async def method, we just exit the span.
