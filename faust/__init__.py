@@ -24,8 +24,6 @@ import typing
 
 from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
-import immutables
-
 __version__ = '1.6.0a1'
 __author__ = 'Robinhood Markets, Inc.'
 __contact__ = 'contact@fauststream.com'
@@ -182,7 +180,7 @@ __all__ = [
 # - See werkzeug/__init__.py for the rationale behind this.
 from types import ModuleType  # noqa
 
-all_by_module: Mapping[str, Sequence[str]] = immutables.Map({
+all_by_module: Mapping[str, Sequence[str]] = {
     'faust.agents': ['Agent'],
     'faust.app': ['App'],
     'faust.channels': ['Channel', 'ChannelT'],
@@ -213,7 +211,7 @@ all_by_module: Mapping[str, Sequence[str]] = immutables.Map({
     'faust.worker': ['Worker'],
     'faust.utils': ['uuid'],
     'mode.services': ['Service', 'ServiceT'],
-})
+}
 
 object_origins = {}
 for module, items in all_by_module.items():
