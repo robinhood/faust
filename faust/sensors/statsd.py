@@ -1,13 +1,13 @@
 """Monitor using Statsd."""
 import re
 import typing
-from time import monotonic
 from typing import Any, Dict, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
 from faust.exceptions import ImproperlyConfigured
 from faust.types import (
+    AppT,
     CollectionT,
     EventT,
     Message,
@@ -105,7 +105,7 @@ class StatsdMonitor(Monitor):
         self.client.decr('events_active', rate=self.rate)
         self.client.timing(
             'events_runtime',
-            self._time(self.events_runtime[-1]),
+            self.secs_to_ms(self.events_runtime[-1]),
             rate=self.rate)
 
     def on_message_out(self,
@@ -131,7 +131,7 @@ class StatsdMonitor(Monitor):
         super().on_commit_completed(consumer, state)
         self.client.timing(
             'commit_latency',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
             rate=self.rate)
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
@@ -149,7 +149,7 @@ class StatsdMonitor(Monitor):
         self.client.incr('messages_sent', rate=self.rate)
         self.client.timing(
             'send_latency',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
             rate=self.rate)
 
     def on_send_error(self,
@@ -160,7 +160,7 @@ class StatsdMonitor(Monitor):
         self.client.incr('messages_sent_error', rate=self.rate)
         self.client.timing(
             'send_latency_for_error',
-            self._time(monotonic() - cast(float, state)),
+            self.ms_since(cast(float, state)),
             rate=self.rate)
 
     def on_assignment_error(self,
@@ -171,7 +171,7 @@ class StatsdMonitor(Monitor):
         self.client.incr('assignments_error', rate=self.rate)
         self.client.timing(
             'assignment_latency',
-            self._time(monotonic() - state['time_start']),
+            self.ms_since(state['time_start']),
             rate=self.rate)
 
     def on_assignment_completed(self,
@@ -182,7 +182,32 @@ class StatsdMonitor(Monitor):
         self.client.incr('assignments_complete', rate=self.rate)
         self.client.timing(
             'assignment_latency',
-            self._time(monotonic() - state['time_start']),
+            self.ms_since(state['time_start']),
+            rate=self.rate)
+
+    def on_rebalance_start(self, app: AppT) -> Dict:
+        """Cluster rebalance in progress."""
+        state = super().on_rebalance_start(app)
+        self.client.incr('rebalances', rate=self.rate)
+        return state
+
+    def on_rebalance_return(self, app: AppT, state: Dict) -> None:
+        """Consumer replied assignment is done to broker."""
+        super().on_rebalance_return(app, state)
+        self.client.decr('rebalances', rate=self.rate)
+        self.client.incr('rebalances_recovering', rate=self.rate)
+        self.client.timing(
+            'rebalance_return_latency',
+            self.ms_since(state['time_return']),
+            rate=self.rate)
+
+    def on_rebalance_end(self, app: AppT, state: Dict) -> None:
+        """Cluster rebalance fully completed (including recovery)."""
+        super().on_rebalance_end(app, state)
+        self.client.decr('rebalances_recovering', rate=self.rate)
+        self.client.timing(
+            'rebalance_end_latency',
+            self.ms_since(state['time_end']),
             rate=self.rate)
 
     def count(self, metric_name: str, count: int = 1) -> None:
@@ -205,9 +230,6 @@ class StatsdMonitor(Monitor):
                    pattern: Pattern = RE_NORMALIZE,
                    substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
         return pattern.sub(substitution, name)
-
-    def _time(self, time: float) -> float:
-        return time * 1000.
 
     @cached_property
     def client(self) -> StatsClient:
