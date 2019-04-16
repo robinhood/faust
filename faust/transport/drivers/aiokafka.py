@@ -18,6 +18,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
+import opentracing
 from aiokafka.errors import (
     CommitFailedError,
     ConsumerStoppedError,
@@ -39,6 +40,7 @@ from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds
+from opentracing.ext import tags
 from yarl import URL
 
 from faust.auth import (
@@ -67,6 +69,11 @@ from faust.types.transports import (
     ProducerT,
 )
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
+from faust.utils.tracing import (
+    noop_span,
+    set_current_span,
+    traced_from_parent_span,
+)
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -232,6 +239,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
             isolation_level=isolation_level,
+            traced_from_parent_span=traced_from_parent_span,
+            start_rebalancing_span=self.start_rebalancing_span,
+            start_coordinator_span=self.start_coordinator_span,
             **auth_settings,
         )
 
@@ -254,6 +264,24 @@ class AIOKafkaConsumerThread(ConsumerThread):
             check_crcs=conf.broker_check_crcs,
             **auth_settings,
         )
+
+    def _start_span(self, name: str) -> opentracing.Span:
+        tracer = self.app.tracer
+        if tracer is not None:
+            span = tracer.get_tracer('_aiokafka').start_span(
+                operation_name=name,
+            )
+            span.set_tag(tags.SAMPLING_PRIORITY, 1)
+            set_current_span(span)
+            return span
+        else:
+            return noop_span()
+
+    def start_rebalancing_span(self) -> opentracing.Span:
+        return self._start_span('rebalancing')
+
+    def start_coordinator_span(self) -> opentracing.Span:
+        return self._start_span('coordinator')
 
     def close(self) -> None:
         """Close consumer for graceful shutdown."""
