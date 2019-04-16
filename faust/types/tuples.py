@@ -181,11 +181,11 @@ class Message:
         #: Monitor stores timing information for every stream
         #: processing this message here.  It's stored as::
         #:
-        #: message.stream_meta[id(stream)] = {
-        #:     'time_in': float,
-        #:     'time_out': float,
-        #:     'time_total': float,
-        #: }
+        #:      message.stream_meta[id(stream)] = {
+        #:          'time_in': float,
+        #:          'time_out': float,
+        #:          'time_total': float,
+        #:      }
         self.stream_meta: Dict[int, Any] = {}
 
     def ack(self, consumer: _ConsumerT, n: int = 1) -> bool:
