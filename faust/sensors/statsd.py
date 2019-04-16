@@ -2,7 +2,7 @@
 import re
 import typing
 from time import monotonic
-from typing import Any, Dict, Optional, Pattern, cast
+from typing import Any, Mapping, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -82,7 +82,7 @@ class StatsdMonitor(Monitor):
         self.client.gauge(f'read_offset.{tp.topic}.{tp.partition}', offset)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Dict]:
+                           event: EventT) -> Optional[Mapping]:
         """Call when stream starts processing an event."""
         state = super().on_stream_event_in(tp, offset, stream, event)
         self.client.incr('events', rate=self.rate)
@@ -99,7 +99,7 @@ class StatsdMonitor(Monitor):
         ).strip('_').lower()
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Dict = None) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         """Call when stream is done processing an event."""
         super().on_stream_event_out(tp, offset, stream, event, state)
         self.client.decr('events_active', rate=self.rate)
@@ -165,7 +165,7 @@ class StatsdMonitor(Monitor):
 
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Dict,
+                            state: Mapping,
                             exc: BaseException) -> None:
         super().on_assignment_error(assignor, state, exc)
         self.client.incr('assignments_error', rate=self.rate)
@@ -176,8 +176,7 @@ class StatsdMonitor(Monitor):
 
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Dict) -> None:
-        """Partition assignor completed assignment."""
+                                state: Mapping) -> None:
         super().on_assignment_completed(assignor, state)
         self.client.incr('assignments_complete', rate=self.rate)
         self.client.timing(

@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from mode import ServiceT
 
@@ -22,12 +22,12 @@ class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                           event: EventT) -> Optional[Dict]:
+                           event: EventT) -> Optional[Mapping]:
         ...
 
     @abc.abstractmethod
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                            event: EventT, state: Dict = None) -> None:
+                            event: EventT, state: Mapping = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -82,20 +82,20 @@ class SensorInterfaceT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def on_assignment_start(self, assignor: PartitionAssignorT) -> Dict:
+    def on_assignment_start(self, assignor: PartitionAssignorT) -> Mapping:
         ...
 
     @abc.abstractmethod
     def on_assignment_error(self,
                             assignor: PartitionAssignorT,
-                            state: Dict,
+                            state: Mapping,
                             exc: BaseException) -> None:
         ...
 
     @abc.abstractmethod
     def on_assignment_completed(self,
                                 assignor: PartitionAssignorT,
-                                state: Dict) -> None:
+                                state: Mapping) -> None:
         ...
 
 

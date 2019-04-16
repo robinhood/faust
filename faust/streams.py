@@ -12,7 +12,6 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
-    Dict,
     Iterable,
     Iterator,
     List,
@@ -784,7 +783,7 @@ class Stream(StreamT[T_co], Service):
         sleep = asyncio.sleep
         trace = self.app.trace
         _shortlabel = shortlabel
-        sensor_state: Optional[Dict] = None
+        sensor_state: Optional[Mapping] = None
 
         try:
             while not self.should_stop:
