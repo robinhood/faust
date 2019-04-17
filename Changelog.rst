@@ -1,7 +1,7 @@
 .. _changelog:
 
 ==============================
- Change history for Faust 1.5
+ Changes
 ==============================
 
 This document contain change notes for bugfix releases in
