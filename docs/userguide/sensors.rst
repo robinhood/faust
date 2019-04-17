@@ -144,7 +144,63 @@ Monitor Attributes
             :annotation:
             :noindex:
 
+        .. autoattribute:: send_errors
+            :annotation:
+            :noindex:
+
         .. autoattribute:: messages_sent_by_topic
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: topic_buffer_full
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: metric_counts
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: tp_committed_offsets
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: tp_read_offsets
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: tp_end_offsets
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: assignment_latency
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: assignments_completed
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: assignments_failed
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: rebalances
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: rebalance_return_latency
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: rebalance_end_latency
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: rebalance_return_avg
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: rebalance_end_avg
             :annotation:
             :noindex:
 
@@ -232,31 +288,61 @@ Table Callbacks
 .. class:: Sensor
     :noindex:
 
-        .. automethod:: on_table_get
-            :noindex:
+    .. automethod:: on_table_get
+        :noindex:
 
-        .. automethod:: on_table_set
-            :noindex:
+    .. automethod:: on_table_set
+        :noindex:
 
-        .. automethod:: on_table_del
-            :noindex:
+    .. automethod:: on_table_del
+        :noindex:
 
 .. _sensor-operations:
 
-Operation Callbacks
--------------------
+Consumer Callbacks
+------------------
 
 .. class:: Sensor
     :noindex:
 
-        .. automethod:: on_commit_initiated
-            :noindex:
+    .. automethod:: on_commit_initiated
+        :noindex:
 
-        .. automethod:: on_commit_completed
-            :noindex:
+    .. automethod:: on_commit_completed
+        :noindex:
 
-        .. automethod:: on_send_initiated
-            :noindex:
+    .. automethod:: on_topic_buffer_full
+        :noindex:
 
-        .. automethod:: on_send_completed
-            :noindex:
+    .. automethod:: on_assignment_start
+        :noindex:
+
+    .. automethod:: on_assignment_error
+        :noindex:
+
+    .. automethod:: on_assignment_completed
+        :noindex:
+
+    .. automethod:: on_rebalance_start
+        :noindex:
+
+    .. automethod:: on_rebalance_return
+        :noindex:
+
+    .. automethod:: on_rebalance_end
+        :noindex:
+
+Producer Callbacks
+------------------
+
+.. class:: Sensor
+    :noindex:
+
+    .. automethod:: on_send_initiated
+        :noindex:
+
+    .. automethod:: on_send_completed
+        :noindex:
+
+    .. automethod:: on_send_error
+        :noindex:
