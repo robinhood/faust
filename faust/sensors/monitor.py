@@ -176,10 +176,17 @@ class Monitor(Sensor, KeywordReduce):
     #: Number of rebalances seen by this worker.
     rebalances = 0
 
+    #: Deque of previous n rebalance return latencies.
     rebalance_return_latency: Deque[float] = cast(Deque[float], None)
+
+    #: Deque of previous n rebalance end latencies.
     rebalance_end_latency: Deque[float] = cast(Deque[float], None)
-    rebalance_return_avg: float
-    rebalance_end_avg: float
+
+    #: Average rebalance return latency.
+    rebalance_return_avg: float = .0
+
+    #: Average rebalance end latency.
+    rebalance_end_avg: float = .0
 
     def __init__(self,
                  *,
