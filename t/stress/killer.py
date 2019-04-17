@@ -59,7 +59,7 @@ class Chaos(Service):
 
     @Service.task
     async def _runs_in_background(self):
-        self.log.info('I\'m your local friendly chaos monkey tester')
+        self.log.info("I'm your local friendly chaos monkey tester")
         self.log.info('Starting signal dispatcher.')
         for current_span in self.iterate_over_scheduled_time():
             if self.should_stop:

@@ -34,7 +34,7 @@ def test_binary(input: bytes) -> None:
 @given(dictionaries(text(), text()))
 def test_combinators(input: Mapping[str, str]) -> None:
     s = json() | _binary()
-    assert repr(s).replace('u\'', '\'') == 'json() | binary()'
+    assert repr(s).replace("u'", "'") == 'json() | binary()'
 
     d = s.dumps(input)
     assert isinstance(d, bytes)
