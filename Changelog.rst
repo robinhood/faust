@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.6.0
 =====
-:release-date: 2019-04-16 3:05 P.M PST
+:release-date: 2019-04-16 5:41 P.M PST
 :release-by: Ask Solem (:github_user:`ask`)
 
 This release has minor backward incompatible changes.
@@ -31,7 +31,7 @@ See note below.
 
     This is backwards incompatible but fixes a rare race condition.
 
-    Custom sensors that need use stream_meta must be updated
+    Custom sensors that have to use stream_meta must be updated
     to use this state.
 
 - **Sensors**: Added new sensor methods:
