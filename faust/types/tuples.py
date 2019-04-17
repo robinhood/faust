@@ -6,7 +6,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     MutableMapping,
     NamedTuple,
     Optional,
@@ -128,7 +127,6 @@ class Message:
         'tp',
         'tracked',
         'span',
-        '_stream_meta',
         '__weakref__',
     )
 
@@ -177,31 +175,6 @@ class Message:
         #: Total processing time (in seconds), or None if the event is
         #: still processing.
         self.time_total: Optional[float] = time_total
-
-        # we create this dict on first access in stream_meta property.
-        self._stream_meta: Optional[Dict[int, Any]] = None
-
-    @property
-    def stream_meta(self) -> Dict[int, Any]:
-        """Scratchpad for custom sensor state.
-
-        Sensors may use this dictionary as a scratchpad for
-        additional sensor state:
-
-        .. sourcecode:: python
-
-            message.stream_meta[id(stream)] = {
-                'span': opentracing_span,
-            }
-        """
-        meta = self._stream_meta
-        if meta is None:
-            meta = self._stream_meta = {}
-        return meta
-
-    @stream_meta.setter
-    def stream_meta(self, meta: Dict[int, Any]) -> None:
-        self._stream_meta = meta
 
     def ack(self, consumer: _ConsumerT, n: int = 1) -> bool:
         if not self.acked:
