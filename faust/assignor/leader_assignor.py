@@ -16,6 +16,10 @@ class LeaderAssignor(Service, LeaderAssignorT):
         self.app = app
 
     async def on_start(self) -> None:
+        if not self.app.conf.topic_disable_leader:
+            await self._enable_leader_topic()
+
+    async def _enable_leader_topic(self) -> None:
         leader_topic = self._leader_topic
         await leader_topic.maybe_declare()
         self.app.topics.add(leader_topic)

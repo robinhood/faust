@@ -94,6 +94,7 @@ class test_settings:
         assert conf.topic_replication_factor == 1
         assert conf.topic_partitions == 8
         assert conf.topic_allow_declare
+        assert not conf.topic_disable_leader
         assert conf.logging_config is None
         assert conf.loghandlers == []
         assert conf.version == 1
@@ -189,6 +190,7 @@ class test_settings:
                                  table_standby_replicas=48,
                                  topic_replication_factor=16,
                                  topic_allow_declare=False,
+                                 topic_disable_leader=True,
                                  reply_to='reply_to',
                                  reply_create_topic=True,
                                  reply_expires=90.9,
@@ -251,6 +253,7 @@ class test_settings:
             table_standby_replicas=table_standby_replicas,
             topic_replication_factor=topic_replication_factor,
             topic_allow_declare=topic_allow_declare,
+            topic_disable_leader=topic_disable_leader,
             reply_to=reply_to,
             reply_create_topic=reply_create_topic,
             reply_expires=reply_expires,
@@ -305,6 +308,7 @@ class test_settings:
         assert conf.table_standby_replicas == table_standby_replicas
         assert conf.topic_replication_factor == topic_replication_factor
         assert conf.topic_allow_declare == topic_allow_declare
+        assert conf.topic_disable_leader == topic_disable_leader
         assert conf.reply_to == reply_to
         assert conf.reply_expires == reply_expires
         assert conf.stream_buffer_maxsize == stream_buffer_maxsize

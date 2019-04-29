@@ -568,6 +568,19 @@ such as intermediate repartition topics, table changelog topics etc.
 Some Kafka managers does not allow services to create topics, in that case
 you should set this to :const:`False`.
 
+.. setting:: topic_disable_leader
+
+``topic_disable_leader``
+------------------------
+
+:type: :class:`bool`
+:default: :const:`False`
+
+This setting disables the creation of the leader election topic.
+
+If you're not using the ``on_leader=True`` argument to task/timer/etc.,
+decorators then use this setting to disable creation of the topic.
+
 .. _settings-broker:
 
 Advanced Broker Settings

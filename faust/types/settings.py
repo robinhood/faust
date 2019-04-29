@@ -305,6 +305,7 @@ class Settings(abc.ABC):
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
     topic_allow_declare: bool = True
+    topic_disable_leader: bool = False
     logging_config: Optional[Dict] = None
     loghandlers: List[logging.Handler]
     producer_linger_ms: int = PRODUCER_LINGER_MS
@@ -431,6 +432,7 @@ class Settings(abc.ABC):
             topic_replication_factor: int = None,
             topic_partitions: int = None,
             topic_allow_declare: bool = None,
+            topic_disable_leader: bool = None,
             id_format: str = None,
             reply_to: str = None,
             reply_to_prefix: str = None,
@@ -539,6 +541,8 @@ class Settings(abc.ABC):
             self.topic_partitions = topic_partitions
         if topic_allow_declare is not None:
             self.topic_allow_declare = topic_allow_declare
+        if topic_disable_leader is not None:
+            self.topic_disable_leader = topic_disable_leader
         if reply_create_topic is not None:
             self.reply_create_topic = reply_create_topic
         if logging_config is not None:
