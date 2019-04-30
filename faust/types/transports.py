@@ -367,7 +367,7 @@ class ConsumerT(ServiceT):
     def key_partition(self,
                       topic: str,
                       key: Optional[bytes],
-                      partition: int = None) -> int:
+                      partition: int = None) -> Optional[int]:
         ...
 
     @abc.abstractmethod

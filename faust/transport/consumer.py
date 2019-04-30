@@ -270,9 +270,11 @@ class TransactionManager(Service, TransactionManagerT):
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         """Schedule message to be sent by producer."""
-        p: int = self.consumer.key_partition(topic, key, partition)
-        group = self.app.assignor.group_for_topic(topic)
-        transactional_id = f'{group}-{p}'
+        group = transactional_id = None
+        p = self.consumer.key_partition(topic, key, partition)
+        if p is not None:
+            group = self.app.assignor.group_for_topic(topic)
+            transactional_id = f'{group}-{p}'
         return await self.producer.send(
             topic, key, value, p, timestamp, headers,
             transactional_id=transactional_id,
@@ -1135,7 +1137,7 @@ class ConsumerThread(QueueServiceThread):
     def key_partition(self,
                       topic: str,
                       key: Optional[bytes],
-                      partition: int = None) -> int:
+                      partition: int = None) -> Optional[int]:
         """Hash key to determine partition number."""
         ...
 
@@ -1243,6 +1245,6 @@ class ThreadDelegateConsumer(Consumer):
     def key_partition(self,
                       topic: str,
                       key: Optional[bytes],
-                      partition: int = None) -> int:
+                      partition: int = None) -> Optional[int]:
         """Hash key to determine partition number."""
         return self._thread.key_partition(topic, key, partition=partition)

@@ -478,17 +478,20 @@ class AIOKafkaConsumerThread(ConsumerThread):
     def key_partition(self,
                       topic: str,
                       key: Optional[bytes],
-                      partition: int = None) -> int:
+                      partition: int = None) -> Optional[int]:
         """Hash key to determine partition destination."""
         consumer = self._ensure_consumer()
         metadata = consumer._client.cluster
+        partitions_for_topic = metadata.partitions_for_topic(topic)
+        if partitions_for_topic is None:
+            return None
         if partition is not None:
             assert partition >= 0
-            assert partition in metadata.partitions_for_topic(topic), \
+            assert partition in partitions_for_topic, \
                 'Unrecognized partition'
             return partition
 
-        all_partitions = list(metadata.partitions_for_topic(topic))
+        all_partitions = list(partitions_for_topic)
         available = list(metadata.available_partitions_for_topic(topic))
         return self._partitioner(key, all_partitions, available)
 
