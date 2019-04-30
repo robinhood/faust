@@ -116,9 +116,9 @@ Cannot instantiate abstract model.
 
 If this model is used as the field of another model,
 and you meant to define a polymorphic relationship: make sure
-your abstract model class has the `allow_blessed_key` option enabled:
+your abstract model class has the `polymorphic_fields` option enabled:
 
-    class {name}(faust.Record, abstract=True, allow_blessed_key=True):
+    class {name}(faust.Record, abstract=True, polymorphic_fields=True):
         ...
 '''
 
@@ -195,7 +195,9 @@ class Model(ModelT):
                     raise
                 return None
             else:
-                if type_is_abstract or model._options.allow_blessed_key:
+                if (type_is_abstract or
+                        model._options.allow_blessed_key or
+                        model._options.polymorphic_fields):
                     return model
         return None
 
@@ -230,6 +232,7 @@ class Model(ModelT):
                           allow_blessed_key: bool = None,
                           decimals: bool = None,
                           coercions: CoercionMapping = None,
+                          polymorphic_fields: bool = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -249,6 +252,7 @@ class Model(ModelT):
             allow_blessed_key,
             decimals,
             coercions,
+            polymorphic_fields,
         )
 
     @classmethod
@@ -260,7 +264,8 @@ class Model(ModelT):
                        abstract: bool = False,
                        allow_blessed_key: bool = None,
                        decimals: bool = None,
-                       coercions: CoercionMapping = None) -> None:
+                       coercions: CoercionMapping = None,
+                       polymorphic_fields: bool = None) -> None:
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
@@ -291,6 +296,8 @@ class Model(ModelT):
             options.decimals = decimals
         if allow_blessed_key is not None:
             options.allow_blessed_key = allow_blessed_key
+        if polymorphic_fields is not None:
+            options.polymorphic_fields = polymorphic_fields
 
         options.namespace = namespace or canoname(cls)
 

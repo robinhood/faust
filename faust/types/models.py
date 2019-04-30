@@ -61,7 +61,8 @@ class ModelOptions(abc.ABC):
     serializer: Optional[CodecArg] = None
     namespace: str
     include_metadata: bool = True
-    allow_blessed_key: bool = False
+    polymorphic_fields: bool = False
+    allow_blessed_key: bool = False  # XXX compat
     isodates: bool = False
     decimals: bool = False
     coercions: CoercionMapping = cast(CoercionMapping, None)
@@ -112,6 +113,7 @@ class ModelOptions(abc.ABC):
         new_options.serializer = self.serializer
         new_options.namespace = self.namespace
         new_options.include_metadata = self.include_metadata
+        new_options.polymorphic_fields = self.polymorphic_fields
         new_options.allow_blessed_key = self.allow_blessed_key
         new_options.isodates = self.isodates
         new_options.decimals = self.decimals

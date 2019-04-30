@@ -16,27 +16,27 @@ Basics
 ======
 
 Models describe the fields of data structures used as keys and values
-in messages.  They're defined using a ``NamedTuple``-like syntax,
-as introduced by Python 3.6, and look like this::
+in messages.  They're defined using a ``NamedTuple``-like syntax::
 
     class Point(Record, serializer='json'):
         x: int
         y: int
 
 Here we define a "Point" record having ``x``, and ``y`` fields of type int.
-There’s no type checking at runtime, but the :pypi:`mypy` type checker can be used
-as a separate build step to verify that arguments have the correct type.
 
-A record is a model of the dictionary type, and describes keys and values.
-When using JSON as the serialization format, the Point model above
-serializes as:
+A record is a model of the dictionary type, having keys and values
+of a certain type.
+
+When using JSON as the serialization format, the Point model
+serializes to:
 
 .. sourcecode:: pycon
 
     >>> Point(x=10, y=100).dumps()
     {"x": 10, "y": 100}
 
-A different serializer can be provided as an argument to ``.dumps``:
+To temporarily use a different serializer, provide that as an argument
+to ``.dumps``:
 
 .. sourcecode:: pycon
 
@@ -44,21 +44,77 @@ A different serializer can be provided as an argument to ``.dumps``:
     b'gAN9cQAoWAEAAAB4cQFLClgBAAAAeXECS2RYBwAAAF9fZmF1c3RxA31xBFg
     CAAAAbnNxBVgOAAAAX19tYWluX18uUG9pbnRxBnN1Lg=='
 
-"Record" is the only model type supported by this version of Faust,
-but is just one of many possible model types to include in the future.
-The Avro serialization schema format, which the terminology is taken from,
-supports records, arrays, and more.
+"Record" is the only type supported, but in the future
+we also want to have arrays and other data structures.
+
+In use
+======
+
+Models are useful when data needs to be serialized/deserialized,
+or whenever you just want a quick way to define data.
+
+In Faust we use models to:
+
+- Describing the data used in streams (topic keys and values).
+- HTTP requests (POST data).
+
+For example here's a topic where both keys and values are points:
+
+.. sourcecode:: python
+
+    my_topic = faust.topic('mytopic', key_type=Point, value_type=Point)
+
+    @app.agent(my_topic)
+    async def task(events):
+        async for event in events:
+            print(event)
+
+.. warning::
+
+    Changing the type of a topic is backward incompatible change.
+    You need to restart all Faust instances using the old key/value types.
+
+    The best practice is to provide an upgrade path for old instances.
+
+The topic already knows what type is required, so when sending
+data you just provide the values as-is:
+
+.. sourcecode:: python
+
+    await my_topic.send(key=Point(x=10, y=20), value=Point(x=30, y=10))
+
+
+.. admonition:: Anonymous Agents
+
+    An "anonymous" agent does not use a topic description.
+
+    Instead the agent will automatically create and manage its
+    own topic under the hood.
+
+    To define the key and value type of such an agent
+    just pass them as keyword arguments:
+
+    .. sourcecode:: python
+
+        @app.agent(key_type=Point, value_type=Point)
+        async def my_agent(events):
+            async for event in events:
+                print(event)
+
+    Now instead of having a topic where we can send messages,
+    we can use the agent directly:
+
+    .. sourcecode:: python
+
+        await my_agent.send(key=Point(x=10, y=20), value=Point(x=30, y=10))
+
 
 Manual Serialization
 ====================
 
-You're not required to define models to read the data from a stream.
-Manual de-serialization also works and is rather easy to perform.
-Models provide additional benefit, such as the field descriptors that
-let you refer to fields in `group_by` statements, static typing using
-:pypi:`mypi`, automatic conversion of :class:`datetime`, and so on...
+Models are not required to read data from a stream.
 
-To deserialize streams manually, merely use a topic with bytes values:
+To deserialize streams manually, use a topic with bytes values:
 
 .. sourcecode:: python
 
@@ -69,10 +125,10 @@ To deserialize streams manually, merely use a topic with bytes values:
         async for payload in stream:
             data = json.loads(payload)
 
-To integrate with external systems, Faust's :ref:`codecs`
-can help you support serialization and de-serialization
-to and from any format.  Models describe the form of messages, while codecs
-explain how they're serialized/compressed/encoded/etc.
+To integrate with external systems, :ref:`codecs`
+help you support serialization and de-serialization
+to and from any format.  Models describe the form of messages, and codecs
+explain how they're serialized, compressed, encoded, and so on.
 
 The default codec is configured by the applications ``key_serializer`` and
 ``value_serializer`` arguments::
@@ -87,9 +143,10 @@ by specifying a ``serializer`` argument when creating the model class:
     class MyRecord(Record, serializer='json'):
         ...
 
-Codecs can also be combined, so they consist of multiple encoding and decoding
-stages, for example, data serialized with JSON and then Base64 encoded would
-be described as the keyword argument ``serializer='json|binary'``.
+Codecs may also be combined to provide multiple encoding and decoding
+stages, for example ``serializer='json|binary'`` will serialize as JSON
+then use the Base64 encoding to prepare the payload for transmission
+over textual transports.
 
 .. seealso::
 
@@ -98,9 +155,10 @@ be described as the keyword argument ``serializer='json|binary'``.
 
 .. topic:: Sending/receiving raw values
 
-    Serializing/deserializing keys and values manually without models is easy.
-    The JSON codec happily accepts lists and dictionaries,
-    as arguments to the ``.send`` methods:
+    You don't have to use models to deserialize events in topics.
+    instead you may omit the ``key_type``/``value_type`` options,
+    and instead use the ``key_serializer``/``value_serializer``
+    arguments:
 
     .. sourcecode:: python
 
@@ -123,55 +181,29 @@ be described as the keyword argument ``serializer='json|binary'``.
                 'amount': amount,
             })
 
-Using models to describe topics provides benefits:
+    The ``raw`` serializer will provide you with raw text/bytes
+    (the default is bytes, but use ``key_type=str`` to specify text):
 
-.. sourcecode:: python
+    .. sourcecode:: python
 
-    # examples/described.py
-    import faust
+        transfers_topic = app.topic('transfers', value_serializer='raw')
 
-    class Transfer(faust.Record):
-        account_id: str
-        amount: float
+    You may also specify any other supported codec, such as json to
+    use that directly:
 
-    app = faust.App('values')
-    transfers_topic = app.topic('transfers', value_type=Transfer)
-    large_transfers_topic = app.topic('large_transfers', value_type=Transfer)
+    .. sourcecode:: python
 
-    @app.agent(transfers_topic)
-    async def find_large_transfers(transfers):
-        async for transfer in transfers:
-            if transfer.amount > 1000.0:
-                await large_transfers_topic.send(value=transfer)
-
-    async def send_transfer(account_id, amount):
-        await transfers_topic.send(
-            value=Transfer(account_id=account_id, amount=amount),
-        )
-
-The :pypi:`mypy` static type analyzer can now alert you if your
-code is passing the wrong type of value for the ``account_id`` field,
-and more.  The most compelling reason for using non-described messages would
-be to integrate with existing Kafka topics and systems, but if you're
-writing new systems in Faust, the best practice would be to describe models
-for your message data.
+        transfers_topic = app.topic('transfers', value_serializer='json')
 
 Model Types
 ===========
 
-The first version of Faust only supports dictionary models (records),
-but can be easily extended to support other types of models, like arrays.
-
 Records
 -------
 
-A record is a model based on a dictionary/mapping.  The storage
-used is a dictionary, and it serializes to a dictionary, but the same
-is true for ordinary Python objects and their ``__dict__`` storage, so you can
-consider record models to be "objects" that can have methods and properties.
+A record is a model based on a dictionary/mapping.
 
-Here's a simple record describing a 2d point, with two required fields: ``x``
-and ``y``:
+Here's a simple record describing a 2d point, having two required fields:
 
 .. sourcecode:: python
 
@@ -179,8 +211,7 @@ and ``y``:
         x: int
         y: int
 
-To create a new point, instantiate it like a regular Python object,
-and provide fields as keyword arguments:
+To create a new point, provide the fields as keyword arguments:
 
 .. sourcecode:: pycon
 
@@ -188,8 +219,7 @@ and provide fields as keyword arguments:
     >>> point
     <Point: x=10, y=20>
 
-Faust throws an error if you instantiate a model without providing
-values for all required fields:
+If you forget to pass a required field, we throw an error:
 
 .. sourcecode:: pycon
 
@@ -205,12 +235,7 @@ values for all required fields:
         type(self).__name__, ', '.join(sorted(missing))))
     TypeError: Point missing required arguments: y
 
-.. note::
-
-    Python does not check types at runtime.
-    The annotations are only used by static analysis tools like :pypi:`mypy`.
-
-To describe an optional field, provide a default value:
+If you don't want it to be an error, make it an optional field:
 
 .. sourcecode:: python
 
@@ -218,42 +243,50 @@ To describe an optional field, provide a default value:
         x: int
         y: int = 0
 
-You can now omit the ``y`` field when creating a new point:
+You may now omit the ``y`` field when creating points:
 
-.. sourcecode:: pycon
+.. sourcecode:: python
 
     >>> point = Point(x=10)
-    >>> point
-    <Point: x=10, y=0>
+    <Point: x=10 y=0>
 
-When sending messages to topics, we can use ``Point`` objects as message keys,
-and values:
+.. note::
 
-.. sourcecode:: python
+    The order is important here: all optional fields must be
+    defined **after** all requred fields.
 
-    await app.send('mytopic', key=Point(x=10, y=20), value=Point(x=30, y=10))
+    This is not allowed:
 
-The above will send a message to Kafka, and whatever receives that
-message must be able to deserialize the data.
+    .. code-block:: python
 
-To define an agent that is able to do so, define the topic to have
-specific key/value types:
+        class Point(faust.Record, serializer='json'):
+            x: int
+            y: int = 0
+            z: int
 
-.. sourcecode:: python
+    but this works:
 
-    my_topic = faust.topic('mytopic', key_type=Point, value_type=Point)
+    .. code-block:: python
 
-    @app.agent(my_topic)
-    async def task(events):
-        async for event in events:
-            print(event)
+        class Point(faust.Record, serializer='json')
+            x: int
+            z: int
+            y: int = 0
 
-.. warning::
 
-    You need to restart all Faust instances using the old key/value types,
-    or alternatively provide an upgrade path for old instances.
+.. _model-fields:
 
-Records can also have other records as fields:
+Fields
+======
+
+Records may have fields of arbitrary types and both
+standard Python types and user defined classes will work.
+
+Note that field types must support serialization,
+otherwise we cannot reconstruct the object back
+to original form.
+
+Fields may refer to other models:
 
 .. sourcecode:: python
 
@@ -270,27 +303,19 @@ Records can also have other records as fields:
         amount=1000.0,
     )
 
-To manually serialize a record use its ``.dumps()`` method:
 
-.. sourcecode:: pycon
+The field type is a type annotation,
+so you can use the :pypi:`mypy` type checker to verify
+arguments passed have the correct type.
 
-    >>> json = transfer.dumps()
+We do not perform any type checking at runtime.
 
-To convert the JSON back into a model use the ``.loads()`` class method:
+Collections
+-----------
 
-.. sourcecode:: pycon
+Fields can be collections of another type.
 
-    >>> transfer = Transfer.loads(json_bytes_data)
-
-
-Lists of lists, etc.
-~~~~~~~~~~~~~~~~~~~~
-
-Records can also have fields that are a list of other models, or mappings
-to other models, and these are also described using the type annotation
-syntax.
-
-To define a model that points to a list of Account objects you can do this:
+For example a User model may have a list of accounts:
 
 .. sourcecode:: python
 
@@ -298,13 +323,14 @@ To define a model that points to a list of Account objects you can do this:
     import faust
 
 
-    class LOL(faust.Record):
+    class User(faust.Record):
         accounts: List[Account]
 
-This works with many of the iterable types, so for a list all
-of :class:`~typing.Sequence`, :class:`~typing.MutableSequence`, and :class:`~typing.List`
-can be used. For a full list of generic data types
-recognized by Faust, consult the following table:
+
+Not only lists are supported, you can also use dictionaries,
+sets and others.
+
+Consult this table of supported annotations:
 
 =========== =================================================================
 Collection  Recognized Annotations
@@ -326,40 +352,34 @@ Mapping     - :class:`Dict[KT, ModelT] <typing.Dict>`
             - :class:`MutableMapping[KT, ModelT] <typing.MutableMapping>`
 =========== =================================================================
 
-
-From this table we can see that we can also have a *mapping*
+From this table we can tell that we may have a *mapping*
 of username to account:
 
 .. sourcecode:: python
 
     from typing import Mapping
-    class DOA(faust.Record):
+    import faust
+
+
+    class User(faust.Record):
         accounts: Mapping[str, Account]
 
-Faust will automatically reconstruct the ``DOA.accounts`` field into
-a mapping of string to ``Account`` objects.
-
-
-There are limitations to this, and Faust may not recognize your custom
-mapping or list type, so stick to what is listed in the table for your
-Faust version.
-
+Faust will then automatically reconstruct the ``User.accounts`` field into
+a mapping of account-ids to ``Account`` objects.
 
 Coercion
-~~~~~~~~
+--------
 
-Automatic coercion of datetimes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:class:`~datetime.datetime`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Faust automatically serializes :class:`~datetime.datetime` fields to
-ISO-8601 text format but will not automatically deserialize ISO-8601 strings
-back into :class:`~datetime.datetime` (it is impossible to distinguish them
-from ordinary strings).
+When using JSON we automatically convert :class:`~datetime.datetime`
+fields into ISO-8601 text format, but we won't deserialize them
+back into :class:`~datetime.datetime`.
 
-However, if you use a model with a :class:`~datetime.datetime` field, and enable the
-``isodates`` model class setting, the model will correctly convert the strings
-to datetime objects (with timezone information if available) when
-deserialized:
+It's simply impossible to distinguish date strings
+from ordinary strings, but you may use the ``isodates`` setting
+to automatically convert all :class:`~datetime.datetime` fields:
 
 .. sourcecode:: python
 
@@ -369,14 +389,15 @@ deserialized:
     class Account(faust.Record, isodates=True, serializer='json'):
         date_joined: datetime
 
-Automatic coercion of decimals
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:class:`~decimal.Decimal`
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Similar to datetimes, json does not have a suitable high precision
-decimal field type.
+JSON doesn't have a high precision decimal field type
+so if you require high precision you must use :class:`~decimal.Decimal`.
 
-You can enable the ``decimals=True`` option to coerce string decimal
-values back into Python :class:`decimal.Decimal` objects.
+The built-in JSON encoder will convert these to strings in the json
+payload, so to have them automatically converted back into decimals
+you must enable the ``decimals=True`` option:
 
 .. sourcecode:: python
 
@@ -387,15 +408,13 @@ values back into Python :class:`decimal.Decimal` objects.
         price: Decimal
         quantity: Decimal
 
+Custom Coercions
+~~~~~~~~~~~~~~~~
 
-Custom coercions
-^^^^^^^^^^^^^^^^
+You can add custom coercion rules to your model class
+using the ``coercions`` option.
 
-You can add custom coercion rules to your model classes
-using the ``coercions`` options.  This must be a mapping from, either a tuple
-of types or a single type, to a function/class/callable used to convert it.
-
-Here's an example converting strings back to UUID objects:
+For example converting strings back to UUID objects:
 
 .. sourcecode:: python
 
@@ -405,8 +424,8 @@ Here's an example converting strings back to UUID objects:
     class Account(faust.Record, coercions={UUID: UUID}):
         id: UUID
 
-You'd get tired writing this out for every class, so why not make
-an abstract model subclass:
+Tired of writing this out for every class? Why not make
+an abstract model subclass?
 
 .. sourcecode:: python
 
@@ -421,22 +440,26 @@ an abstract model subclass:
     class Account(UUIDAwareRecord):
         id: UUID
 
-Subclassing models: Abstract model classes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Abstract Models
+~~~~~~~~~~~~~~~
 
-You can mark a model class as ``abstract=True`` to create a model base class,
-that you must inherit from to create new models having common functionality.
+To create a model base class with common functionality, mark
+the model class with ``abstract=True``.
 
-For example, you may want to have a base class for all models that
-have fields for time of creation, and time last created.
+Abstract models must be inherited from,
+and cannot be instantiated directly.
+
+Here's an example base class with default fields for creation
+time and last modified time:
 
 .. sourcecode:: python
 
     class MyBaseRecord(Record, abstract=True):
         time_created: float = None
-        time_updated: float = None
+        time_modified: float = None
 
-An “abstract” class is only used to create new models:
+Inherit from this model to create a new model
+having the fields by default:
 
 .. sourcecode:: python
 
@@ -450,12 +473,13 @@ An “abstract” class is only used to create new models:
 Positional Arguments
 ~~~~~~~~~~~~~~~~~~~~
 
-You can also create model values using positional arguments,
-meaning that ``Point(x=10, y=30)`` can also be expressed as ``Point(10, 30)``.
+The best practice when creating model instances is to use
+keyword arguments, but positional arguments are also supported!
 
-The ordering of fields in positional arguments gets tricky when you
-add subclasses to the mix.  In that case, the ordering is decided by the method
-resolution order, as demonstrated by this example:
+The point ``Point(x=10, y=30)`` may also be expressed as ``Point(10, 30)``.
+
+Back to why this is not a good practice, consider the
+case of inheritance:
 
 .. sourcecode:: python
 
@@ -472,11 +496,25 @@ resolution order, as demonstrated by this example:
     assert (point.x, point.y, point.z) == (10, 20, 30)
 
 
-Blessed Keys and polymorphic fields
------------------------------------
+To deduce the order arguments we now have to consider the inheritance
+tree, this is difficult without looking up the source code.
 
-Models can contain fields that are other models, such as in this example
-where an account has a user:
+This quickly turns even more complicated when we add multiple
+inheritance into the mix:
+
+.. sourcecode:: python
+
+    class Point(AModel, BModel):
+        ...
+
+We suggest using positional arguments only for simple classes
+such as the Point example, where inheritance of additional fields
+is not used.
+
+Polymorphic Fields
+------------------
+
+Felds can refer to other models, such as an account with a user field:
 
 .. sourcecode:: python
 
@@ -489,38 +527,34 @@ where an account has a user:
         user: User
         balance: Decimal
 
-This is a strict relationship, the value for Account.user can only
-ever be a ``User`` class.
+This is a strict relationship: the value for Account.user can only
+be an instance of the ``User`` type.
 
-Faust records also support polymorphic fields, where the type of
-the field is decided at runtime. Consider an Article model having
-a list of assets:
+*Polymorphic fields* are also supported, where the
+type of the field is decided at runtime.
+
+Consider an Article models with a list of assets
+where the type of asset is decided at runtime:
 
 .. sourcecode:: python
-
 
     class Asset(faust.Record):
         url: str
         type: str
 
-
-    class ImageAsset(faust.Record):
+    class ImageAsset(Asset):
         type = 'image'
 
-    class VideoAsset(faust.Record):
+    class VideoAsset(Asset):
         runtime_seconds: float
         type = 'video'
 
-    class Article(faust.Record, allow_blessed_key=True):
+    class Article(faust.Record, polymorphic_fields=True):
         assets: List[Asset]
 
-
-How does this work? What is a *blessed key*?
-The answer is in how Faust models are serialized and deserialized.
-
-When serializing a Faust model we always add a special key,
-let's look at the Account object we defined above,
-and how the payloads are generated:
+How does this work?
+Faust models add additional metadata when serialized,
+just look at the payload for one of our accounts:
 
 .. sourcecode:: pycon
 
@@ -546,18 +580,36 @@ and how the payloads are generated:
         },
     }
 
+Here the metadata section is the ``__faust`` field, and
+it contains the name of the model that generated this payload.
 
-The *blessed key* here is the ``__faust`` key, it describes what model
-class was used when serializing it.  When we allow the blessed key to be used,
-we allow it to be reconstructed using that same class.
+By default we don't use this name for anything at all,
+but we do if polymorphic fields are enabled.
 
-When you define a module in Python code, Faust will automatically
-keep an index of model name to class, which we then use to look up a model
-class by name.  For this to work, you must have imported the module where your
-model is defined before you deserialize the payload.
+Why is it disabled by default?
+There is often a mismatch between the name of the class
+used to produce the event, and the class we want to reconstruct
+it as.
 
-When using blessed keys it's extremely important that you do not rename
-classes, or old data cannot be deserialized.
+Imagine a producer is using an outdated version,
+or model cannot be shared between systems
+(this happens when using different programming languages,
+integrating with proprietary systems, and so on.)
+
+The namespace ``ns`` contains the fully qualified name of the
+model class (in this example ``t.User``).
+
+Faust will keep an index of model names, and whenever you
+define a new model class we add it to this index.
+
+.. note::
+
+    If you're trying to deserialize a model but it complains
+    that it does not exist, you probably forgot to import this
+    model before using it.
+
+    For the same reason you should not be renaming classes
+    without having a strategy to do so in a forward compatible manner.
 
 Reference
 ~~~~~~~~~
@@ -693,12 +745,12 @@ the ``_dumps()`` method to serialize an object:
             return msgpack.loads(s)
 
 We use ``msgpack.dumps`` to serialize, and our codec now encodes
-to raw msgpack format in binary. We may have to write
-this payload to somewhere unable to handle binary data well,
-to solve that we combine the codec with Base64 encoding to convert
-the binary to text.
+to raw msgpack format.
 
-Combining codecs is easy using the ``|`` operator:
+You may also combine the Base64 codec to support transports unable
+to handle binary data (such as HTTP or Redis):
+
+Combining codecs is done using the ``|`` operator:
 
 .. sourcecode:: python
 
@@ -707,24 +759,24 @@ Combining codecs is easy using the ``|`` operator:
 
     codecs.register('msgpack', msgpack())
 
-At this point, we monkey-patched Faust to support
-our codec, and we can use it to define records:
-
 .. sourcecode:: pycon
+
+    >>> import my_msgpack_codec
 
     >>> from faust import Record
     >>> class Point(Record, serializer='msgpack'):
     ...     x: int
     ...     y: int
 
-The problem with monkey-patching is that we must make sure the patching
-happens before we use the feature.
+
+At this point we have to import the codec every time
+we want to use it, that is very cumbersome.
 
 Faust also supports registering *codec extensions*
-using :pypi:`setuptools` entry-points, so instead, we can create an installable
-msgpack extension.
+using :pypi:`setuptools` entry-points, so instead lets create an installable
+msgpack extension!
 
-To do so, we need to define a package with the following directory layout:
+Define a package with the following directory layout:
 
 .. sourcecode:: text
 
@@ -733,7 +785,7 @@ To do so, we need to define a package with the following directory layout:
         faust_msgpack.py
 
 The first file (:file:`faust-msgpack/setup.py`) defines metadata about our
-package and should look like the following example:
+package and should look like:
 
 .. sourcecode:: python
 
@@ -759,12 +811,16 @@ package and should look like the following example:
         },
     )
 
-The most important part being the ``entry_points`` key which tells
-Faust how to load our plugin. We have set the name of our
+The most important part here is the ``entry_points`` section
+that tells setuptools how to load our plugin.
+
+We have set the name of our
 codec to ``msgpack`` and the path to the codec class
-to be ``faust_msgpack:msgpack``. Faust imports this as it would
+to be ``faust_msgpack:msgpack``.
+
+Faust imports this as it would do
 ``from faust_msgpack import msgpack``, so we need to define
-that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
+hat part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 .. sourcecode:: python
 
@@ -786,4 +842,4 @@ That's it! To install and use our new extension do:
     $ python setup.py install
 
 At this point you can publish this to PyPI so it can be shared
-amongst other Faust users.
+with other Faust users.

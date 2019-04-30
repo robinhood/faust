@@ -617,7 +617,26 @@ def test_default_multiple_levels_no_blessed_key():
     assert isinstance(s.account.address, Address)
 
 
-def test_enabled_blessed_key(app):
+def test_polymorphic_fields(app):
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record, polymorphic_fields=True):
+        a: int
+
+    class Y(Record):
+        x: LooksLikeX
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = app.serializers.loads_key(Y, data, serializer='json')
+    assert isinstance(y2.x, LooksLikeX)
+
+
+def test_compat_enabled_blessed_key(app):
 
     class X(Record):
         a: int
@@ -636,7 +655,38 @@ def test_enabled_blessed_key(app):
     assert isinstance(y2.x, LooksLikeX)
 
 
-def test_blessed_key_deeply_nested():
+def test__polymorphic_fields_deeply_nested():
+
+    class BaseAttribution(Record, abc.ABC):
+
+        def __post_init__(self, *args, **kwargs) -> None:
+            self.data_store = None
+
+    class AdjustData(Record):
+        activity_kind: str
+
+    class Event(Record):
+        category: str
+        event: str
+        data: AdjustData
+
+    class AdjustRecord(BaseAttribution):
+        event: Event
+
+    x = AdjustRecord(Event(
+        category='foo',
+        event='bar',
+        data=AdjustData('baz'),
+    ))
+    value = x.dumps(serializer='json')
+    value_dict = json.loads(value)
+    value_dict['event']['__faust']['ns'] = 'x.y.z'
+    model = AdjustRecord.from_data(value_dict)
+    assert isinstance(model.event, Event)
+    assert isinstance(model.event.data, AdjustData)
+
+
+def test_compat_blessed_key_deeply_nested():
 
     class BaseAttribution(Record, abc.ABC):
 
@@ -868,7 +918,7 @@ def test_optional_modelfield():
 @pytest.mark.parametrize('flag,expected_default', [
     ('isodates', False),
     ('include_metadata', True),
-    ('allow_blessed_key', False),
+    ('polymorphic_fields', False),
 ])
 def test_subclass_inherit_flags(flag, expected_default):
 

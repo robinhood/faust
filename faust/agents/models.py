@@ -12,7 +12,7 @@ class ReqRepRequest(Record,
                     namespace='@ReqRepRequest',  # internal namespace
                     # any stream should allow this type
                     # to wrap other values.
-                    allow_blessed_key=True):
+                    polymorphic_fields=True):
     """Value wrapped in a Request-Reply request."""
 
     # agent.ask(value) wraps the value in this record
