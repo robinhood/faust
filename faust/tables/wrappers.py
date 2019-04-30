@@ -343,7 +343,7 @@ class WindowWrapper(WindowWrapperT):
 
         if self.key_index and self.key_index_table is None:
             self.key_index_table = self.table.clone(
-                f'{self.table.name}-key_index',
+                name=f'{self.table.name}-key_index',
                 value_type=int,
                 key_type=self.table.key_type,
             )
