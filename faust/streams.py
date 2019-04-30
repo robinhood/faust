@@ -731,12 +731,12 @@ class Stream(StreamT[T_co], Service):
         try:
             while not self.should_stop:
                 do_ack = self.enable_acks
-                value = await it.next()  # noqa: B305
+                value, sensor_state = await it.next()  # noqa: B305
                 try:
                     yield value
                 finally:
                     event, self.current_event = self.current_event, None
-                    it.after(event, do_ack)
+                    it.after(event, do_ack, sensor_state)
         except StopAsyncIteration:
             # We are not allowed to propagate StopAsyncIteration in __aiter__
             # (if we do, it'll be converted to RuntimeError by CPython).
