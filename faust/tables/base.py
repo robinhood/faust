@@ -203,12 +203,18 @@ class Collection(Service, CollectionT):
         return {
             'app': self.app,
             'name': self.name,
-            'store': self._store,
             'default': self.default,
+            'store': self._store,
             'key_type': self.key_type,
             'value_type': self.value_type,
-            'changelog_topic': self._changelog_topic,
+            'partitions': self.partitions,
             'window': self.window,
+            'changelog_topic': self._changelog_topic,
+            'on_recover': self.on_recover,
+            'on_changelog_event': self.on_changelog_event,
+            'recovery_buffer_size': self.recovery_buffer_size,
+            'standby_buffer_size': self.standby_buffer_size,
+            'extra_topic_configs': self.extra_topic_configs,
         }
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
