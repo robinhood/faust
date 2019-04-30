@@ -86,6 +86,12 @@ class test_Collection:
             'value_type': table.value_type,
             'changelog_topic': table._changelog_topic,
             'window': table.window,
+            'extra_topic_configs': table.extra_topic_configs,
+            'on_changelog_event': table._on_changelog_event,
+            'recover_callbacks': table._recover_callbacks,
+            'partitions': table.partitions,
+            'recovery_buffer_size': table.recovery_buffer_size,
+            'standby_buffer_size': table.standby_buffer_size,
         }
 
     def test_persisted_offset(self, *, table):

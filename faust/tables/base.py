@@ -112,6 +112,7 @@ class Collection(Service, CollectionT):
                  recovery_buffer_size: int = 1000,
                  standby_buffer_size: int = None,
                  extra_topic_configs: Mapping[str, Any] = None,
+                 recover_callbacks: Set[RecoverCallback] = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -141,7 +142,7 @@ class Collection(Service, CollectionT):
         self._partition_timestamps = defaultdict(list)
         self._partition_latest_timestamp = defaultdict(int)
 
-        self._recover_callbacks = set()
+        self._recover_callbacks = set(recover_callbacks or [])
         if on_recover:
             self.on_recover(on_recover)
 
@@ -210,8 +211,8 @@ class Collection(Service, CollectionT):
             'partitions': self.partitions,
             'window': self.window,
             'changelog_topic': self._changelog_topic,
-            'on_recover': self.on_recover,
-            'on_changelog_event': self.on_changelog_event,
+            'recover_callbacks': self._recover_callbacks,
+            'on_changelog_event': self._on_changelog_event,
             'recovery_buffer_size': self.recovery_buffer_size,
             'standby_buffer_size': self.standby_buffer_size,
             'extra_topic_configs': self.extra_topic_configs,
