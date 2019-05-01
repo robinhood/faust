@@ -9,7 +9,6 @@ TRANSPORTS: FactoryMapping[Type[TransportT]] = FactoryMapping(
     aiokafka='faust.transport.drivers.aiokafka:Transport',
     confluent='faust.transport.drivers.confluent:Transport',
     kafka='faust.transport.drivers.aiokafka:Transport',
-    memory='faust.transport.drivers.memory:Transport',
 )
 TRANSPORTS.include_setuptools_namespace('faust.transports')
 by_name = TRANSPORTS.by_name
