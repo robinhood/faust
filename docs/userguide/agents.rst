@@ -23,7 +23,7 @@ Every event is a message in the stream and is structured as a key/value pair
 that can be described using :ref:`models <guide-models>` for type safety
 and straightforward serialization support.
 
-Streams can be sharded in a round-robin manner, or partitioned by
+Streams can be divided equally in a round-robin manner, or partitioned by
 the message key; this decides how the stream divides
 between available agent instances in the cluster.
 
@@ -55,16 +55,16 @@ between available agent instances in the cluster.
 
         $ faust -A faustexample worker -l info
 
-Every new worker that you start will force the cluster to rebalance
-partitions so that every agent receives a specific portion of the stream.
+Whenever a worker is started or stopped, this will force the cluster
+to rebalance and divide available partitions between all the workers.
 
 .. topic:: Partitioning
 
     When an agent reads from a topic, the stream is partitioned based on the
     key of the message. For example, the stream could have keys that are
-    account ids, and values that are high scores, then partitioning decide
-    that any message with the same account id as key, is delivered to the same
-    agent instance.
+    account ids, and values that are high scores, then partitioning will
+    decide that any message with the same account id as key,
+    is always delivered to the same agent instance.
 
     Sometimes you'll have to repartition the stream, to ensure you are
     receiving the right portion of the data.  See :ref:`guide-streams` for
@@ -73,22 +73,21 @@ partitions so that every agent receives a specific portion of the stream.
 
 .. topic:: Round-Robin
 
-    If you don't set a key (i.e. ``key=None``), the messages will be delivered to
-    available workers in round-robin order. This is useful to simply distribute work
-    amongst a cluster of workers, and you can always repartition that stream later
-    should you need to access data in a table or similar.
+    If you don't set a key (``key=None``), the messages will be delivered to
+    available workers in round-robin order. This is useful to distribute work
+    evenly between a cluster of workers.
 
 .. admonition:: Fault tolerance
 
     If the worker for a partition fails, or is blocked from the network for
-    some reason, there is no need to worry because Kafka solves this by moving
-    the partition to a worker that works.
+    any reason, there's no need to worry because Kafka will move
+    that partition to a worker that's online.
 
     Faust also takes advantage of "standby tables" and a custom partition
     manager that prefers to promote any node with a full copy of the data,
     saving startup time and ensuring availability.
 
-Here's a complete example of an app, having an agent that adds numbers:
+This is an agent that adds numbers (full example):
 
 .. sourcecode:: python
 
@@ -117,7 +116,7 @@ Here's a complete example of an app, having an agent that adds numbers:
             # here we receive Add objects, add a + b.
             yield value.a + value.b
 
-Starting a worker will now start a single instance of this agent:
+Starting a worker will start a single instance of this agent:
 
 .. sourcecode:: console
 
@@ -141,7 +140,6 @@ To send values to it, open a second console to run this program:
 .. sourcecode:: console
 
     $ python examples/send_to_agent.py
-
 
 .. topic:: Define commands with the ``@app.command`` decorator.
 
@@ -186,10 +184,12 @@ To send values to it, open a second console to run this program:
         Sending Add(4, 8)...
         12
 
-The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
-a particular structure that includes the return address (reply-to).  When the
-agent sees this type of arrangement, it will reply with the result yielded
-by the agent as a result of processing the event.
+The :meth:`Agent.ask() <faust.Agent.ask>` method adds additional
+metadata to the message: the return address (reply-to) and a correlating
+id (correlation_id).
+
+When the agent sees a message with a return address,
+it will reply with the result generated from that request.
 
 .. admonition:: Static types
 
@@ -217,84 +217,53 @@ by the agent as a result of processing the event.
     error should you use stream-specific methods such as ``.group_by()``,
     ``through()``, etc.
 
-
-Under the Hood: The ``@agent`` decorator
-----------------------------------------
-
-You can quickly start a stream processor in Faust without using agents.
-Do so merely by launching an :mod:`asyncio` task that iterates over a stream:
-
-.. sourcecode:: python
-
-    # examples/noagents.py
-    import asyncio
-
-    app = faust.App('noagents')
-    topic = app.topic('noagents')
-
-    async def mystream():
-        async for event in topic.stream():
-            print(f'Received: {event!r}')
-
-    async def start_streams():
-        await app.start()
-        await mystream()
-
-    if __name__ == '__main__':
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(start_streams())
-
-Essentially what the ``@agent`` decorator does, given a function like this:
-
-.. sourcecode:: python
-
-    @app.agent(topic)
-    async def mystream(stream):
-        async for event in stream:
-            print(f'Received: {event!r}')
-            yield event
-
-It wraps your function returning async iterator (since it uses
-``yield``) in code similar to this:
-
-.. sourcecode:: python
-
-    def agent(topic):
-
-        def create_agent_from(fun):
-            async def _start_agent():
-                stream = topic.stream()
-                async for result in fun(stream):
-                    maybe_reply_to_caller(result)
-
 Defining Agents
 ===============
 
 .. _agent-topic:
 
-The Topic
----------
+The Channel
+-----------
 
-The topic argument to the agent decorator defines the main topic
-that agent reads from (this implies it's not necessarily the only
-topic, as is the case when using stream joins, for example).
+The ``channel`` argument to the agent decorator defines the source
+of events that the agent reads from.
 
-Topics are defined using the :meth:`@topic` helper and return a
-:class:`faust.Topic` description::
+This can be:
 
-    topic = app.topic('topic_name1', 'topic_name2',
-                      key_type=Model,
-                      value_type=Model,
-                      ...)
+- A channel
 
-Should the topic description provide multiple topic names, the main
-topic of the agent will be the first topic in that list (``"topic_name1"``).
+    Channels are in-memory, and work like a :class:`asyncio.Queue`.
 
-The ``key_type`` and ``value_type`` describe how to serialize and deserialize
-messages in the topic, and you provide it as a model (such
-as :class:`faust.Record`), a :class:`faust.Codec`, or the name of a serializer.
+    They also form a basic abstraction useful for integrating
+    with many messaging systems
+    (`RabbitMQ`_, `Redis`_, `ZeroMQ`_, etc.)
 
-If not specified it will use the default serializer defined by the app.
+.. _`RabbitMQ`: https://rabbitmq.com
+.. _`Redis`: https://redis.io
+.. _`ZeroMQ`: https://zeromq.org
+
+- A topic description (as returned by :meth:`app.topic() <@topic>`)
+
+    Describes one or more topics to subscribe to, including a recipe
+    of how to deserialize it:
+
+    .. sourcecode:: python
+
+        topic = app.topic('topic_name1', 'topic_name2',
+                          key_type=Model,
+                          value_type=Model,
+                          ...)
+
+    Should the topic description provide multiple topic names, the main
+    topic of the agent will be the first topic in that
+    list (``"topic_name1"``).
+
+    The ``key_type`` and ``value_type`` describe how to serialize and
+    deserialize messages in the topic, and you provide it as a model (such
+    as :class:`faust.Record`), a :class:`faust.Codec`, or the name
+    of a serializer.
+
+    If not specified it will use the default serializer defined by the app.
 
 .. tip::
 
@@ -310,9 +279,9 @@ If not specified it will use the default serializer defined by the app.
 The Stream
 ----------
 
-The decorated function is unary, meaning it must accept a single argument.
+The agent decorator expects a function taking a single argument (unary).
 
-The object passed in as the argument to the agent is an async iterable
+The stream passed in as the argument to the agent is an async iterable
 :class:`~faust.Stream` instance, created from the topic/channel provided
 to the decorator:
 
@@ -323,11 +292,12 @@ to the decorator:
         async for item in stream:
             ...
 
-Iterating over this stream, using the :keyword:`async for` keyword, will in turn
+Iterating over this stream, using the :keyword:`async for` keyword will
 iterate over messages in the topic/channel.
 
-You can also use the :meth:`~faust.Stream.group_by` method of the Stream API,
-to partition the stream differently:
+If you need to repartition the stream, you may use the
+:meth:`~faust.Stream.group_by` method of the Stream API,
+like in this example where we repartition by account ID:
 
 .. sourcecode:: python
 
@@ -348,43 +318,6 @@ to partition the stream differently:
             # with the same account_id always arrives to the same agent
             # instance
             ...
-
-A two-way join works by waiting until it has a message from both topics,
-so to synchronously wait for a reply from the agent you would
-have to send messages to both topics.  A three-way join means
-you have to send a message to each of the three topics and only
-then can a reply be produced.
-
-For this reason, you're discouraged from using joins in an agent,
-unless you know what you're doing:
-
-.. sourcecode:: python
-
-    topic1 = app.topic('foo1')
-    topic2 = app.topic('foo2')
-
-    @app.agent(topic)
-    async def mystream(stream):
-        # XXX This is not proper use of an agent, as it performs a join.
-        # It works fine as long as you don't expect to be able to use
-        # ``agent.ask``, ``agent.map`` and similar
-        # methods that wait for a reply.
-        async for event in (stream & topic2.stream()).join(...):
-            ...
-
-
-For joins, the best practice is to use the ``@app.task`` decorator instead,
-to launch an :class:`asyncio.Task` when the app starts,
-that manually iterates over the joined stream:
-
-.. sourcecode:: python
-
-    @app.task()
-    def mystream():
-        async for event in (topic1.stream() & topic2.stream()).join(...):
-            # process merged event
-            ...
-
 
 .. seealso::
 
@@ -417,7 +350,7 @@ every time a news article is published by an author.
 
 We define an agent that consumes from this topic and
 for every new article will retrieve the full article over HTTP,
-then store that in a database somewhere (yeah, pretty contrived):
+then store that in a database:
 
 .. sourcecode:: python
 
@@ -430,21 +363,21 @@ then store that in a database somewhere (yeah, pretty contrived):
     @app.agent(news_topic, concurrency=10)
     async def imports_news(articles):
         async for article in articles:
-            response = await aiohttp.ClientSession().get(article.url)
-            await store_article_in_db(response)
+            async with app.http_client.get(article.url) as response:
+                await store_article_in_db(response)
 
 .. _agent-sinks:
 
 Sinks
 -----
 
-Sinks can be used to perform additional actions after the agent has processed
+Sinks can be used to perform additional actions after an agent has processed
 an event in the stream, such as forwarding alerts to a monitoring system,
 logging to Slack, etc. A sink can be callable, async callable, a topic/channel or
 another agent.
 
 Function Callback
-    Regular functions take a single argument (the value yielded by the agent):
+    Regular functions take a single argument (the result after processing):
 
     .. sourcecode:: python
 
@@ -453,10 +386,11 @@ Function Callback
 
         @app.agent(sink=[mysink])
         async def myagent(stream):
-            ...
+            async for value in stream:
+                yield process_value(value)
 
 Async Function Callback
-    If you provide an async function, the agent will :keyword:`await` it:
+    Asynchronous functions also work:
 
     .. sourcecode:: python
 
@@ -472,8 +406,8 @@ Async Function Callback
             ...
 
 Topic
-    Specifying a topic as the sink will force the agent to forward yielded
-    values it:
+    Specifying a topic as the sink means the agent will forward
+    all processed values to that topic:
 
     .. sourcecode:: python
 
@@ -484,8 +418,8 @@ Topic
             ...
 
 Another Agent
-    Specifying another agent as the sink will force the agent to forward yielded
-    values to it:
+    Specifying another agent as the sink means the agent
+    will forward all processed values to that other agent:
 
     .. sourcecode:: python
 
@@ -499,33 +433,35 @@ Another Agent
             async for event in stream:
                 print(f'AGENT A RECEIVED: {event!r}')
 
-
 .. _agent-errors:
 
 When agents raise an error
 --------------------------
 
-If an agent raises in the middle of processing an :term:`event`
-what do we do with :term:`acking` it?
+If an agent raises an exception during processing of an :term:`event`
+will we mark that event as completed? (:term:`acked`)
 
 Currently the source message will be acked and not processed again,
 simply because it violates ""exactly-once" semantics".
 
-- What about retries?
+It is common to think that we can just retry that event,
+but it is not as easy as it seems. Let's analyze our options apart
+from marking the event as complete.
 
-    It'd be safe to retry processing the event if the agent
-    processing is :term:`idempotent`, but we don't enforce idempotency
-    in stream processors so it's not something we can enable by default.
+- Retrying
 
-    The retry would also have to stop processing of the topic
+    The retry would have to stop processing of the topic
     so that order is maintained: the next offset in the topic can only
     be processed after the event is retried.
 
-- How about crashing?
+    We can move the event to the "back of the queue", but that means
+    the topic is now out of order.
 
-    Crashing the instance to require human intervention is certainly
+- Crashing
+
+    Crashing the instance to require human intervention is
     a choice, but far from ideal considering how common mistakes
-    in code or unexpected exceptions are.  It may be better to log
+    in code and unexpected exceptions are.  It may be better to log
     the error and have ops replay and reprocess the stream on
     notification.
 
