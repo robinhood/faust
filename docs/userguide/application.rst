@@ -1133,10 +1133,19 @@ possible entry points:
         and the main app of the worker (``worker.app``) will end up being
         the first positional argument (``app1``).
 
-        Note that the web server will only concern itself with the
-        main app, so if you want web access to the other apps you have to
-        include web servers for them (also passed in as ``*services``
-        starargs).
+        The problem with starting multiple apps is that each app
+        will start a web server by default.
+
+        If you want a web server for every app, you must configure the
+        web port for each:
+
+        .. sourcecode:: python
+
+            apps = [app1, app2, app3, app4]
+            for i, app in enumerate(apps):
+                app.conf.web_port = 6066 + i
+
+            worker = Worker(*apps)
 
 4) -> :class:`faust.App`
 
