@@ -17,18 +17,21 @@
 Basics
 ======
 
-Sensors record information about events in a Faust application
+Sensors record information about events occurring in a Faust application
 as they happen.
 
-You can define custom sensors to record information that you care about,
-just add it to the list of application sensors. There's also a default
-sensor called the "monitor" that record the runtime of messages and events
-as they go through the worker, the latency of publishing messages,
-the latency of committing Kafka offsets, and so on.
+There's a default sensor called "the monitor" that record the
+runtime of messages and events as they go through the worker,
+the latency of publishing messages, the latency of committing Kafka
+offsets, and so on.
 
 The web server uses this monitor to present graphs and statistics about
 your instance, and there's also a versions of the monitor available that
 forwards statistics to `StatsD`_, and `Datadog`_.
+
+You can define custom sensors to record the information that you care about,
+and enable them in the worker.
+
 
 .. _`StatsD`: https://github.com/etsy/statsd
 .. _`Datadog`: https://www.datadoghq.com
