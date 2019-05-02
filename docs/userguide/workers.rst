@@ -62,12 +62,18 @@ Then start the second worker:
 
     $ faust --datadir=/var/faust/worker2 -A proj -l info worker --web-port=6067
 
+.. admonition:: Sharing Data Directories
+
+    Worker instances should not share data directories,
+    so make sure to specify a different data directory for every worker
+    instance.
+
 .. _worker-stopping:
 
 Stopping the worker
 ===================
 
-Shutdown should be accomplished using the :sig:`TERM` signal.
+Shutdown is accomplished using the :sig:`TERM` signal.
 
 When shutdown is initiated the worker will finish all currently executing
 tasks before it actually terminates. If these tasks are important, you should
@@ -120,5 +126,5 @@ The worker's main process overrides the following signals:
 +--------------+-------------------------------------------------+
 | :sig:`QUIT`  | Cold shutdown, terminate ASAP                   |
 +--------------+-------------------------------------------------+
-| :sig:`USR1`  | Dump traceback for all active threads.          |
+| :sig:`USR1`  | Dump traceback for all active threads in logs   |
 +--------------+-------------------------------------------------+
