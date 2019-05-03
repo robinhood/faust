@@ -475,3 +475,20 @@ until the message is as old as the table expiry configuration.
     window in the last ``expires`` seconds. The space complexity for this
     is ``O(w * K)`` where ``w`` is the number of windows in the last
     expires seconds and ``K`` is the number of keys in the table.
+
+
+Table Serialization
+-------------------
+
+A table is a mapping with keys and values, serialized using JSON by default.
+
+If you want to use a different serialization mechanism you must configure
+that using the ``key_serializer`` and ``value_serializer`` arguments:
+
+.. sourcecode:: python
+
+    table = app.Table(
+        'name',
+        key_serializer='pickle',
+        value_serializer='pickle',
+    )
