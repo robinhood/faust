@@ -1,5 +1,4 @@
 """RocksDB storage."""
-import asyncio
 import math
 import shutil
 import typing
@@ -163,7 +162,6 @@ class Store(base.SerializedStore):
         self.key_index_size = key_index_size
         self._dbs = {}
         self._key_index = LRUCache(limit=self.key_index_size)
-        self.loop = asyncio.get_event_loop()
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         """Return the last persisted offset.
@@ -254,12 +252,9 @@ class Store(base.SerializedStore):
         event = current_event()
         assert event is not None
         partition = event.message.partition
-        self._put(partition, key, value)
-
-    def _put(self, partition: int, key: bytes, value: Optional[bytes]) -> None:
         db = self._db_for_partition(partition)
         self._key_index[key] = partition
-        self.loop.run_in_executor(None, db.put, key, value)
+        db.put(key, value)
 
     def _db_for_partition(self, partition: int) -> DB:
         try:
