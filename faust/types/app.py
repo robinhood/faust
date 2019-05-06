@@ -393,6 +393,15 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
+    def producer_transport(self) -> TransportT:
+        ...
+
+    @producer_transport.setter
+    def producer_transport(self, transport: TransportT) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
     def cache(self) -> CacheBackendT:
         ...
 

@@ -395,8 +395,13 @@ class App(AppT, Service):
     # Default producer instance.
     _producer: Optional[ProducerT] = None
 
-    # Transport is created on demand: use `.transport` property.
+    # Consumer transport is created on demand:
+    # use `.transport` property.
     _transport: Optional[TransportT] = None
+
+    # Producer transport is created on demand:
+    # use `.producer_transport` property.
+    _producer_transport: Optional[TransportT] = None
 
     # Cache is created on demand: use `.cache` property.
     _cache: Optional[CacheBackendT] = None
@@ -1546,8 +1551,12 @@ class App(AppT, Service):
         return self.transport.create_conductor(beacon=self.beacon)
 
     def _new_transport(self) -> TransportT:
-        return transport.by_url(self.conf.broker[0])(
-            self.conf.broker, self, loop=self.loop)
+        return transport.by_url(self.conf.broker_consumer[0])(
+            self.conf.broker_consumer, self, loop=self.loop)
+
+    def _new_producer_transport(self) -> TransportT:
+        return transport.by_url(self.conf.broker_producer[0])(
+            self.conf.broker_producer, self, loop=self.loop)
 
     def _new_cache_backend(self) -> CacheBackendT:
         return cache_backends.by_url(self.conf.cache)(
@@ -1684,7 +1693,7 @@ class App(AppT, Service):
 
     @property
     def transport(self) -> TransportT:
-        """Message transport."""
+        """Consumer message transport."""
         if self._transport is None:
             self._transport = self._new_transport()
         return self._transport
@@ -1692,6 +1701,17 @@ class App(AppT, Service):
     @transport.setter
     def transport(self, transport: TransportT) -> None:
         self._transport = transport
+
+    @property
+    def producer_transport(self) -> TransportT:
+        """Producer message transport."""
+        if self._producer_transport is None:
+            self._producer_transport = self._new_producer_transport()
+        return self._producer_transport
+
+    @producer_transport.setter
+    def producer_transport(self, transport: TransportT) -> None:
+        self._producer_transport = transport
 
     @property
     def cache(self) -> CacheBackendT:

@@ -331,6 +331,8 @@ class Settings(abc.ABC):
     _name: str
     _version: int = 1
     _broker: List[URL]
+    _broker_consumer: Optional[List[URL]] = None
+    _broker_producer: Optional[List[URL]] = None
     _store: URL
     _cache: URL
     _web: URL
@@ -411,6 +413,8 @@ class Settings(abc.ABC):
             broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
             broker_max_poll_records: int = None,
+            broker_consumer: Union[str, URL, List[URL]] = None,
+            broker_producer: Union[str, URL, List[URL]] = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             cache: Union[str, URL] = None,
@@ -487,6 +491,10 @@ class Settings(abc.ABC):
             self.origin = origin
         self.id = id
         self.broker = self._first_not_none(url, broker, BROKER_URL)
+        if broker_consumer is not None:
+            self.broker_consumer = broker_consumer
+        if broker_producer is not None:
+            self.broker_producer = broker_producer
         self.ssl_context = ssl_context
         self.store = self._first_not_none(store, STORE_URL)
         self.cache = self._first_not_none(cache, CACHE_URL)
@@ -706,6 +714,26 @@ class Settings(abc.ABC):
     @broker.setter
     def broker(self, broker: Union[URL, str, List[URL]]) -> None:
         self._broker = urllist(broker, default_scheme=DEFAULT_BROKER_SCHEME)
+
+    @property
+    def broker_consumer(self) -> List[URL]:
+        consumer = self._broker_consumer
+        return consumer if consumer is not None else self.broker
+
+    @broker_consumer.setter
+    def broker_consumer(self, broker: Union[URL, str, List[URL]]) -> None:
+        self._broker_consumer = urllist(
+            broker, default_scheme=DEFAULT_BROKER_SCHEME)
+
+    @property
+    def broker_producer(self) -> List[URL]:
+        producer = self._broker_producer
+        return producer if producer is not None else self.broker
+
+    @broker_producer.setter
+    def broker_producer(self, broker: Union[URL, str, List[URL]]) -> None:
+        self._broker_producer = urllist(
+            broker, default_scheme=DEFAULT_BROKER_SCHEME)
 
     @property
     def store(self) -> URL:

@@ -49,6 +49,8 @@ class test_settings:
         app = self.App()
         conf = app.conf
         assert conf.broker == [URL(settings.BROKER_URL)]
+        assert conf.broker_consumer == [URL(settings.BROKER_URL)]
+        assert conf.broker_producer == [URL(settings.BROKER_URL)]
         assert conf.store == URL(settings.STORE_URL)
         assert conf.cache == URL(settings.CACHE_URL)
         assert conf.web == URL(settings.WEB_URL)
@@ -181,6 +183,8 @@ class test_settings:
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
                                  broker_check_crcs=False,
+                                 broker_producer='moo://',
+                                 broker_consumer='zoo://',
                                  producer_partitioner=_dummy_partitioner,
                                  producer_request_timeout=2.66,
                                  producer_api_version='0.10',
@@ -225,6 +229,8 @@ class test_settings:
             id,
             version=version,
             broker=broker,
+            broker_consumer=broker_consumer,
+            broker_producer=broker_producer,
             store=store,
             cache=cache,
             web=web,
@@ -277,6 +283,8 @@ class test_settings:
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
         assert conf.broker == [URL(broker)]
+        assert conf.broker_consumer == [URL(broker_consumer)]
+        assert conf.broker_producer == [URL(broker_producer)]
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))

@@ -115,15 +115,42 @@ class test_App:
         transport.create_producer.assert_called_with(beacon=ANY)
         assert app.producer is transport.create_producer.return_value
 
-    def test_new_transport(self, *, app, patching):
+    @pytest.mark.parametrize('broker_url,broker_consumer_url', [
+        ('moo://', None),
+        ('moo://', 'zoo://'),
+    ])
+    def test_new_transport(self, broker_url, broker_consumer_url, *,
+                           app, patching):
+        app.conf.broker = broker_url
+        if broker_consumer_url:
+            app.conf.broker_consumer = broker_consumer_url
         by_url = patching('faust.transport.by_url')
         assert app._new_transport() is by_url.return_value.return_value
         assert app.transport is by_url.return_value.return_value
-        by_url.assert_called_with(app.conf.broker[0])
+        by_url.assert_called_with(app.conf.broker_consumer[0])
         by_url.return_value.assert_called_with(
-            app.conf.broker, app, loop=app.loop)
+            app.conf.broker_consumer, app, loop=app.loop)
         app.transport = 10
         assert app.transport == 10
+
+    @pytest.mark.parametrize('broker_url,broker_producer_url', [
+        ('moo://', None),
+        ('moo://', 'zoo://'),
+    ])
+    def test_new_producer_transport(self, broker_url, broker_producer_url, *,
+                                    app, patching):
+        app.conf.broker = broker_url
+        if broker_producer_url:
+            app.conf.broker_producer = broker_producer_url
+        by_url = patching('faust.transport.by_url')
+        transport = app._new_producer_transport()
+        assert transport is by_url.return_value.return_value
+        assert app.producer_transport is by_url.return_value.return_value
+        by_url.assert_called_with(app.conf.broker_producer[0])
+        by_url.return_value.assert_called_with(
+            app.conf.broker_producer, app, loop=app.loop)
+        app.producer_transport = 10
+        assert app.producer_transport == 10
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, app):
