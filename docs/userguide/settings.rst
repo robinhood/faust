@@ -37,7 +37,7 @@ Commonly Used Settings
 ``broker``
 ----------
 
-:type: ``str``
+:type: ``Union[str, URL, List[URL]]``
 :default: ``[URL("kafka://localhost:9092")]``
 
 Faust needs the URL of a "transport" to send and receive messages.
@@ -71,6 +71,14 @@ You can also pass a list of URLs:
         broker=['kafka://kafka1.example.com:9092',
                 'kafka://kafka2.example.com:9092'],
     )
+
+.. seealso::
+
+    You can configure the transport used for consuming and producing
+    separately, by setting the :setting:`broker_consumer` and
+    :setting:`broker_producer` settings.
+
+    This setting is used as the default.
 
 Available Transports
 ~~~~~~~~~~~~~~~~~~~~
@@ -585,6 +593,32 @@ decorators then use this setting to disable creation of the topic.
 
 Advanced Broker Settings
 ========================
+
+.. setting:: broker_consumer
+
+``broker_consumer``
+-------------------
+
+:type: ``Union[str, URL, List[URL]]``
+:default: :const:`None`
+
+You can use this setting to configure the transport used for
+producing and consuming separately.
+
+If not set the value found in :setting:`broker` will be used.
+
+.. setting:: broker_producer
+
+``broker_producer``
+-------------------
+
+:type: ``Union[str, URL, List[URL]]``
+:default: :const:`None`
+
+You can use this setting to configure the transport used for
+producing and consuming separately.
+
+If not set the value found in :setting:`broker` will be used.
 
 .. setting:: broker_client_id
 
