@@ -197,6 +197,12 @@ class Topic(Channel, TopicT):
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
                   force: bool = False) -> FutureMessage:
+        """Produce message by adding to buffer.
+
+        Notes:
+            This method can be used by non-`async def` functions
+            to produce messages.
+        """
         fut = self.as_future_message(
             key=key,
             value=value,

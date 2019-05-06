@@ -200,6 +200,13 @@ class Channel(ChannelT):
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
                   force: bool = False) -> FutureMessage:
+        """Produce message by adding to buffer.
+
+        This method is only supported by :class:`~faust.Topic`.
+
+        Raises:
+            NotImplementedError: always for in-memory channel.
+        """
         raise NotImplementedError()
 
     def as_future_message(
