@@ -4,6 +4,7 @@ import pytest
 import aiokafka
 from aiokafka.errors import CommitFailedError, IllegalStateError, KafkaError
 from aiokafka.structs import OffsetAndMetadata, TopicPartition
+from opentracing.ext import tags
 from faust import auth
 from faust.exceptions import ImproperlyConfigured, NotReady
 from faust.transport.drivers.aiokafka import (
@@ -24,6 +25,8 @@ from mode.utils.mocks import AsyncMock, MagicMock, Mock, call, patch
 
 TP1 = TP('topic', 23)
 TP2 = TP('topix', 23)
+
+TESTED_MODULE = 'faust.transport.drivers.aiokafka'
 
 
 @pytest.fixture()
@@ -360,6 +363,42 @@ class test_AIOKafkaConsumerThread:
                 **auth_settings,
             )
 
+    def test__start_span(self, *, cthread, app):
+        with patch(TESTED_MODULE + '.set_current_span') as s:
+            app.tracer = Mock(name='tracer')
+            span = cthread._start_span('test')
+            app.tracer.get_tracer.assert_called_once_with('_aiokafka')
+            tracer = app.tracer.get_tracer.return_value
+            tracer.start_span.assert_called_once_with(
+                operation_name='test')
+            span.set_tag.assert_called_once_with(tags.SAMPLING_PRIORITY, 1)
+            s.assert_called_once_with(span)
+            assert span is tracer.start_span.return_value
+
+    def test__start_span__no_tracer(self, *, cthread, app):
+        app.tracer = None
+        with cthread._start_span('test') as span:
+            assert span
+
+    def test_traced_from_parent_span(self, *, cthread):
+        with patch(TESTED_MODULE + '.traced_from_parent_span') as traced:
+            parent_span = Mock(name='parent_span')
+            ret = cthread.traced_from_parent_span(parent_span, foo=303)
+            traced.assert_called_once_with(parent_span, foo=303)
+            assert ret is traced.return_value
+
+    def test_start_rebalancing_span(self, *, cthread):
+        cthread._start_span = Mock()
+        ret = cthread.start_rebalancing_span()
+        assert ret is cthread._start_span.return_value
+        cthread._start_span.assert_called_once_with('rebalancing')
+
+    def test_start_coordinator_span(self, *, cthread):
+        cthread._start_span = Mock()
+        ret = cthread.start_coordinator_span()
+        assert ret is cthread._start_span.return_value
+        cthread._start_span.assert_called_once_with('coordinator')
+
     def test_close(self, *, cthread, _consumer):
         cthread._consumer = _consumer
         cthread.close()
@@ -637,6 +676,14 @@ class test_AIOKafkaConsumerThread:
             cthread.key_partition('topic', 'k', 4)
 
         assert cthread.key_partition('topic', 'k', 3) == 3
+
+    def test_key_partition__no_metadata(self, *, cthread, _consumer):
+        cthread._consumer = _consumer
+        cthread._partitioner = Mock(name='partitioner')
+        metadata = _consumer._client.cluster
+        metadata.partitions_for_topic.return_value = None
+
+        assert cthread.key_partition('topic', 'k', None) is None
 
     @contextmanager
     def assert_calls_thread(self, cthread, _consumer, method, *args, **kwargs):
