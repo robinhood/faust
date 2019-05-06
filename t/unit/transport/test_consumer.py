@@ -214,6 +214,20 @@ class test_TransactionManager:
         )
 
     @pytest.mark.asyncio
+    async def test_send__topic_not_transactive(self, *, manager, producer):
+        manager.app.assignor._topic_groups = {
+            't': 3,
+        }
+        manager.consumer.key_partition.return_value = None
+
+        await manager.send(
+            't', 'k', 'v', partition=None, headers=None, timestamp=None)
+        manager.consumer.key_partition.assert_called_once_with('t', 'k', None)
+        producer.send.assert_called_once_with(
+            't', 'k', 'v', None, None, None, transactional_id=None,
+        )
+
+    @pytest.mark.asyncio
     async def test_send_and_wait(self, *, manager):
         on_send = Mock()
 
