@@ -10,10 +10,39 @@ import asyncio
 from typing import Any, Awaitable, Mapping, Optional
 from mode import Seconds, Service
 from faust.types import AppT, HeadersArg
-from faust.types.tuples import RecordMetadata, TP
+from faust.types.tuples import FutureMessage, RecordMetadata, TP
 from faust.types.transports import ProducerT, TransportT
 
 __all__ = ['Producer']
+
+
+class ProducerBuffer(Service):
+
+    pending: asyncio.Queue
+
+    def __post_init__(self) -> None:
+        self.pending = asyncio.Queue()
+
+    def put(self, fut: FutureMessage) -> None:
+        self.pending.put_nowait(fut)
+
+    async def on_stop(self) -> None:
+        await self.flush()
+
+    async def flush(self) -> None:
+        pending_list = self.pending._queue  # type: ignore
+        [await self._send_pending(fut) for fut in pending_list]
+
+    async def _send_pending(self, fut: FutureMessage) -> None:
+        await fut.message.channel.publish_message(fut, wait=False)
+
+    @Service.task
+    async def _handle_pending(self) -> None:
+        get_pending = self.pending.get
+        send_pending = self._send_pending
+        while not self.should_stop:
+            msg = await get_pending()
+            await send_pending(msg)
 
 
 class Producer(Service, ProducerT):
@@ -43,6 +72,8 @@ class Producer(Service, ProducerT):
         assert api_version is not None
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
+        self.buffer = ProducerBuffer(loop=self.loop, beacon=self.beacon)
+
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
@@ -52,6 +83,9 @@ class Producer(Service, ProducerT):
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         """Schedule message to be sent by producer."""
         raise NotImplementedError()
+
+    def send_soon(self, fut: FutureMessage) -> None:
+        self.buffer.put(fut)
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],

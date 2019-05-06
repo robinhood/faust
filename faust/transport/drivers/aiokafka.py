@@ -695,6 +695,7 @@ class Producer(base.Producer):
 
     async def flush(self) -> None:
         """Wait for producer to finish transmitting all buffered messages."""
+        await self.buffer.flush()
         if self._producer is not None:
             await self._producer.flush()
 

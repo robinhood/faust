@@ -40,6 +40,11 @@ def test_str(*, channel):
     assert str(channel)
 
 
+def test_send_soon(*, channel):
+    with pytest.raises(NotImplementedError):
+        channel.send_soon(key=b'k', value=b'val')
+
+
 def test_stream(*, channel):
     s = channel.stream()
     assert isinstance(s, StreamT)

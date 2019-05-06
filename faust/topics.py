@@ -186,6 +186,30 @@ class Topic(Channel, TopicT):
             callback=callback,
         )
 
+    def send_soon(self,
+                  *,
+                  key: K = None,
+                  value: V = None,
+                  partition: int = None,
+                  timestamp: float = None,
+                  headers: HeadersArg = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None,
+                  callback: MessageSentCallback = None,
+                  force: bool = False) -> FutureMessage:
+        fut = self.as_future_message(
+            key=key,
+            value=value,
+            partition=partition,
+            timestamp=timestamp,
+            headers=headers,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            callback=callback,
+        )
+        self.app.producer.send_soon(fut)
+        return fut
+
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
         """Decode message from topic."""

@@ -189,6 +189,19 @@ class Channel(ChannelT):
             callback=callback,
         )
 
+    def send_soon(self,
+                  *,
+                  key: K = None,
+                  value: V = None,
+                  partition: int = None,
+                  timestamp: float = None,
+                  headers: HeadersArg = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None,
+                  callback: MessageSentCallback = None,
+                  force: bool = False) -> FutureMessage:
+        raise NotImplementedError()
+
     def as_future_message(
             self,
             key: K = None,

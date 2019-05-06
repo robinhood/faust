@@ -13,14 +13,16 @@ app = faust.App(
     origin='examples.tabletest',
     version=1,
     topic_partitions=4,
+    stream_buffer_maxsize=16368,
 )
 
+source_topic = app.topic('countstopic', key_type=str, value_type=int)
 counts = app.Table('counts', default=int)
 seen = {}
 prev_offsets = {}
 
 
-@app.agent(key_type=str, value_type=int)
+@app.agent(source_topic)
 async def count(stream):
     async for event in stream.events():
         partition = event.key
@@ -72,7 +74,7 @@ async def produce():
     for i in range(ITERATIONS):
         last_fut = None
         for j in range(app.conf.topic_partitions):
-            last_fut = await count.send(
+            last_fut = await source_topic.send(
                 key=str(j), value=i, partition=j)
         if not i % 100:
             await last_fut  # wait for buffer to flush
@@ -87,4 +89,7 @@ async def add_single_changelog():
 
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) < 2:
+        sys.argv.extend(['worker', '-l', 'info'])
     app.main()

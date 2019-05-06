@@ -27,7 +27,6 @@ from yarl import URL
 
 from faust import stores
 from faust import joins
-from faust.events import Event
 from faust.exceptions import PartitionsMismatch
 from faust.streams import current_event
 from faust.types import (
@@ -243,10 +242,9 @@ class Collection(Service, CollectionT):
             key_serializer = self.key_serializer
         if value_serializer is None:
             value_serializer = self.value_serializer
-        cast(Event, event)._attach(
-            self.changelog_topic,
-            key,
-            value,
+        self.changelog_topic.send_soon(
+            key=key,
+            value=value,
             partition=event.message.partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,

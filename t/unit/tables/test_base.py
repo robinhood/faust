@@ -114,12 +114,12 @@ class test_Collection:
         data.reset_state.assert_called_once_with()
 
     def test_send_changelog(self, *, table):
+        table.changelog_topic.send_soon = Mock(name='send_soon')
         event = Mock(name='event')
         table._send_changelog(event, 'k', 'v')
-        event._attach.assert_called_once_with(
-            table.changelog_topic,
-            'k',
-            'v',
+        table.changelog_topic.send_soon.assert_called_once_with(
+            key='k',
+            value='v',
             partition=event.message.partition,
             key_serializer='json',
             value_serializer='json',
@@ -128,15 +128,15 @@ class test_Collection:
 
     def test_send_changelog__custom_serializers(self, *, table):
         event = Mock(name='event')
+        table.changelog_topic.send_soon = Mock(name='send_soon')
         table._send_changelog(
             event, 'k', 'v',
             key_serializer='raw',
             value_serializer='raw',
         )
-        event._attach.assert_called_once_with(
-            table.changelog_topic,
-            'k',
-            'v',
+        table.changelog_topic.send_soon.assert_called_once_with(
+            key='k',
+            value='v',
             partition=event.message.partition,
             key_serializer='raw',
             value_serializer='raw',

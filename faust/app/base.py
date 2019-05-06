@@ -95,7 +95,11 @@ from faust.types.transports import (
     TPorTopicSet,
     TransportT,
 )
-from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
+from faust.types.tuples import (
+    MessageSentCallback,
+    RecordMetadata,
+    TP,
+)
 from faust.types.web import (
     CacheBackendT,
     HttpClientT,

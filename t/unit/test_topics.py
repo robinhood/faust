@@ -153,6 +153,34 @@ class test_Topic:
         topic.is_iterator = True
         assert topic.__aiter__() is topic
 
+    def test_send_soon(self, *, topic, app):
+        topic.as_future_message = Mock(name='as_future_message')
+        app.producer.send_soon = Mock(name='send_soon')
+        callback = Mock(name='callback')
+        fut = topic.send_soon(
+            key=b'k',
+            value=b'v',
+            partition=3,
+            timestamp=100.3,
+            headers={'k': 'v'},
+            key_serializer='kser',
+            value_serializer='vser',
+            callback=callback,
+        )
+        topic.as_future_message.assert_called_once_with(
+            key=b'k',
+            value=b'v',
+            partition=3,
+            timestamp=100.3,
+            headers={'k': 'v'},
+            key_serializer='kser',
+            value_serializer='vser',
+            callback=callback,
+        )
+        assert fut is topic.as_future_message.return_value
+
+        app.producer.send_soon.assert_called_once_with(fut)
+
     @pytest.mark.asyncio
     async def test_decode(self, *, topic, message):
         topic._compile_decode = Mock(name='_compile_decode')
