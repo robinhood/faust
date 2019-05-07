@@ -8,7 +8,7 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 1.6.2
+:Version: 1.6.1
 :Web: http://faust.readthedocs.io/
 :Download: http://pypi.org/project/faust
 :Source: http://github.com/robinhood/faust
