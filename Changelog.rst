@@ -48,6 +48,10 @@ News
 
     + Now depends on :ref:`Mode 4.0.0 <mode:version-4.0.0>`.
 
+    + Now depends on :pypi:`aiohttp` 3.5.2 or later.
+
+        Thanks to :github_user:`CharAct3`.
+
 - **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
   messages.
 
