@@ -14,3 +14,8 @@ please visit the :ref:`history` section.
 =====
 :release-date: TBA
 :release-by: TBA
+
+- **App**: Fix list of strings for :setting:`broker` param in URL
+  (Issue #330).
+
+    Contributed by Nimish Telang (:github_user:`nimish`).
