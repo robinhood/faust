@@ -15,7 +15,97 @@ please visit the :ref:`history` section.
 :release-date: TBA
 :release-by: TBA
 
+.. _v170-backward-incompatible-changes:
+
+Backward Incompatible Changes
+-----------------------------
+
+- **Transports**: The in-memory transport has been removed (Issue #295).
+
+    This transport was experimental and not working properly, so to avoid
+    confusion we have removed it completely.
+
+- **Stream**: The ``Message.stream_meta`` attribute has been removed.
+
+    This was used to keep arbitrary state for sensors during processing
+    of a message.
+
+    If you by rare chance are relying on this attribute to exist, you must
+    now initialize it before using it:
+
+    .. sourcecode:: python
+
+        stream_meta = getattr(event.message, 'stream_meta', None)
+        if stream_meta is None:
+            stream_meta = event.message.stream_meta = {}
+
+.. _v170-news:
+
+News
+----
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 4.0.0 <mode:version-4.0.0>`.
+
+- **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
+  messages.
+
+    This method can be used by any non-`async def` function
+    to buffer up messages to be produced.
+
+    It returns `Awaitable[RecordMetadata]`: a promise evaluated once
+    the message is actually sent.
+
+- **App**: New :setting:`broker_consumer`/:setting:`broker_producer` settings.
+
+    These can now be used to configure individual transports
+    for consuming and producing.
+
+    The default value for both settings are taken from the
+    :setting:`broker` setting.
+
+    For example you can use :pypi:`aiokafka` for the consumer, and
+    :pypi:`confluent_kafka` for the producer:
+
+    .. sourcecode:: python
+
+        app = faust.App(
+            'id',
+            broker_consumer='kafka://localhost:9092',
+            broker_producer='confluent://localhost:9092',
+        )
+
+- **App**: New :setting:`topic_disable_leader` setting disables
+  the leader topic.
+
+.. _v170-fixes:
+
+Fixes
+-----
+
+- **Producer**: Exactly once: Support producing to non-transactional
+  topics (Issue #339)
+
+- **Agent**: Test: Fixed :exc:`asyncio.CancelledError` (Issue #322).
+
+- **Cython**: Fixed issue with sensor state not being passed to ``after``.
+
+- **Tables**: Key index: now inherits configuration from source table
+  (Issue #325)
+
 - **App**: Fix list of strings for :setting:`broker` param in URL
   (Issue #330).
 
     Contributed by Nimish Telang (:github_user:`nimish`).
+
+- **Table**: Fixed blocking behavior when populating tables.
+
+    Symptom was warnings about timers waking up too late.
+
+.. _v170-improvements:
+
+Improvements
+------------
+
+- **Documentation**: Rewrote fragmented documentation to be more concise.
