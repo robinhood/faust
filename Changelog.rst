@@ -8,6 +8,18 @@ This document contain change notes for bugfix releases in
 the Faust 1.6 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.6.1:
+
+1.6.1
+=====
+:release-date: 2019-05-07 2:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Web**: Fixes index page of web server by adding :class:`collections.deque`
+  support to our JSON serializer.
+
+    Thanks to Brandon Ewing for detecting this issue.
+
 .. _version-1.6.0:
 
 1.6.0
