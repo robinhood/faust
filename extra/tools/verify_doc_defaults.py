@@ -19,7 +19,13 @@ SETTINGS: Path = Path('docs/userguide/settings.rst')
 
 app = faust.App('verify_defaults')
 
-ignore_settings: Set[str] = {'id', 'tabledir', 'reply_to'}
+ignore_settings: Set[str] = {
+    'id',
+    'tabledir',
+    'reply_to',
+    'broker_consumer',
+    'broker_producer',
+}
 
 builtin_locals: Dict[str, Any] = {
     'aiohttp': aiohttp,
