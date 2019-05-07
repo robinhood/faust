@@ -68,7 +68,7 @@ This system can persist state, acting like a database.
 Tables are named distributed key/value stores you can use
 as regular Python dictionaries.
 
-Tables are stored locally on each machine using a superfast
+Tables are stored locally on each machine using a super fast
 embedded database written in C++, called `RocksDB`_.
 
 Tables can also store aggregate counts that are optionally "windowed"
@@ -229,7 +229,7 @@ Faust is...
     Faust is just Python, and a stream is an infinite asynchronous iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
-    SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
+    SQLAlchemy, NTLK, NumPy, SciPy, TensorFlow, etc.
 
 .. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
 
@@ -283,7 +283,7 @@ Caching
 ~~~~~~~
 
 :``faust[redis]``:
-    for using `Redis_` as a simple caching backend (memcache-style).
+    for using `Redis_` as a simple caching backend (Memcached-style).
 
 Optimization
 ~~~~~~~~~~~~
