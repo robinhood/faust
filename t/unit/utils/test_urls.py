@@ -24,9 +24,17 @@ def test_urllist_str_no_scheme():
     assert urllist('bar.com', default_scheme='foo') == [URL('foo://bar.com')]
 
 
-def test_urllist_URL_no_scheme():
+def test_urllist_URL_no_scheme_scalar_arg():
     assert urllist(URL('bar.com'), default_scheme='foo') == [
         URL('foo://bar.com'),
+    ]
+
+
+def test_urllist_URL_no_scheme_list_arg():
+    assert urllist([URL('bar.com'), URL('//localhost:9092')],
+                   default_scheme='foo') == [
+        URL('foo://bar.com'),
+        URL('foo://localhost:9092'),
     ]
 
 
