@@ -504,8 +504,12 @@ manually, or use the echo recipe below:
         async for value in stream:
             await other_topic.send(value)
 
+.. _stream-filter:
+
 ``filter()`` -- Filter values to omit from stream.
 --------------------------------------------------
+
+.. versionadded:: 1.7
 
 This method is useful for filtering events before repartitioning
 a stream.

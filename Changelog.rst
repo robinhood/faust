@@ -52,6 +52,11 @@ News
 
         Thanks to :github_user:`CharAct3`.
 
+- **Documentation**: Documented a new deployment strategy to minimize
+  rebalancing issues.
+
+    See :ref:`worker-cluster` for more information.
+
 - **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
   messages.
 
@@ -60,6 +65,11 @@ News
 
     It returns `Awaitable[RecordMetadata]`: a promise evaluated once
     the message is actually sent.
+
+- **Stream**: New ``Stream.filter`` method added useful for filtering
+  events before repartitioning a stream.
+
+    See :ref:`stream-filter` for more information.
 
 - **App**: New :setting:`broker_consumer`/:setting:`broker_producer` settings.
 
