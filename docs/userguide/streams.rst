@@ -504,6 +504,24 @@ manually, or use the echo recipe below:
         async for value in stream:
             await other_topic.send(value)
 
+``filter()`` -- Filter values to omit from stream.
+--------------------------------------------------
+
+This method is useful for filtering events before repartitioning
+a stream.
+
+Takes a single argument which must be a callable, either a normal
+function or an `async def` function.
+
+Example:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for value in stream.filter(lambda: v > 1000).group_by(...):
+            ...
+
 ``echo()`` -- Repeat to one or more topics
 ------------------------------------------
 
