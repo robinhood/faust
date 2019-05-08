@@ -21,7 +21,7 @@
 Basics
 ======
 
-A stream is an infinite async iterable, being passed messages consumed
+A stream is an infinite async iterable, consuming messages
 from a channel/topic:
 
 .. sourcecode:: python
@@ -55,7 +55,7 @@ instances, and this is decided by the topic's ``key_type`` and
 
 .. seealso::
 
-    - The :ref:`guide-channels` guide -- fore more information about
+    - The :ref:`guide-channels` guide -- for more information about
       channels and topics.
 
     - The :ref:`guide-models` guide -- for more information about models
@@ -115,8 +115,8 @@ Processors
 A stream can have an arbitrary number of processor callbacks
 that are executed as values go through the stream.
 
-These are usually not used in normal Faust applications, but can be useful
-for libraries to extend the functionality of streams.
+These are normally used in Faust applications, but are useful
+for libraries that extend the functionality of streams.
 
 A processor takes a value as argument and returns a value:
 
@@ -165,10 +165,10 @@ first message has an offset of zero), and we use a single offset
 to track the messages that consumers do not want to see again.
 
 The Kafka consumer commits the topic offsets every three
-seconds (by default, can also be configured using the
-:setting:`broker_commit_interval` setting) in a background task.
+seconds in a background task.  The default interval is defined by
+the :setting:`broker_commit_interval` setting.
 
-Since we only have one consumer and multiple agents can be subscribed
+As we only have one consumer, and multiple agents can subscribe
 to the same topic, we need a smart way to track when those events
 have processed so we can commit and advance the consumer group offset.
 
