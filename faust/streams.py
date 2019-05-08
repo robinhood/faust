@@ -605,7 +605,6 @@ class Stream(StreamT[T_co], Service):
             >>> async for v in stream.filter(lambda: v > 1000).group_by(...):
             ...     # do something
         """
-
         def on_value(value: T) -> T:
             if not fun(value):
                 raise Skip()
