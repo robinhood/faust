@@ -24,8 +24,16 @@ class FaustWarning(UserWarning):
     """Base-class for all Faust warnings."""
 
 
-class NotReady(FaustError):
+class FaustPredicate(FaustError):
+    """Base-class for semi-predicates such as :exc:`Skip`."""
+
+
+class NotReady(FaustPredicate):
     """Service not started."""
+
+
+class Skip(FaustPredicate):
+    """Raised in stream processors to skip processing of an event."""
 
 
 class AlreadyConfiguredWarning(FaustWarning):
@@ -48,7 +56,7 @@ class ValueDecodeError(DecodeError):
     """Error while decoding/deserializing message value."""
 
 
-class SameNode(FaustError):
+class SameNode(FaustPredicate):
     """Exception raised by router when data is located on same node."""
 
 

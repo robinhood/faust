@@ -35,7 +35,7 @@ from mode.utils.objects import cached_property
 from mode.utils.types.trees import NodeT
 
 from . import joins
-from .exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfigured, Skip
 from .types import AppT, ConsumerT, EventT, K, ModelArg, ModelT, TP, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
@@ -592,6 +592,30 @@ class Stream(StreamT[T_co], Service):
         self._enable_passive(cast(ChannelT, channel_it), declare=True)
         return grouped
 
+    def filter(self, fun: Processor[T]) -> StreamT:
+        """Filter values from stream using callback.
+
+        The callback may be a traditional function, lambda function,
+        or an `async def` function.
+
+        This method is useful for filtering events before repartitioning
+        a stream.
+
+        Examples:
+            >>> async for v in stream.filter(lambda: v > 1000).group_by(...):
+            ...     # do something
+        """
+
+        def on_value(value: T) -> T:
+            if not fun(value):
+                raise Skip()
+            else:
+                return value
+
+        self.add_processor(on_value)
+
+        return self
+
     async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
         if isinstance(key, FieldDescriptorT):
             return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
@@ -864,10 +888,13 @@ class Stream(StreamT[T_co], Service):
                         sensor_state = None
 
                     # reduce using processors
-                    for processor in processors:
-                        with trace(f'processor-{_shortlabel(processor)}'):
-                            value = await _maybe_async(processor(value))
-                    value = await on_merge(value)
+                    try:
+                        for processor in processors:
+                            with trace(f'processor-{_shortlabel(processor)}'):
+                                value = await _maybe_async(processor(value))
+                        value = await on_merge(value)
+                    except Skip:
+                        value = None
                 try:
                     yield value
                 finally:

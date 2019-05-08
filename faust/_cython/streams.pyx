@@ -2,6 +2,7 @@
 from asyncio import sleep
 from time import monotonic
 from mode.utils.futures import maybe_async, notify
+from faust.exceptions import Skip
 from faust.types import ChannelT, EventT
 
 
@@ -84,9 +85,12 @@ cdef class StreamIterator:
                 channel_value = await self.chan_slow_get()
             value, sensor_state = self._prepare_event(channel_value)
 
-            for processor in self.processors:
-                value = await maybe_async(processor(value))
-            value = await self.on_merge(value)
+            try:
+                for processor in self.processors:
+                    value = await maybe_async(processor(value))
+                value = await self.on_merge(value)
+            except Skip:
+                value = None
         return value, sensor_state
 
     cpdef object after(self, object event, object do_ack, object sensor_state):
