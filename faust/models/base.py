@@ -401,8 +401,7 @@ class Model(ModelT):
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
         """Serialize object to the target serialization format."""
-        return dumps(serializer or self._options.serializer,
-                     self.to_representation())
+        return dumps(serializer or self._options.serializer, self)
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._humanize()}>'
