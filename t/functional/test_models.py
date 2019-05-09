@@ -1047,3 +1047,17 @@ def test_maybe_model():
 
     x1 = X(10, 20)
     assert maybe_model(json.loads(x1.dumps(serializer='json'))) == x1
+
+
+def test_record_provides_mapping_interface():
+    class X(Record):
+        x: int
+        y: int
+
+    p = X(4, 2)
+
+    representation = p.to_representation()
+    assert len(p) == len(representation)
+    assert set(iter(p)) == representation.keys()
+    assert p['x'] == p.x
+    assert p['y'] == p.y

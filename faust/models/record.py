@@ -8,6 +8,7 @@ from typing import (
     Dict,
     FrozenSet,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -203,6 +204,15 @@ class Record(Model, abstract=True):
         >>> LogEvent.severity
         >>> <FieldDescriptor: LogEvent.severity (str)>
     """
+
+    def __getitem__(self, k: str) -> Any:
+        return self.to_representation()[k]
+
+    def __len__(self) -> int:
+        return len(self.to_representation())
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self.to_representation())
 
     @classmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
