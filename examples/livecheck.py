@@ -25,7 +25,6 @@ so have to do this at least twice to see activity happening
 in the LiveCheck instance terminal.
 """
 import asyncio
-from typing import AsyncIterator
 import faust
 from faust import cli
 from faust import web
@@ -96,9 +95,9 @@ class OrderView(web.View):
                 'did_execute_test': bool(test),
                 'fake': fake,
             }
-            async with app.http_client.post(next_url, json=data) as response:
-                assert response.status == 200
-                return self.bytes(await response.read(),
+            async with self.app.http_client.post(next_url, json=data) as resp:
+                assert resp.status == 200
+                return self.bytes(await resp.read(),
                                   content_type='application/json')
 
 
@@ -191,7 +190,7 @@ class test_order(Case):
         # 4) wait for execution agent to execute the order.
         await self.order_executed.wait(timeout=30.0)
 
-    async def make_fake_request(self) -> AsyncIterator:
+    async def make_fake_request(self) -> None:
         await self.get_url('http://localhost:6066/order/init/sell/?fake=1')
 
 
