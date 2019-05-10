@@ -117,6 +117,10 @@ Fixes
 
     Symptom was warnings about timers waking up too late.
 
+- **Documentation** Fixes by:
+
+    + :github_user:`evanderiel`
+
 .. _v170-improvements:
 
 Improvements
