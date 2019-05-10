@@ -167,6 +167,10 @@ class DatadogMonitor(Monitor):
         labels = self._format_label(tp)
         self.client.increment('messages_received', labels=labels)
         self.client.increment('messages_active', labels=labels)
+        self.client.increment(
+            'topic_messages_received',
+            labels={'topic': tp.topic},
+        )
         self.client.gauge('read_offset', offset, labels=labels)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
