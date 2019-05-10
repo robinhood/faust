@@ -35,6 +35,11 @@ from faust.utils import uuid
 
 
 class Order(faust.Record):
+
+    SIDE_SELL = 'sell'
+    SIDE_BUY = 'buy'
+    VALID_SIDES = {SIDE_SELL, SIDE_BUY}
+
     id: str
     user_id: str
     side: str
@@ -59,10 +64,6 @@ execution_topic = app.topic('order-execution', value_type=Order)
 
 orders = web.Blueprint('orders')
 
-SIDE_SELL = 'sell'
-SIDE_BUY = 'buy'
-VALID_SIDES = {SIDE_SELL, SIDE_BUY}
-
 
 @orders.route('/init/{side}/', name='init')
 class OrderView(web.View):
@@ -74,7 +75,7 @@ class OrderView(web.View):
         order_id = uuid()
         user_id = uuid()
         side = side.lower()
-        assert side in VALID_SIDES
+        assert side in Order.VALID_SIDES
 
         # This will trigger our test_order case with 50% probability.
         # If executed we pass along LiveCheck-Test-* related headers
