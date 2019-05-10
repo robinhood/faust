@@ -128,6 +128,10 @@ class test_DatadogMonitor:
                  sample_rate=mon.rate,
                  tags=['topic:foo', 'partition:3'],
                  value=1.0),
+            call('topic_messages_received',
+                 sample_rate=mon.rate,
+                 tags=['topic:foo'],
+                 value=1.0),
         ])
         client.gauge.assert_called_once_with(
             'read_offset',
