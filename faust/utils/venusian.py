@@ -6,8 +6,8 @@ callback argument.
 import sys
 import venusian
 from typing import Any, Callable
+from mode.utils.logging import get_logger
 from venusian import Scanner, attach as _attach
-from .logging import get_logger
 
 __all__ = ['Scanner', 'attach']
 
