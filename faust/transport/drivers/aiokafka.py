@@ -223,6 +223,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         self._assignor = self.app.assignor
         auth_settings = credentials_to_aiokafka_auth(
             conf.broker_credentials, conf.ssl_context)
+        max_poll_interval = conf.broker_max_poll_interval or 0
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -233,7 +234,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             enable_auto_commit=False,
             auto_offset_reset=conf.consumer_auto_offset_reset,
             max_poll_records=conf.broker_max_poll_records,
-            max_poll_interval_ms=int(conf.broker_max_poll_interval * 1000.0),
+            max_poll_interval_ms=int(max_poll_interval * 1000.0),
             max_partition_fetch_bytes=conf.consumer_max_fetch_size,
             fetch_max_wait_ms=1500,
             request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
@@ -254,6 +255,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         conf = self.app.conf
         auth_settings = credentials_to_aiokafka_auth(
             conf.broker_credentials, conf.ssl_context)
+        max_poll_interval = conf.broker_max_poll_interval or 0
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -262,7 +264,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
             enable_auto_commit=True,
             max_poll_records=conf.broker_max_poll_records,
-            max_poll_interval_ms=int(conf.broker_max_poll_interval * 1000.0),
+            max_poll_interval_ms=int(max_poll_interval * 1000.0),
             auto_offset_reset=conf.consumer_auto_offset_reset,
             check_crcs=conf.broker_check_crcs,
             **auth_settings,

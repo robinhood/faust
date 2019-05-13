@@ -878,7 +878,7 @@ class Settings(abc.ABC):
         self._broker_max_poll_records = value
 
     @property
-    def broker_max_poll_interval(self) -> int:
+    def broker_max_poll_interval(self) -> Optional[int]:
         return self._broker_max_poll_interval
 
     @broker_max_poll_interval.setter
