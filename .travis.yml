@@ -13,37 +13,37 @@ stages:
 
 matrix:
   include:
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=flake8
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=typecheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=apicheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=configcheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=docstyle
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=bandit
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=spell USE_ENCHANT=y
     os: linux
     dist: xenial
@@ -108,7 +108,12 @@ matrix:
     os: linux
     dist: xenial
     stage: test
-  - python: 3.7.2
+  - python: 3.7.3
+    env: TOXENV=3.7 IDENT="3.7.3" RUN_SUITE=y NO_CYTHON=y
+    os: linux
+    dist: xenial
+    stage: test
+  - python: 3.7.3
     env: TOXENV=3.7 RUN_SUITE=y NO_CYTHON=y
     os: windows
     stage: test
