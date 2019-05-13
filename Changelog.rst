@@ -90,6 +90,10 @@ News
             broker_producer='confluent://localhost:9092',
         )
 
+- **App**: New :setting:`broker_max_poll_interval` setting.
+
+  Contributed by Miha Troha :github_user:`mihatroha`.
+
 - **App**: New :setting:`topic_disable_leader` setting disables
   the leader topic.
 
