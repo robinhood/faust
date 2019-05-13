@@ -190,7 +190,7 @@ BROKER_MAX_POLL_RECORDS = None
 #: the partitions to another consumer group member. If API methods block
 #: waiting for messages, that time does not count against this timeout.
 #: See KIP-62 for more information.
-BROKER_MAX_POLL_INTERVAL = 3000
+BROKER_MAX_POLL_INTERVAL = 1000.0
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
@@ -296,7 +296,7 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
-    broker_max_poll_interval: int = BROKER_MAX_POLL_INTERVAL
+    broker_max_poll_interval: float = BROKER_MAX_POLL_INTERVAL
     _broker_credentials: Optional[CredentialsT] = None
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
@@ -356,7 +356,6 @@ class Settings(abc.ABC):
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
-    _broker_max_poll_interval: Optional[int] = BROKER_MAX_POLL_INTERVAL
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
@@ -876,14 +875,6 @@ class Settings(abc.ABC):
     @broker_max_poll_records.setter
     def broker_max_poll_records(self, value: Optional[int]) -> None:
         self._broker_max_poll_records = value
-
-    @property
-    def broker_max_poll_interval(self) -> Optional[int]:
-        return self._broker_max_poll_interval
-
-    @broker_max_poll_interval.setter
-    def broker_max_poll_interval(self, value: int) -> None:
-        self._broker_max_poll_interval = value
 
     @property
     def producer_partitioner(self) -> Optional[PartitionerT]:

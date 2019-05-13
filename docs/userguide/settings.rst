@@ -743,10 +743,10 @@ number of records that must be handled on every loop iteration.
 
 .. versionadded:: 1.7
 
-:type: :class:`int`
-:default: :const:`None`
+:type: :class:`float`
+:default: ``1000.0``
 
-The maximum allowed time between calls to consume messages
+The maximum allowed time (in seconds) between calls to consume messages
 If this interval is exceeded the consumer
 is considered failed and the group will rebalance in order to reassign
 the partitions to another consumer group member. If API methods block
