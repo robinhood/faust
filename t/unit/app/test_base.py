@@ -516,18 +516,30 @@ class test_App:
                     re,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
+                    on_error=app._on_autodiscovery_error,
                 ),
                 call(
                     faust,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
+                    on_error=app._on_autodiscovery_error,
                 ),
                 call(
                     collections,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
+                    on_error=app._on_autodiscovery_error,
                 ),
             ], any_order=True) is None
+
+    def test__on_autodiscovery_error(self, *, app):
+        with patch('faust.app.base.logger') as logger:
+            try:
+                raise KeyError('foo')
+            except Exception as exc:
+                app._on_autodiscovery_error('name')
+                logger.warning.assert_called_once_with(
+                    ANY, 'name', exc, exc_info=1)
 
     def test_main(self, *, app):
         with patch('faust.cli.faust.cli') as cli:
