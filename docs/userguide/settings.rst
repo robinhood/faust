@@ -729,12 +729,33 @@ rebalancing, but make sure you also increase the
 .. versionadded:: 1.4
 
 :type: :class:`int`
-:default: ``None``
+:default: :const:`None`
 
 The maximum number of records returned in a single call to poll().
 If you find that your application needs more time to process messages
 you may want to adjust :setting:`broker_max_poll_records` to tune the
 number of records that must be handled on every loop iteration.
+
+.. setting:: broker_max_poll_interval
+
+``broker_max_poll_interval``
+----------------------------
+
+.. versionadded:: 1.7
+
+:type: :class:`int`
+:default: :const:`None`
+
+The maximum allowed time between calls to consume messages
+If this interval is exceeded the consumer
+is considered failed and the group will rebalance in order to reassign
+the partitions to another consumer group member. If API methods block
+waiting for messages, that time does not count against this timeout.
+
+See `KIP-62`_ for technical details.
+
+.. _`KIP-62`:
+    https://cwiki.apache.org/confluence/display/KAFKA/KIP-62%3A+Allow+consumer+to+send+heartbeats+from+a+background+thread
 
 .. _settings-consumer:
 
