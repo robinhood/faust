@@ -84,6 +84,8 @@ class test_settings:
         assert conf.stream_wait_empty
         assert (conf.broker_max_poll_records ==
                 settings.BROKER_MAX_POLL_RECORDS)
+        assert (conf.broker_max_poll_interval ==
+                settings.BROKER_MAX_POLL_INTERVAL)
         assert (conf.consumer_auto_offset_reset ==
                 settings.CONSUMER_AUTO_OFFSET_RESET)
         assert not conf.autodiscover
@@ -219,6 +221,7 @@ class test_settings:
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  broker_max_poll_records=1000,
+                                 broker_max_poll_interval=10000,
                                  timezone=pytz.timezone('US/Eastern'),
                                  logging_config={'foo': 10},  # noqa
                                  consumer_auto_offset_reset='latest',
@@ -250,6 +253,7 @@ class test_settings:
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             broker_check_crcs=broker_check_crcs,
             broker_max_poll_records=broker_max_poll_records,
+            broker_max_poll_interval=broker_max_poll_interval,
             producer_partitioner=producer_partitioner,
             producer_request_timeout=producer_request_timeout,
             producer_api_version=producer_api_version,
@@ -333,6 +337,7 @@ class test_settings:
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)
         assert conf.broker_max_poll_records == broker_max_poll_records
+        assert conf.broker_max_poll_interval == broker_max_poll_interval
         assert conf.logging_config == logging_config
         assert conf.consumer_auto_offset_reset == consumer_auto_offset_reset
         assert conf.ConsumerScheduler is OtherSchedulingStrategy

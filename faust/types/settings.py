@@ -184,6 +184,14 @@ BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 #: that must be handled on every loop iteration.
 BROKER_MAX_POLL_RECORDS = None
 
+#: Maximum allowed time between calls to consume messages
+#: (e.g., consumer.getmany()).If this interval is exceeded the consumer
+#: is considered failed and the group will rebalance in order to reassign
+#: the partitions to another consumer group member. If API methods block
+#: waiting for messages, that time does not count against this timeout.
+#: See KIP-62 for more information.
+BROKER_MAX_POLL_INTERVAL = 3000
+
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
 TABLE_CLEANUP_INTERVAL = 30.0
@@ -288,6 +296,7 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
+    broker_max_poll_interval: int = BROKER_MAX_POLL_INTERVAL
     _broker_credentials: Optional[CredentialsT] = None
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
@@ -347,6 +356,7 @@ class Settings(abc.ABC):
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
+    _broker_max_poll_interval: Optional[int] = BROKER_MAX_POLL_INTERVAL
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
@@ -413,6 +423,7 @@ class Settings(abc.ABC):
             broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
             broker_max_poll_records: int = None,
+            broker_max_poll_interval: int = None,
             broker_consumer: Union[str, URL, List[URL]] = None,
             broker_producer: Union[str, URL, List[URL]] = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
@@ -537,6 +548,8 @@ class Settings(abc.ABC):
             self.broker_check_crcs = broker_check_crcs
         if broker_max_poll_records is not None:
             self.broker_max_poll_records = broker_max_poll_records
+        if broker_max_poll_interval is not None:
+            self.broker_max_poll_interval = broker_max_poll_interval
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
@@ -863,6 +876,14 @@ class Settings(abc.ABC):
     @broker_max_poll_records.setter
     def broker_max_poll_records(self, value: Optional[int]) -> None:
         self._broker_max_poll_records = value
+
+    @property
+    def broker_max_poll_interval(self) -> int:
+        return self._broker_max_poll_interval
+
+    @broker_max_poll_interval.setter
+    def broker_max_poll_interval(self, value: int) -> None:
+        self._broker_max_poll_interval = value
 
     @property
     def producer_partitioner(self) -> Optional[PartitionerT]:
