@@ -8,6 +8,7 @@ import asyncio
 import importlib
 import inspect
 import re
+import sys
 import typing
 import warnings
 
@@ -45,7 +46,7 @@ from mode.utils.collections import force_mapping
 from mode.utils.contexts import nullcontext
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
-from mode.utils.logging import flight_recorder
+from mode.utils.logging import flight_recorder, get_logger
 from mode.utils.objects import cached_property, qualname, shortlabel
 from mode.utils.typing import NoReturn
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
@@ -125,6 +126,8 @@ else:
     class _Worker: ...      # noqa
 
 __all__ = ['App', 'BootStrategy']
+
+logger = get_logger(__name__)
 
 #: Format string for ``repr(app)``.
 APP_REPR_FINALIZED = '''
@@ -691,7 +694,12 @@ class App(AppT, Service):
                     module,
                     ignore=ignore,
                     categories=tuple(categories),
+                    on_error=self._on_autodiscovery_error,
                 )
+
+    def _on_autodiscovery_error(self, name: str) -> None:
+        logger.warning('Autodiscovery importing module %r raised error: %r',
+                       name, sys.exc_info()[1], exc_info=1)
 
     def _discovery_modules(self) -> List[str]:
         modules: List[str] = []
