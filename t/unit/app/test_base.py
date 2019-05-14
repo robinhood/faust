@@ -516,19 +516,19 @@ class test_App:
                     re,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
-                    on_error=app._on_autodiscovery_error,
+                    onerror=app._on_autodiscovery_error,
                 ),
                 call(
                     faust,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
-                    on_error=app._on_autodiscovery_error,
+                    onerror=app._on_autodiscovery_error,
                 ),
                 call(
                     collections,
                     categories=('faust.agent', ),
                     ignore=['re', 'faust'],
-                    on_error=app._on_autodiscovery_error,
+                    onerror=app._on_autodiscovery_error,
                 ),
             ], any_order=True) is None
 

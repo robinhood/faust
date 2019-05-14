@@ -694,7 +694,7 @@ class App(AppT, Service):
                     module,
                     ignore=ignore,
                     categories=tuple(categories),
-                    on_error=self._on_autodiscovery_error,
+                    onerror=self._on_autodiscovery_error,
                 )
 
     def _on_autodiscovery_error(self, name: str) -> None:
