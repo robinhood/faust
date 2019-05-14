@@ -17,5 +17,9 @@ def configure_from_settings(app, conf, **kwargs):
     conf.store = settings.FAUST_STORE_URL
 
 
-if __name__ == '__main__':
+def main():
     app.main()
+
+
+if __name__ == '__main__':
+    main()

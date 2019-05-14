@@ -288,6 +288,7 @@ def prepare_app(app: AppT, name: Optional[str]) -> AppT:
     app.worker_init()
     if app.conf.autodiscover:
         app.discover()
+    app.worker_init_post_autodiscover()
 
     # Hack to fix cProfile support.
     if 1:  # pragma: no cover
