@@ -63,6 +63,13 @@ class Fixup(base.Fixup):
                 return True
         return False
 
+    def wait_for_django(self) -> None:
+        import django
+
+        django.setup()
+        if self.settings.DEBUG:
+            warnings.warn(WARN_DEBUG_ENABLED)
+
     def autodiscover_modules(self) -> Iterable[str]:
         """Return list of additional autodiscover modules.
 
@@ -70,15 +77,14 @@ class Fixup(base.Fixup):
         listed in the ``INSTALLED_APPS`` setting (with support for
         custom app configurations).
         """
+        self.wait_for_django()
         return [config.name for config in self.apps.get_app_configs()]
 
     def on_worker_init(self) -> None:
         """Initialize Django before worker/CLI command starts."""
-        import django
         from django.core.checks import run_checks
-        django.setup()
-        if self.settings.DEBUG:
-            warnings.warn(WARN_DEBUG_ENABLED)
+
+        self.wait_for_django()
         run_checks()
 
     @cached_property

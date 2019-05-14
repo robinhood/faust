@@ -28,8 +28,25 @@ class test_Fixup:
         assert not fixup.enabled()
         assert not any(isinstance(f, Fixup) for f in fixups(app))
 
+    def test_wait_for_django_calls_django_setup(self, *, fixup, monkeypatch):
+        with patch_module('django',
+                          'django.conf',
+                          'django.conf.settings'):
+            import django
+            from django.conf import settings
+            settings.configure()
+            settings.DEBUG = False
+            fixup.wait_for_django()
+            django.setup.assert_called_once_with()
+            settings.DEBUG = True
+            with pytest.warns(UserWarning):
+                fixup.wait_for_django()
+
     def test_autodiscover_modules(self, *, fixup):
-        with patch_module('django.apps'):
+        with patch_module('django',
+                          'django.conf',
+                          'django.core',
+                          'django.apps'):
             from django.apps import apps
             config1 = Mock()
             config1.name = 'config1'
