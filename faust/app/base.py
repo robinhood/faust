@@ -45,7 +45,7 @@ from mode.utils.collections import force_mapping
 from mode.utils.contexts import nullcontext
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
-from mode.utils.logging import flight_recorder
+from mode.utils.logging import flight_recorder, get_logger
 from mode.utils.objects import cached_property, qualname, shortlabel
 from mode.utils.typing import NoReturn
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
@@ -207,6 +207,8 @@ TaskDecoratorRet = Union[
     Callable[[TaskArg], TaskArg],
     TaskArg,
 ]
+
+logger = get_logger(__name__)
 
 
 class BootStrategy(BootStrategyT):
@@ -528,6 +530,9 @@ class App(AppT, Service):
 
     async def on_start(self) -> None:
         self.finalize()
+        if self.conf.debug:
+            logger.warning(
+                '!!! DEBUG is enabled -- disable for production environments')
 
     async def on_started(self) -> None:
         # Wait for table recovery to complete (returns True if app stopped)

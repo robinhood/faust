@@ -283,6 +283,7 @@ AutodiscoverArg = Union[
 
 
 class Settings(abc.ABC):
+    debug: bool = False
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
@@ -398,6 +399,7 @@ class Settings(abc.ABC):
             self,
             id: str,
             *,
+            debug: bool = None,
             version: int = None,
             broker: Union[str, URL, List[URL]] = None,
             broker_client_id: str = None,
@@ -485,6 +487,8 @@ class Settings(abc.ABC):
             self.origin = origin
         self.id = id
         self.broker = self._first_not_none(url, broker, BROKER_URL)
+        if debug is not None:
+            self.debug = debug
         self.ssl_context = ssl_context
         self.store = self._first_not_none(store, STORE_URL)
         self.cache = self._first_not_none(cache, CACHE_URL)
