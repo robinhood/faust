@@ -429,16 +429,17 @@ class test_App:
         assert app._assignment == new
 
     def test_worker_init(self, *, app):
-        on_worker_init = app.on_worker_init.connect(
-            Mock(name='on_worker_init'))
         fixup1 = Mock(name='fixup1', autospec=Fixup)
         fixup2 = Mock(name='fixup2', autospec=Fixup)
         app.fixups = [fixup1, fixup2]
-
         app.worker_init()
-
         fixup1.on_worker_init.assert_called_once_with()
         fixup2.on_worker_init.assert_called_once_with()
+
+    def test_worker_init_post_autodiscover(self, *, app):
+        on_worker_init = app.on_worker_init.connect(
+            Mock(name='on_worker_init'))
+        app.worker_init_post_autodiscover()
         on_worker_init.assert_called_once_with(app, signal=app.on_worker_init)
 
     def test_discover(self, *, app):
