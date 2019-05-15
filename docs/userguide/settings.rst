@@ -32,6 +32,16 @@ This parameter is required.
 Commonly Used Settings
 ======================
 
+.. setting:: debug
+
+``debug``
+---------
+
+:type: :class:`bool`
+:default: :const:`False`
+
+Use in development to expose sensor information endpoint.
+
 .. setting:: broker
 
 ``broker``
