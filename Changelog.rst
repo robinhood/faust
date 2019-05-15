@@ -8,6 +8,22 @@ This document contain change notes for bugfix releases in
 the Faust 1.6 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.6.2:
+
+1.6.2
+=====
+:release-date: 2019-05-15 1:30 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Web**: New :setting:`debug` required to expose web index.
+
+    The sensor (``/``) and ``/graph/`` endpoints were
+    being visible by default.  The latter would require the :pypi:`pydot`
+    module to work.
+
+    You now have to set ``App(..., debug=True)`` to make this information
+    visible.
+
 .. _version-1.6.1:
 
 1.6.1
