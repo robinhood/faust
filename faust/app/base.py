@@ -564,6 +564,9 @@ class App(AppT, Service):
     async def on_start(self) -> None:
         """Call every time app start/restarts."""
         self.finalize()
+        if self.conf.debug:
+            logger.warning(
+                '!!! DEBUG is enabled -- disable for production environments')
 
     async def on_started(self) -> None:
         """Call when app is fully started."""

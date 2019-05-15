@@ -48,6 +48,7 @@ class test_settings:
     def test_defaults(self):
         app = self.App()
         conf = app.conf
+        assert not conf.debug
         assert conf.broker == [URL(settings.BROKER_URL)]
         assert conf.broker_consumer == [URL(settings.BROKER_URL)]
         assert conf.broker_producer == [URL(settings.BROKER_URL)]
