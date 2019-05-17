@@ -113,7 +113,7 @@ matrix:
     os: linux
     dist: xenial
     stage: test
-  - python: 3.7.3
+  - python: 3.7.2
     env: TOXENV=3.7 RUN_SUITE=y NO_CYTHON=y
     os: windows
     stage: test
@@ -122,7 +122,7 @@ matrix:
         - choco install python --version=3.7.2
         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python -m pip install --upgrade pip wheel
-  - python: 3.7.2
+  - python: 3.7.3
     env: TOXENV=3.7 IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
     os: linux
     dist: xenial
