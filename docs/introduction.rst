@@ -54,6 +54,8 @@ What can it do?
             amount: int
             price: float
 
+
+        app = faust.App('hello-app', broker='kafka://localhost')
         orders_kafka_topic = app.topic('orders', value_type=Order)
 
         # our table is sharded amongst worker instances, and replicated
