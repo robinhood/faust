@@ -1,25 +1,12 @@
-import sys
 import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.types import TP
-from mode.utils.contexts import nullcontext
 from mode.utils.mocks import Mock, call
 
-if sys.version_info >= (3, 7):
-    _catch_warnings = pytest.warns(DeprecationWarning)
-else:
-    _catch_warnings = nullcontext()
-with _catch_warnings:
-    # XXX hopefully datadog fixes this DeprecationWarning soon:
-    # "Using or importing the ABCs from 'collections' instead
-    # of from 'collections.abc'"
-
-    # Using pytest.warns on Python < 3.7 means we will be notified
-    # when this no longer warns and datadog has fixed the issue [ask]
-    from faust.sensors.datadog import (  # noqa
-        DatadogMonitor,
-        DatadogStatsClient,
-    )
+from faust.sensors.datadog import (  # noqa
+    DatadogMonitor,
+    DatadogStatsClient,
+)
 
 TP1 = TP('foo', 3)
 

@@ -436,6 +436,7 @@ class test_App:
         app.fixups = [fixup1, fixup2]
 
         app.worker_init()
+        app.worker_init_post_autodiscover()
 
         fixup1.on_worker_init.assert_called_once_with()
         fixup2.on_worker_init.assert_called_once_with()
