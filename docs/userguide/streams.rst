@@ -28,7 +28,7 @@ from a channel/topic:
 
     @app.agent(my_topic)
     async def process(stream):
-        async for value in s:
+        async for value in stream:
             ...
 
 The above :ref:`agent <guide-agents>` is how you usually define stream
