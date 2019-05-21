@@ -309,8 +309,13 @@ class Record(Model, abstract=True):
                 default, needed = defaults[field], False
             except KeyError:
                 default, needed = None, True
-            setattr(target, field,
-                    FieldDescriptor(field, typ, cls, needed, default, parent))
+            descr = getattr(target, field, None)
+            if descr is None or not isinstance(descr, FieldDescriptorT):
+                descr = FieldDescriptor(
+                    field, typ, cls, needed, default, parent)
+            else:
+                descr = descr.clone(model=cls)
+            setattr(target, field, descr)
 
     @classmethod
     def from_data(cls, data: Mapping, *,

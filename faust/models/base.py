@@ -37,6 +37,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Mapping,
     MutableMapping,
     Optional,
     Tuple,
@@ -255,7 +256,7 @@ class Model(ModelT):
             coercions,
             polymorphic_fields,
             validation,
-    )
+        )
 
     @classmethod
     def _init_subclass(cls,
@@ -267,7 +268,7 @@ class Model(ModelT):
                        allow_blessed_key: bool = None,
                        decimals: bool = None,
                        coercions: CoercionMapping = None,
-                       polymorphic_fields: bool = None) -> None:
+                       polymorphic_fields: bool = None,
                        validation: bool = None) -> None:
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
@@ -463,17 +464,34 @@ class FieldDescriptor(FieldDescriptorT):
     def __init__(self,
                  field: str,
                  type: Type,
-                 model: Type[ModelT],
+                 model: Type[ModelT] = None,
                  required: bool = True,
                  default: Any = None,
                  parent: FieldDescriptorT = None) -> None:
         self.field = field
         self.type = type
-        self.model = model
+        if model is not None:
+            self.set_model(model)
         self.required = required
         self.default = default
         self.parent = parent
         self._copy_descriptors(self.type)
+
+    def set_model(self, model: Type[ModelT]) -> None:
+        self.model = model
+
+    def clone(self, **kwargs: Any) -> FieldDescriptorT:
+        return type(self)(**{**self.as_dict(), **kwargs})
+
+    def as_dict(self) -> Mapping[str, Any]:
+        return {
+            'field': self.field,
+            'type': self.type,
+            'model': self.model,
+            'required': self.required,
+            'default': self.default,
+            'parent': self.parent,
+        }
 
     def _copy_descriptors(self, typ: Type = None) -> None:
         if typ is not None and _is_concrete_model(typ):
