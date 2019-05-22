@@ -686,6 +686,81 @@ validation for that field).
                 raise ValidationError(
                     f'Illegal value for decimal field {field.name!r}: {value!r}')
 
+Validation
+~~~~~~~~~~
+
+For models there is no validation of data by default:
+if you have a field described as an int, it will happily accept a string
+or any other object that you pass to it:
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record):
+    ...    age: int
+    ...
+
+    >>> p = Person(age="foo")
+    >>> p.age
+    "foo"
+
+
+However you can enable validation as an option, that will add validators
+for all common JSON fields (``int``, ``float``, ``str``) and also commonly
+used Python ones:
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record, validation=True):
+    ...     age: int
+    ...
+
+    >>> p = Person(age="foo")
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      faust.exceptions.ValidationError:
+        Invalid type for int field 'age': 'foo' (str)
+
+For things like web forms raising an error is not a good solution
+so you can also call the ``validate()`` method manually to get a list
+of validation errors:
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record):
+    ...     age: int
+    ...     name: str
+
+    >>> p = Person(age="Gordon Gekko", name="32")
+    >>> p.validate()
+    [
+      ('age': ValidationError(
+            "Invalid type for int field 'age': 'Gordon Gekko' (str)"),
+      ('name': ValidationError(
+            "Invalid type for str field 'name': 32 (int)")),
+    ]
+
+
+If you have a custom field you want validation for,
+you may define a ``validate_{name}`` method on the class that will
+be used to validate values for that field (note: this will override the built-in
+validation for that field).
+
+.. sourcecode:: python
+
+    class Person(faust.Record, validate=True):
+        balance: Decimal
+
+        def validate_balance(self, field: FieldDescriptorT, value: Any) -> None:
+            # gives a validation error like above where
+            # the error text is formatted as:
+            #  "Invalid type for {field.type} field '{field.name}':
+            #     {value} (Decimal)"
+            self.ensure_type_is(field, value, Decimal)
+
+            if value <= Decimal(0.0) or value.is_infinite() or value.is_nan():
+                raise ValidationError(
+                    f'Illegal value for decimal field {field.name!r}: {value!r}')
+
 Reference
 ~~~~~~~~~
 
