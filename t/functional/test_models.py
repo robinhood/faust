@@ -3,8 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 import faust
+from faust.exceptions import ValidationError
 from faust.models import maybe_model
-from faust.models.fields import StringField
+from faust.models.fields import (
+    DecimalField,
+    FieldDescriptor,
+    IntegerField,
+    StringField,
+)
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -503,7 +509,7 @@ def test_subclass_preserves_required_values():
     Y(x=10, y=20)
 
 
-class test_too_many_arguments_raises_TypeError():
+def test_too_many_arguments_raises_TypeError():
     class X(Record):
         x: int
 
@@ -1009,7 +1015,7 @@ def test_model_with_custom_eq():
     assert X(10) == X(20)
 
 
-class test_Record_comparison():
+def test_Record_comparison():
     class X(Record):
         x: int
         y: int
@@ -1051,7 +1057,7 @@ def test_maybe_model():
     assert maybe_model(json.loads(x1.dumps(serializer='json'))) == x1
 
 
-class test_StringField():
+def test_StringField():
 
     class Moo(Record):
         foo: str = StringField(max_length=10, min_length=3, allow_blank=False)
@@ -1075,3 +1081,68 @@ class test_StringField():
     assert not Moo('').is_valid()
     assert Moo('').validation_errors
     assert 'blank' in str(Moo('').validation_errors[0])
+
+
+def test_validation_ensures_types_match():
+
+    class Order(Record, validation=True):
+        price: Decimal = DecimalField()
+        quantity: int = IntegerField()
+        side: str = StringField()
+
+    # Field descriptors are not considered defaults
+    with pytest.raises(TypeError):
+        Order()
+    with pytest.raises(TypeError):
+        Order(price=Decimal('3.13'))
+    with pytest.raises(TypeError):
+        Order(price=Decimal('3.13'), quantity=30)
+
+    with pytest.raises(ValidationError):
+        Order(price='NaN', quantity=2, side='BUY')
+    with pytest.raises(ValueError):
+        Order(price='3.13', quantity='xyz', side='BUY')
+
+    assert Order(price=Decimal(3.13), quantity=10, side='BUY')
+
+    order = Order(price='3.13', quantity='10', side='BUY')
+    assert order.price == Decimal('3.13')
+    assert isinstance(order.price, Decimal)
+    assert order.quantity == 10
+    assert order.side == 'BUY'
+
+
+def test_field_descriptors_may_mix_with_non_defaults():
+
+    class Person(faust.Record, validation=True):
+        age: int = IntegerField(min_value=18, max_value=200)
+        name: str
+
+    with pytest.raises(ValidationError):
+        Person(age=9, name='Robin')
+
+    with pytest.raises(ValidationError):
+        Person(age=203, name='Abraham Lincoln')
+
+
+def test_custom_field_validation():
+
+    class ChoiceField(FieldDescriptor[str]):
+
+        def __init__(self, choices: List[str], **kwargs) -> None:
+            self.choices = choices
+            # Must pass any custom args to init,
+            # so we pass the choices keyword argument also here.
+            super().__init__(choices=choices, **kwargs)
+
+        def validate(self, value: str):
+            if value not in self.choices:
+                choices = ', '.join(self.choices)
+                yield self.validation_error(
+                    f'Field {self.field} must be one of {choices}')
+
+    class Order(faust.Record, validation=True):
+        side: str = ChoiceField(['SELL', 'BUY'])
+
+    with pytest.raises(ValidationError):
+        Order(side='LEFT')

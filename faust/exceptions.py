@@ -50,7 +50,7 @@ class ImproperlyConfigured(FaustError):
     """The library is not configured/installed correctly."""
 
 
-class ValidationError(FaustError):
+class ValidationError(FaustError, ValueError):
     """Value passed for model field is not valid."""
 
     field: _FieldDescriptorT

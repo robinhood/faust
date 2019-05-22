@@ -180,6 +180,10 @@ class ModelT(base):  # type: ignore
     def validate(self) -> List[ValidationError]:
         ...
 
+    @abc.abstractmethod
+    def validate_or_raise(self) -> None:
+        ...
+
     @property
     @abc.abstractmethod
     def validation_errors(self) -> List[ValidationError]:
@@ -187,6 +191,7 @@ class ModelT(base):  # type: ignore
 
 
 class FieldDescriptorT(Generic[T]):
+
     field: str
     type: Type[T]
     model: Type[ModelT]
@@ -207,6 +212,10 @@ class FieldDescriptorT(Generic[T]):
 
     @abc.abstractmethod
     def validate(self, value: T) -> Iterable[ValidationError]:
+        ...
+
+    @abc.abstractmethod
+    def prepare_value(self, value: Any) -> T:
         ...
 
     @abc.abstractmethod

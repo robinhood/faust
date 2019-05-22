@@ -239,7 +239,12 @@ class Record(Model, abstract=True):
         local_defaults = []
         for attr_name in cls.__annotations__:
             if attr_name in cls.__dict__:
-                local_defaults.append(attr_name)
+                default_value = cls.__dict__[attr_name]
+                if isinstance(default_value, FieldDescriptorT):
+                    if not default_value.required:
+                        local_defaults.append(attr_name)
+                else:
+                    local_defaults.append(attr_name)
             else:
                 if local_defaults:
                     raise TypeError(E_NON_DEFAULT_FOLLOWS_DEFAULT.format(
@@ -359,6 +364,7 @@ class Record(Model, abstract=True):
         kwonlyargs = ['*', '__strict__=True', '__faust=None', '**kwargs']
         fields = cls._options.fieldpos
         optional = cls._options.optionalset
+        needs_validation = cls._options.validation
         models = cls._options.models
         field_coerce = cls._options.field_coerce
         initfield = cls._options.initfield = {}
@@ -373,6 +379,8 @@ class Record(Model, abstract=True):
             if model is not None:
                 initfield[field] = _field_callback(model, _to_model)
                 assert initfield[field] is not None
+                fieldval = f'self._init_field("{field}", {field})'
+            elif needs_validation:
                 fieldval = f'self._init_field("{field}", {field})'
             if coerce is not None:
                 coerce_type, coerce_handler = coerce
@@ -410,6 +418,11 @@ class Record(Model, abstract=True):
         if has_post_init:
             rest.extend([
                 'self.__post_init__()',
+            ])
+
+        if needs_validation:
+            rest.extend([
+                'self.validate_or_raise()',
             ])
 
         return codegen.InitMethod(
@@ -462,7 +475,13 @@ class Record(Model, abstract=True):
                                 locals=locals())
 
     def _init_field(self, field: str, value: Any) -> Any:
-        return self._options.initfield[field](value)
+        options = self._options
+        initfun = options.initfield.get(field)
+        if initfun:
+            value = initfun(value)
+        if options.validation:
+            value = options.descriptors[field].prepare_value(value)
+        return value
 
     @classmethod
     def _BUILD_asdict(cls) -> Callable[..., Dict[str, Any]]:

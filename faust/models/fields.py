@@ -7,6 +7,7 @@ from typing import (
     Mapping,
     Optional,
     Type,
+    TypeVar,
     cast,
 )
 
@@ -18,6 +19,19 @@ from faust.types.models import (
     ModelT,
     T,
 )
+
+__all__ = [
+    'TYPE_TO_FIELD',
+    'FieldDescriptor',
+    'NumberField',
+    'FloatField',
+    'IntegerField',
+    'DecimalField',
+    'BytesField',
+    'StringField',
+]
+
+CharacterType = TypeVar('CharacterType', str, bytes)
 
 
 def _is_concrete_model(typ: Type = None) -> bool:
@@ -108,8 +122,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
     def validate(self, value: T) -> Iterable[ValidationError]:
         return []
 
-    def prepare_value(self, value: T) -> T:
-        return value
+    def prepare_value(self, value: Any) -> T:
+        return cast(T, value)
 
     def _copy_descriptors(self, typ: Type = None) -> None:
         if typ is not None and _is_concrete_model(typ):
@@ -184,8 +198,16 @@ class NumberField(FieldDescriptor[T]):
                     f'{self.field} must be at least {min_}')
 
 
-class IntField(NumberField[int]):
-    ...
+class IntegerField(NumberField[int]):
+
+    def prepare_value(self, value: Any) -> int:
+        return int(value)
+
+
+class FloatField(NumberField[float]):
+
+    def prepare_value(self, value: Any) -> float:
+        return float(value)
 
 
 class DecimalField(NumberField[Decimal]):
@@ -207,8 +229,14 @@ class DecimalField(NumberField[Decimal]):
             'max_whole_digits': max_whole_digits,
         })
 
+    def prepare_value(self, value: Any) -> Decimal:
+        return Decimal(value)
+
     def validate(self, value: Decimal) -> Iterable[ValidationError]:
         yield from super().validate(value)
+
+        if not value.is_finite():  # check for Inf/NaN/sNaN/qNaN
+            yield self.validation_error(f'Illegal value in decimal: {value!r}')
 
         mdp = self.max_decimal_places
         if mdp:
@@ -223,7 +251,7 @@ class DecimalField(NumberField[Decimal]):
                     f'{self.field} must have less than {max_digits} digits.')
 
 
-class StringField(FieldDescriptor[str]):
+class CharField(FieldDescriptor[CharacterType]):
 
     max_length: Optional[int]
     min_length: Optional[int]
@@ -249,12 +277,7 @@ class StringField(FieldDescriptor[str]):
                'allow_blank': allow_blank},
         )
 
-    def prepare_value(self, value: str) -> str:
-        if self.trim_whitespace:
-            return value.strip()
-        return value
-
-    def validate(self, value: str) -> Iterable[ValidationError]:
+    def validate(self, value: CharacterType) -> Iterable[ValidationError]:
         allow_blank = self.allow_blank
         if not allow_blank and not len(value):
             yield self.validation_error(f'{self.field} cannot be left blank')
@@ -271,3 +294,30 @@ class StringField(FieldDescriptor[str]):
                 chars = pluralize(max_, 'character')
                 yield self.validation_error(
                     f'{self.field} must be at least {max_} {chars}')
+
+
+class StringField(CharField[str]):
+
+    def prepare_value(self, value: Any) -> str:
+        val = str(value)
+        if self.trim_whitespace:
+            return val.strip()
+        return val
+
+
+class BytesField(CharField[bytes]):
+
+    def prepare_value(self, value: Any) -> bytes:
+        val = bytes(value)
+        if self.trim_whitespace:
+            return val.strip()
+        return val
+
+
+TYPE_TO_FIELD = {
+    int: IntegerField,
+    float: FloatField,
+    Decimal: DecimalField,
+    str: StringField,
+    bytes: BytesField,
+}

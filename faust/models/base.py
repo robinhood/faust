@@ -409,6 +409,11 @@ class Model(ModelT):
             errors = self.__validation_errors__ = list(self._itervalidate())
         return errors
 
+    def validate_or_raise(self) -> None:
+        errors = self.validate()
+        if errors:
+            raise errors[0]
+
     def _itervalidate(self) -> Iterable[ValidationError]:
         for name, descr in self._options.descriptors.items():
             yield from descr.validate(getattr(self, name))
