@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 import faust
 from faust.models import maybe_model
+from faust.models.fields import StringField
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -512,7 +513,8 @@ class test_too_many_arguments_raises_TypeError():
     with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
     reason = str(einfo.value)
-    assert reason == '__init__() takes 3 positional arguments but 4 were given'
+    print(reason)
+    assert '__init__() takes' in reason
 
 
 def test_fields_with_concrete_polymorphic_type__dict():
@@ -1047,3 +1049,29 @@ def test_maybe_model():
 
     x1 = X(10, 20)
     assert maybe_model(json.loads(x1.dumps(serializer='json'))) == x1
+
+
+class test_StringField():
+
+    class Moo(Record):
+        foo: str = StringField(max_length=10, min_length=3, allow_blank=False)
+
+    too_long_moo = Moo('thequickbrownfoxjumpsoverthelazydog')
+    too_short_moo = Moo('xo')
+    perfect_moo = Moo('foobar')
+
+    assert perfect_moo.is_valid()
+    assert not too_long_moo.is_valid()
+    assert not too_short_moo.is_valid()
+
+    assert not perfect_moo.validation_errors
+    assert too_long_moo.validation_errors
+    assert too_short_moo.validation_errors
+
+    assert too_long_moo.foo == 'thequickbrownfoxjumpsoverthelazydog'
+    assert too_short_moo.foo == 'xo'
+    assert perfect_moo.foo == 'foobar'
+
+    assert not Moo('').is_valid()
+    assert Moo('').validation_errors
+    assert 'blank' in str(Moo('').validation_errors[0])

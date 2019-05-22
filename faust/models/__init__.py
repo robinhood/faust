@@ -1,5 +1,6 @@
 """Models."""
-from .base import FieldDescriptor, Model, ModelOptions, maybe_model, registry
+from .base import Model, ModelOptions, maybe_model, registry
+from .fields import FieldDescriptor, StringField
 from .record import Record
 
 __all__ = [
@@ -7,6 +8,7 @@ __all__ = [
     'Model',
     'ModelOptions',
     'Record',
+    'StringField',
     'maybe_model',
     'registry',
 ]

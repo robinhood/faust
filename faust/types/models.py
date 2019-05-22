@@ -5,26 +5,36 @@ from typing import (
     Callable,
     ClassVar,
     FrozenSet,
+    Generic,
+    Iterable,
+    List,
     Mapping,
     MutableMapping,
     NamedTuple,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
+from faust.exceptions import ValidationError  # XXX !!coupled
 from .codecs import CodecArg
 
 __all__ = [
     'CoercionHandler',
     'FieldDescriptorT',
+    'FieldMap',
     'IsInstanceArgT',
     'ModelArg',
     'ModelOptions',
     'ModelT',
     'TypeCoerce',
 ]
+
+FieldMap = Mapping[str, 'FieldDescriptorT']
+
+T = TypeVar('T')
 
 # Workaround for https://bugs.python.org/issue29581
 try:
@@ -80,6 +90,9 @@ class ModelOptions(abc.ABC):
 
     #: Index: Set of required field names, for fast argument checking.
     fieldset: FrozenSet[str] = cast(FrozenSet[str], None)
+
+    #: Index: Mapping of field name to field descriptor.
+    descriptors: FieldMap = cast(FieldMap, None)
 
     #: Index: Positional argument index to field name.
     #: Used by Record.__init__ to map positional arguments to fields.
@@ -159,27 +172,45 @@ class ModelT(base):  # type: ignore
     def to_representation(self) -> Any:
         ...
 
-
-class FieldDescriptorT(abc.ABC):
-    field: str
-    type: Type
-    model: Type[ModelT]
-    required: bool = True
-    default: Any = None  # noqa: E704
-    parent: Optional['FieldDescriptorT']
-
     @abc.abstractmethod
-    def __init__(self,
-                 field: str,
-                 type: Type,
-                 model: Type[ModelT],
-                 required: bool = True,
-                 default: Any = None,
-                 parent: 'FieldDescriptorT' = None) -> None:
+    def is_valid(self) -> bool:
         ...
 
     @abc.abstractmethod
-    def getattr(self, obj: ModelT) -> Any:
+    def validate(self) -> List[ValidationError]:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def validation_errors(self) -> List[ValidationError]:
+        ...
+
+
+class FieldDescriptorT(Generic[T]):
+    field: str
+    type: Type[T]
+    model: Type[ModelT]
+    required: bool = True
+    default: Optional[T] = None  # noqa: E704
+    parent: Optional['FieldDescriptorT']
+
+    @abc.abstractmethod
+    def __init__(self, *,
+                 field: str = None,
+                 type: Type[T] = None,
+                 model: Type[ModelT] = None,
+                 required: bool = True,
+                 default: T = None,
+                 parent: 'FieldDescriptorT' = None,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def validate(self, value: T) -> Iterable[ValidationError]:
+        ...
+
+    @abc.abstractmethod
+    def getattr(self, obj: ModelT) -> T:
         ...
 
     @property

@@ -1,4 +1,5 @@
 """Faust exceptions."""
+import typing
 
 __all__ = [
     'FaustError',
@@ -14,6 +15,11 @@ __all__ = [
     'ConsumerNotStarted',
     'PartitionsMismatch',
 ]
+
+if typing.TYPE_CHECKING:
+    from .types.models import FieldDescriptorT as _FieldDescriptorT
+else:
+    class _FieldDescriptorT: ...  # noqa
 
 
 class FaustError(Exception):
@@ -42,6 +48,18 @@ class AlreadyConfiguredWarning(FaustWarning):
 
 class ImproperlyConfigured(FaustError):
     """The library is not configured/installed correctly."""
+
+
+class ValidationError(FaustError):
+    """Value passed for model field is not valid."""
+
+    field: _FieldDescriptorT
+
+    def __init__(self, reason: str, *,
+                 field: _FieldDescriptorT) -> None:
+        self.reason = reason
+        self.field = field
+        super().__init__(reason, field)
 
 
 class DecodeError(FaustError):

@@ -28,6 +28,7 @@ from mode.utils.text import pluralize
 from faust.types.models import (
     CoercionHandler,
     FieldDescriptorT,
+    FieldMap,
     IsInstanceArgT,
     ModelOptions,
     ModelT,
@@ -37,7 +38,8 @@ from faust.utils import codegen
 from faust.utils import iso8601
 from faust.utils.json import str_to_decimal
 
-from .base import FieldDescriptor, Model
+from .base import Model
+from .fields import FieldDescriptor
 
 __all__ = ['Record']
 
@@ -298,12 +300,14 @@ class Record(Model, abstract=True):
         return coerce(value)
 
     @classmethod
-    def _contribute_field_descriptors(cls,
-                                      target: Type,
-                                      options: ModelOptions,
-                                      parent: FieldDescriptorT = None) -> None:
+    def _contribute_field_descriptors(
+            cls,
+            target: Type,
+            options: ModelOptions,
+            parent: FieldDescriptorT = None) -> FieldMap:
         fields = options.fields
         defaults = options.defaults
+        index = {}
         for field, typ in fields.items():
             try:
                 default, needed = defaults[field], False
@@ -312,10 +316,25 @@ class Record(Model, abstract=True):
             descr = getattr(target, field, None)
             if descr is None or not isinstance(descr, FieldDescriptorT):
                 descr = FieldDescriptor(
-                    field, typ, cls, needed, default, parent)
+                    field=field,
+                    type=typ,
+                    model=cls,
+                    required=needed,
+                    default=default,
+                    parent=parent,
+                )
             else:
-                descr = descr.clone(model=cls)
+                descr = descr.clone(
+                    field=field,
+                    type=typ,
+                    model=cls,
+                    required=needed,
+                    default=default,
+                    parent=parent,
+                )
             setattr(target, field, descr)
+            index[field] = descr
+        return index
 
     @classmethod
     def from_data(cls, data: Mapping, *,
