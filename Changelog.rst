@@ -131,3 +131,7 @@ Improvements
 ------------
 
 - **Documentation**: Rewrote fragmented documentation to be more concise.
+
+- **Documentation improvements by**
+
+    + Igor Mozharovsky (:github_user:`seedofjoy`)
