@@ -200,11 +200,8 @@ class test_Monitor:
 
     def test_on_stream_event_out__missing_state(
             self, *, event, mon, stream, time):
-        assert mon.log
-        assert mon.log.warning
-        mon.log.warning = Mock()
+        # should not be an error
         mon.on_stream_event_out(TP1, 3, stream, event, None)
-        mon.log.warning.assert_called_once()
 
     def test_on_topic_buffer_full(self, *, mon, topic):
         for i in range(1, 11):

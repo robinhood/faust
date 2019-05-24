@@ -424,9 +424,6 @@ class Monitor(Sensor, KeywordReduce):
             )
             deque_pushpopmax(
                 self.events_runtime, time_total, self.max_avg_history)
-        else:
-            self.log.warning('Monitor lost event in state for %r:%r',
-                             tp, offset)
 
     def on_topic_buffer_full(self, topic: TopicT) -> None:
         """Call when conductor topic buffer is full and has to wait."""
