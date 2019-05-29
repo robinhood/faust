@@ -861,7 +861,7 @@ Should rarely have to change this.
 :type: :class:`int`
 :default: 16384
 
-Max number of records in each producer batch.
+Max size of each producer batch, in bytes.
 
 .. setting:: producer_max_request_size
 
