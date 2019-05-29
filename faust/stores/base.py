@@ -7,12 +7,12 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Mapping,
     Optional,
     Set,
     Tuple,
     Union,
     cast,
-    Mapping,
 )
 
 from mode import Service
@@ -45,7 +45,7 @@ class Store(StoreT[KT, VT], Service):
                  value_type: ModelArg = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
-                 options: Mapping = None,
+                 options: Optional[Mapping[Any, Any]] = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.url = URL(url)
