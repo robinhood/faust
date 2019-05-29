@@ -112,6 +112,7 @@ class Collection(Service, CollectionT):
                  standby_buffer_size: int = None,
                  extra_topic_configs: Mapping[str, Any] = None,
                  recover_callbacks: Set[RecoverCallback] = None,
+                 options: Mapping = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -129,6 +130,8 @@ class Collection(Service, CollectionT):
         self.recovery_buffer_size = recovery_buffer_size
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
+
+        self.options = options
 
         # Setting Serializers from key_type and value_type
         # Possible values json and raw
@@ -176,6 +179,7 @@ class Collection(Service, CollectionT):
             value_serializer=self.value_serializer,
             value_type=self.value_type,
             loop=self.loop,
+            options=self.options,
         ))
 
     @property  # type: ignore
