@@ -4,6 +4,7 @@ from typing import (
     Any,
     Callable,
     Iterable,
+    Mapping,
     Optional,
     Set,
     TypeVar,
@@ -43,6 +44,7 @@ class StoreT(ServiceT, FastUserDict[KT, VT]):
     value_type: Optional[_ModelArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
+    options: Optional[Mapping[str, Any]]
 
     @abc.abstractmethod
     def __init__(self,
@@ -55,6 +57,7 @@ class StoreT(ServiceT, FastUserDict[KT, VT]):
                  value_type: _ModelArg = None,
                  key_serializer: CodecArg = '',
                  value_serializer: CodecArg = '',
+                 options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         ...
 

@@ -139,7 +139,7 @@ class Store(base.SerializedStore):
     key_index_size: int
 
     #: Used to configure the RocksDB settings for table stores.
-    options: RocksDBOptions
+    rocksdb_options: RocksDBOptions
 
     _dbs: MutableMapping[int, DB]
     _key_index: LRUCache[bytes, int]
@@ -150,7 +150,7 @@ class Store(base.SerializedStore):
                  table: CollectionT,
                  *,
                  key_index_size: int = 10_000,
-                 options: Mapping = None,
+                 options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         if rocksdb is None:
             raise ImproperlyConfigured(
@@ -158,7 +158,8 @@ class Store(base.SerializedStore):
         super().__init__(url, app, table, **kwargs)
         if not self.url.path:
             self.url /= self.table_name
-        self.options = RocksDBOptions(**options or {})
+        self.options = options or {}
+        self.rocksdb_options = RocksDBOptions(**self.options)
         self.key_index_size = key_index_size
         self._dbs = {}
         self._key_index = LRUCache(limit=self.key_index_size)
@@ -264,7 +265,7 @@ class Store(base.SerializedStore):
             return db
 
     def _open_for_partition(self, partition: int) -> DB:
-        return self.options.open(self.partition_path(partition))
+        return self.rocksdb_options.open(self.partition_path(partition))
 
     def _get(self, key: bytes) -> Optional[bytes]:
         dbvalue = self._get_bucket_for_key(key)

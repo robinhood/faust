@@ -112,7 +112,7 @@ class Collection(Service, CollectionT):
                  standby_buffer_size: int = None,
                  extra_topic_configs: Mapping[str, Any] = None,
                  recover_callbacks: Set[RecoverCallback] = None,
-                 options: Optional[Mapping[Any, Any]] = None,
+                 options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
