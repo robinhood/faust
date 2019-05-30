@@ -135,3 +135,7 @@ Improvements
 - **Documentation improvements by**
 
     + Igor Mozharovsky (:github_user:`seedofjoy`)
+
+    + Stephen Sorriaux (:github_user:`StephenSorriaux`)
+
+    + Lifei Chen (:github_user:`hustclf`)
