@@ -92,10 +92,18 @@ News
 
 - **App**: New :setting:`broker_max_poll_interval` setting.
 
-  Contributed by Miha Troha :github_user:`mihatroha`.
+  Contributed by Miha Troha (:github_user:`mihatroha`).
 
 - **App**: New :setting:`topic_disable_leader` setting disables
   the leader topic.
+
+- **Table**: Table constructor now accepts ``options`` argument
+  passed on to underlying RocksDB storage.
+
+    This can be used to configure advanced RocksDB options,
+    such as block size, cache size, etc.
+
+    Contributed by Miha Troha (:github_user:`mihatroha`).
 
 .. _v170-fixes:
 
