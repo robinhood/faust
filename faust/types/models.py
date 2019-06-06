@@ -211,6 +211,7 @@ class FieldDescriptorT(Generic[T]):
     default: Optional[T] = None  # noqa: E704
     parent: Optional['FieldDescriptorT']
     generic_type: Optional[Type]
+    member_type: Optional[Type]
 
     @abc.abstractmethod
     def __init__(self, *,
@@ -221,6 +222,7 @@ class FieldDescriptorT(Generic[T]):
                  default: T = None,
                  parent: 'FieldDescriptorT' = None,
                  generic_type: Type = None,
+                 member_type: Type = None,
                  **kwargs: Any) -> None:
         ...
 

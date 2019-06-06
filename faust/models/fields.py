@@ -87,6 +87,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
     #: If this holds a generic type such as list/set/dict then
     #: this holds the type of collection.
     generic_type: Optional[Type]
+    member_type: Optional[Type]
 
     #: Set if a value for this field is required (cannot be :const:`None`).
     required: bool = True
@@ -105,6 +106,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  parent: FieldDescriptorT = None,
                  coerce: bool = None,
                  generic_type: Type = None,
+                 member_type: Type = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
         self.type = cast(Type[T], type)
@@ -113,6 +115,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
         self.default = default
         self.parent = parent
         self.generic_type = generic_type
+        self.member_type = member_type
         self._copy_descriptors(self.type)
         if coerce is not None:
             self.coerce = coerce
@@ -135,6 +138,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
             'parent': self.parent,
             'coerce': self.coerce,
             'generic_type': self.generic_type,
+            'member_type': self.member_type,
             **self.options,
         }
 

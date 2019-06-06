@@ -330,7 +330,7 @@ class Record(Model, abstract=True):
         defaults = options.defaults
         coerce = options.coerce
         index = {}
-        for field in fields:
+        for field, typ in fields.items():
             try:
                 default, needed = defaults[field], False
             except KeyError:
@@ -341,24 +341,26 @@ class Record(Model, abstract=True):
                 DescriptorType = field_for_type(typeinfo.member_type)
                 descr = DescriptorType(
                     field=field,
-                    type=typeinfo.member_type,
+                    type=typ,
                     model=cls,
                     required=needed,
                     default=default,
                     parent=parent,
                     coerce=coerce,
                     generic_type=typeinfo.generic_type,
+                    member_type=typeinfo.member_type,
                 )
             else:
                 descr = descr.clone(
                     field=field,
-                    type=typeinfo.member_type,
+                    type=typ,
                     model=cls,
                     required=needed,
                     default=default,
                     parent=parent,
                     coerce=coerce,
                     generic_type=typeinfo.generic_type,
+                    member_type=typeinfo.member_type,
                 )
             setattr(target, field, descr)
             index[field] = descr
