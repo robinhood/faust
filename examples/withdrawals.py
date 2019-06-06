@@ -18,6 +18,7 @@ import asyncio
 import random
 from datetime import datetime, timezone
 from itertools import count
+from typing import List
 import faust
 from faust.cli import option
 
@@ -26,6 +27,7 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
     user: str
     country: str
     amount: float
+    dates: List[datetime]
     date: datetime = None
 
 

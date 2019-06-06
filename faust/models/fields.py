@@ -2,6 +2,7 @@ import inspect
 import sys
 from datetime import datetime
 from decimal import Decimal, DecimalTuple
+from functools import lru_cache
 from operator import attrgetter
 from typing import (
     Any,
@@ -13,7 +14,6 @@ from typing import (
     cast,
 )
 
-from mode.utils.objects import cached_property
 from mode.utils.text import pluralize
 
 from faust.exceptions import ValidationError
@@ -21,7 +21,6 @@ from faust.types.models import (
     FieldDescriptorT,
     ModelT,
     T,
-    TypeInfo,
 )
 from faust.utils import iso8601
 
@@ -35,6 +34,7 @@ __all__ = [
     'DecimalField',
     'BytesField',
     'StringField',
+    'field_for_type',
 ]
 
 CharacterType = TypeVar('CharacterType', str, bytes)
@@ -84,6 +84,10 @@ class FieldDescriptor(FieldDescriptorT[T]):
     #: The model class this field is associated with.
     model: Type[ModelT]
 
+    #: If this holds a generic type such as list/set/dict then
+    #: this holds the type of collection.
+    generic_type: Optional[Type]
+
     #: Set if a value for this field is required (cannot be :const:`None`).
     required: bool = True
 
@@ -100,6 +104,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  default: T = None,
                  parent: FieldDescriptorT = None,
                  coerce: bool = None,
+                 generic_type: Type = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
         self.type = cast(Type[T], type)
@@ -107,6 +112,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
         self.required = required
         self.default = default
         self.parent = parent
+        self.generic_type = generic_type
         self._copy_descriptors(self.type)
         if coerce is not None:
             self.coerce = coerce
@@ -128,13 +134,14 @@ class FieldDescriptor(FieldDescriptorT[T]):
             'default': self.default,
             'parent': self.parent,
             'coerce': self.coerce,
+            'generic_type': self.generic_type,
             **self.options,
         }
 
     def validate(self, value: T) -> Iterable[ValidationError]:
         return []
 
-    def prepare_value(self, value: Any) -> T:
+    def prepare_value(self, value: Any) -> Optional[T]:
         return cast(T, value)
 
     def _copy_descriptors(self, typ: Type = None) -> None:
@@ -148,18 +155,6 @@ class FieldDescriptor(FieldDescriptorT[T]):
 
         # instance attribute accessed
         return instance.__dict__[self.field]
-
-    @cached_property
-    def polymorphic_type(self) -> Type:
-        return self._typeinfo.polymorphic_type
-
-    @cached_property
-    def member_type(self) -> Type:
-        return self._typeinfo.member_type
-
-    @cached_property
-    def _typeinfo(self) -> TypeInfo:
-        return self.model._options.polyindex[self.field]
 
     def should_coerce(self, value: Any) -> bool:
         return self.coerce and (self.required or value is not None)
@@ -227,13 +222,13 @@ class NumberField(FieldDescriptor[T]):
 
 class IntegerField(NumberField[int]):
 
-    def prepare_value(self, value: Any) -> int:
+    def prepare_value(self, value: Any) -> Optional[int]:
         return int(value) if self.should_coerce(value) else value
 
 
 class FloatField(NumberField[float]):
 
-    def prepare_value(self, value: Any) -> float:
+    def prepare_value(self, value: Any) -> Optional[float]:
         return float(value) if self.should_coerce(value) else value
 
 
@@ -253,7 +248,7 @@ class DecimalField(NumberField[Decimal]):
             'max_decimal_places': max_decimal_places,
         })
 
-    def prepare_value(self, value: Any) -> Decimal:
+    def prepare_value(self, value: Any) -> Optional[Decimal]:
         return Decimal(value) if self.should_coerce(value) else value
 
     def validate(self, value: Decimal) -> Iterable[ValidationError]:
@@ -325,7 +320,7 @@ class CharField(FieldDescriptor[CharacterType]):
 
 class StringField(CharField[str]):
 
-    def prepare_value(self, value: Any) -> str:
+    def prepare_value(self, value: Any) -> Optional[str]:
         if self.should_coerce(value):
             val = str(value) if not isinstance(value, str) else value
             if self.trim_whitespace:
@@ -338,7 +333,7 @@ class StringField(CharField[str]):
 class DatetimeField(FieldDescriptor[datetime]):
     coerce = True  # always coerces, for info only
 
-    def prepare_value(self, value: Any) -> datetime:
+    def prepare_value(self, value: Any) -> Optional[datetime]:
         if value is not None and not isinstance(value, datetime):
             return iso8601.parse(value)
         else:
@@ -363,7 +358,7 @@ class BytesField(CharField[bytes]):
             **kwargs,
         )
 
-    def prepare_value(self, value: Any) -> bytes:
+    def prepare_value(self, value: Any) -> Optional[bytes]:
         if self.should_coerce(value):
             if isinstance(value, str):
                 val = value.encode(encoding=self.encoding)
@@ -382,3 +377,19 @@ TYPE_TO_FIELD = {
     bytes: BytesField,
     datetime: DatetimeField,
 }
+
+
+@lru_cache(maxsize=2048)
+def field_for_type(typ: Type) -> Type[FieldDescriptorT]:
+    try:
+        return TYPE_TO_FIELD[typ]
+    except KeyError:
+        for basecls, DescriptorType in TYPE_TO_FIELD.items():
+            try:
+                if issubclass(typ, basecls):
+                    return DescriptorType
+            except TypeError:
+                # not a type that can be used with issubclass
+                # so skip trying
+                break
+        return FieldDescriptor

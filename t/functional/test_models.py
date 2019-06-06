@@ -132,27 +132,27 @@ def test_parameters_with_custom_init_and_super():
     assert p2.z == 40
 
 
-def test_isodates():
+def test_datetimes():
 
-    class Date(Record):
+    class Date(Record, coerce=True):
         date: datetime
 
-    class TupleOfDate(Record):
+    class TupleOfDate(Record, coerce=True):
         dates: Tuple[datetime]
 
-    class SetOfDate(Record):
+    class SetOfDate(Record, coerce=True):
         dates: Set[datetime]
 
-    class MapOfDate(Record):
+    class MapOfDate(Record, coerce=True):
         dates: Mapping[int, datetime]
 
-    class ListOfDate(Record):
+    class ListOfDate(Record, coerce=True):
         dates: List[datetime]
 
-    class OptionalListOfDate(Record):
+    class OptionalListOfDate(Record, coerce=True):
         dates: List[datetime] = None
 
-    class OptionalListOfDate2(Record):
+    class OptionalListOfDate2(Record, coerce=True):
         dates: Optional[List[datetime]]
 
     n1 = datetime.utcnow()
@@ -177,28 +177,82 @@ def test_isodates():
     assert MapOfDate.loads(MapOfDate(
         dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
 
+    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    assert isinstance(datelist.dates[0], datetime)
+    assert isinstance(datelist.dates[1], datetime)
+
+
+def test_datetimes__isodates_compat():
+
+    class Date(Record, coerce=False, isodates=True):
+        date: datetime
+
+    class TupleOfDate(Record, coerce=False, isodates=True):
+        dates: Tuple[datetime]
+
+    class SetOfDate(Record, coerce=False, isodates=True):
+        dates: Set[datetime]
+
+    class MapOfDate(Record, coerce=False, isodates=True):
+        dates: Mapping[int, datetime]
+
+    class ListOfDate(Record, coerce=False, isodates=True):
+        dates: List[datetime]
+
+    class OptionalListOfDate(Record, coerce=False, isodates=True):
+        dates: List[datetime] = None
+
+    class OptionalListOfDate2(Record, coerce=False, isodates=True):
+        dates: Optional[List[datetime]]
+
+    n1 = datetime.utcnow()
+    assert Date.loads(Date(date=n1).dumps()).date == n1
+    n2 = datetime.utcnow()
+    assert ListOfDate.loads(ListOfDate(
+        dates=[n1, n2]).dumps()).dates == [n1, n2]
+    assert OptionalListOfDate.loads(OptionalListOfDate(
+        dates=None).dumps()).dates is None
+    assert OptionalListOfDate.loads(OptionalListOfDate(
+        dates=[n2, n1]).dumps()).dates == [n2, n1]
+    assert OptionalListOfDate2.loads(OptionalListOfDate2(
+        dates=None).dumps()).dates is None
+    assert OptionalListOfDate2.loads(OptionalListOfDate2(
+        dates=[n1, n2]).dumps()).dates == [n1, n2]
+    assert TupleOfDate.loads(TupleOfDate(
+        dates=(n1, n2)).dumps()).dates == (n1, n2)
+    assert TupleOfDate.loads(TupleOfDate(
+        dates=(n2,)).dumps()).dates == (n2,)
+    assert SetOfDate.loads(SetOfDate(
+        dates={n1, n2}).dumps()).dates == {n1, n2}
+    assert MapOfDate.loads(MapOfDate(
+        dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
+
+    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    assert isinstance(datelist.dates[0], datetime)
+    assert isinstance(datelist.dates[1], datetime)
+
 
 def test_decimals():
 
-    class IsDecimal(Record, decimals=True, serializer='json'):
+    class IsDecimal(Record, coerce=True, serializer='json'):
         number: Decimal
 
-    class ListOfDecimal(Record, decimals=True, serializer='json'):
+    class ListOfDecimal(Record, coerce=True, serializer='json'):
         numbers: List[Decimal]
 
-    class OptionalListOfDecimal(Record, decimals=True, serializer='json'):
+    class OptionalListOfDecimal(Record, coerce=True, serializer='json'):
         numbers: List[Decimal] = None
 
-    class OptionalListOfDecimal2(Record, decimals=True, serializer='json'):
+    class OptionalListOfDecimal2(Record, coerce=True, serializer='json'):
         numbers: Optional[List[Decimal]]
 
-    class TupleOfDecimal(Record, decimals=True, serializer='json'):
+    class TupleOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Tuple[Decimal]
 
-    class SetOfDecimal(Record, decimals=True, serializer='json'):
+    class SetOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Set[Decimal]
 
-    class MapOfDecimal(Record, decimals=True, serializer='json'):
+    class MapOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Mapping[str, Decimal]
 
     n1 = Decimal('1.31341324')
@@ -222,6 +276,78 @@ def test_decimals():
         numbers={n1, n2}).dumps()).numbers == {n1, n2}
     assert MapOfDecimal.loads(MapOfDecimal(
         numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
+
+    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    assert isinstance(dlist.numbers[0], Decimal)
+    assert isinstance(dlist.numbers[1], Decimal)
+
+
+def test_decimals_compat():
+
+    class IsDecimal(Record, coerce=False, decimals=True, serializer='json'):
+        number: Decimal
+
+    class ListOfDecimal(Record,
+                        coerce=False,
+                        decimals=True,
+                        serializer='json'):
+        numbers: List[Decimal]
+
+    class OptionalListOfDecimal(Record,
+                                coerce=False,
+                                decimals=True,
+                                serializer='json'):
+        numbers: List[Decimal] = None
+
+    class OptionalListOfDecimal2(Record,
+                                 coerce=False,
+                                 decimals=True,
+                                 serializer='json'):
+        numbers: Optional[List[Decimal]]
+
+    class TupleOfDecimal(Record,
+                         coerce=False,
+                         decimals=True,
+                         serializer='json'):
+        numbers: Tuple[Decimal]
+
+    class SetOfDecimal(Record,
+                       coerce=False,
+                       decimals=True,
+                       serializer='json'):
+        numbers: Set[Decimal]
+
+    class MapOfDecimal(Record,
+                       coerce=False,
+                       decimals=True,
+                       serializer='json'):
+        numbers: Mapping[str, Decimal]
+
+    n1 = Decimal('1.31341324')
+    assert IsDecimal.loads(IsDecimal(number=n1).dumps()).number == n1
+    n2 = Decimal('3.41569')
+    assert ListOfDecimal.loads(ListOfDecimal(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=[n2, n1]).dumps()).numbers == [n2, n1]
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n1, n2)).dumps()).numbers == (n1, n2)
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n2,)).dumps()).numbers == (n2,)
+    assert SetOfDecimal.loads(SetOfDecimal(
+        numbers={n1, n2}).dumps()).numbers == {n1, n2}
+    assert MapOfDecimal.loads(MapOfDecimal(
+        numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
+
+    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    assert isinstance(dlist.numbers[0], Decimal)
+    assert isinstance(dlist.numbers[1], Decimal)
 
 
 def test_custom_coercion():

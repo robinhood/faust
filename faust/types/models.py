@@ -69,7 +69,7 @@ class TypeCoerce(NamedTuple):
 
 
 class TypeInfo(NamedTuple):
-    polymorphic_type: Type
+    generic_type: Optional[Type]
     member_type: Type
 
 
@@ -210,6 +210,7 @@ class FieldDescriptorT(Generic[T]):
     required: bool = True
     default: Optional[T] = None  # noqa: E704
     parent: Optional['FieldDescriptorT']
+    generic_type: Optional[Type]
 
     @abc.abstractmethod
     def __init__(self, *,
@@ -219,6 +220,7 @@ class FieldDescriptorT(Generic[T]):
                  required: bool = True,
                  default: T = None,
                  parent: 'FieldDescriptorT' = None,
+                 generic_type: Type = None,
                  **kwargs: Any) -> None:
         ...
 
@@ -227,7 +229,7 @@ class FieldDescriptorT(Generic[T]):
         ...
 
     @abc.abstractmethod
-    def prepare_value(self, value: Any) -> T:
+    def prepare_value(self, value: Any) -> Optional[T]:
         ...
 
     @abc.abstractmethod

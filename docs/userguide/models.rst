@@ -370,6 +370,47 @@ a mapping of account-ids to ``Account`` objects.
 Coercion
 --------
 
+By default we do not force types, this is for backward compatibility
+with older Faust application.
+
+This means that a field of type :class:`str` will happily accept
+:const:`None` as value, and any other type.
+
+If you want strict types enable the ``coerce`` option:
+
+.. sourcecode:: python
+
+    class X(faust.Record, coerce=True):
+        foo: str
+        bar: Optional[str]
+
+Here, the ``foo`` field will be required to be a string,
+while the ``bar`` field can have :const:`None` values.
+
+.. tip::
+
+    Having ``validation=True`` implies ``coerce=True``
+    but will additionally enable field validation.
+
+    See :ref:`model-validation` for more information.
+
+Coercion also enables automatic conversion to and from
+:class:`~datetime.datetime` and :class:`~decimal.Decimal`.
+
+
+You may also disable coercion for the class, but enable
+it for individual fields by writing explicit field descriptors:
+
+.. sourcecode:: python
+
+    import faust
+    from faust.mdoels.fields import DatetimeField, StringField
+
+    class Account(faust.Record):
+        user_id: str = StringField(coerce=True)
+        date_joined: datetime = DatetimeField(coerce=False)
+        login_dates: List[datetime] = DatetimeField(coerce=True)
+
 :class:`~datetime.datetime`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -382,7 +423,7 @@ back into into :class:`~datetime.datetime` when deserializing.
     from datetime import datetime
     import faust
 
-    class Account(faust.Record, serializer='json'):
+    class Account(faust.Record, coerce=True, serializer='json'):
         date_joined: datetime
 
 :class:`~decimal.Decimal`
@@ -399,44 +440,12 @@ payload, that way we do not lose any precision.
     from decimal import Decimal
     import faust
 
-    class Order(faust.Record, serializer='json'):
+    class Order(faust.Record, coerce=True, serializer='json'):
         price: Decimal
         quantity: Decimal
 
-Custom Coercions
-~~~~~~~~~~~~~~~~
-
-You can add custom coercion rules to your model class
-using the ``coercions`` option.
-
-For example converting strings back to UUID objects:
-
-.. sourcecode:: python
-
-    from uuid import UUID
-    import faust
-
-    class Account(faust.Record, coercions={UUID: UUID}):
-        id: UUID
-
-Tired of writing this out for every class? Why not make
-an abstract model subclass?
-
-.. sourcecode:: python
-
-    from uuid import UUID
-    import faust
-
-    class UUIDAwareRecord(faust.Record,
-                          abstract=True,
-                          coercions={UUID: UUID}):
-        ...
-
-    class Account(UUIDAwareRecord):
-        id: UUID
-
 Abstract Models
-~~~~~~~~~~~~~~~
+---------------
 
 To create a model base class with common functionality, mark
 the model class with ``abstract=True``.
@@ -466,7 +475,7 @@ having the fields by default:
 
 
 Positional Arguments
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 The best practice when creating model instances is to use
 keyword arguments, but positional arguments are also supported!
@@ -605,6 +614,8 @@ define a new model class we add it to this index.
 
     For the same reason you should not be renaming classes
     without having a strategy to do so in a forward compatible manner.
+
+.. _model-validation:
 
 Validation
 ~~~~~~~~~~

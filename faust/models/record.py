@@ -40,7 +40,7 @@ from faust.utils import iso8601
 from faust.utils.json import str_to_decimal
 
 from .base import Model
-from .fields import FieldDescriptor, TYPE_TO_FIELD
+from .fields import FieldDescriptor, field_for_type
 
 __all__ = ['Record']
 
@@ -60,7 +60,7 @@ Non-default {cls_name} field {field_name} cannot
 follow default {fields} {default_names}
 '''
 
-_ReconFun = Callable[[Type, Any], Any]
+_ReconFun = Callable[..., Any]
 
 # Models can refer to other models:
 #
@@ -157,7 +157,7 @@ def _from_generic_set(typ: Type,
     return {callback(typ, v, **kwargs) for v in data}
 
 
-def _to_model(typ: Type[ModelT], data: Any, **kwargs) -> Optional[ModelT]:
+def _to_model(typ: Type[ModelT], data: Any, **kwargs: Any) -> Optional[ModelT]:
     # called everytime something needs to be converted into a model.
     typ = remove_optional(typ)
     if data is not None and not isinstance(data, typ):
@@ -241,7 +241,7 @@ class Record(Model, abstract=True):
         modelattrs = options.modelattrs = {}
 
         def _is_concrete_type(field: str,
-                              wanted: IsInstanceArgT, cls: Type) -> bool:
+                              wanted: IsInstanceArgT) -> bool:
             typeinfo = options.polyindex[field]
             try:
                 return issubclass(typeinfo.member_type, wanted)
@@ -269,14 +269,14 @@ class Record(Model, abstract=True):
                     ))
 
         for field, typ in fields.items():
-            is_model, member_type, polymorphic_type = _is_model(typ)
-            options.polyindex[field] = TypeInfo(polymorphic_type, member_type)
+            is_model, member_type, generic_type = _is_model(typ)
+            options.polyindex[field] = TypeInfo(generic_type, member_type)
             if is_model:
                 # Extract all model fields
                 options.models[field] = typ
                 # Create mapping of model fields to polymorphic types if
                 # available
-                modelattrs[field] = polymorphic_type
+                modelattrs[field] = generic_type
             if is_optional(typ):
                 # Optional[X] also needs to be added to defaults mapping.
                 options.defaults.setdefault(field, None)
@@ -300,7 +300,7 @@ class Record(Model, abstract=True):
                 field: TypeCoerce(typ, coerce_handler)
                 for field, typ in fields.items()
                 if (field not in modelattrs and
-                    _is_concrete_type(field, coerce_types, typ))
+                    _is_concrete_type(field, coerce_types))
             })
 
     @classmethod
@@ -321,10 +321,6 @@ class Record(Model, abstract=True):
         return coerce(value)
 
     @classmethod
-    def _descriptor_for_type(self, typ: Type) -> Type[FieldDescriptorT]:
-        return TYPE_TO_FIELD.get(typ, FieldDescriptor)
-
-    @classmethod
     def _contribute_field_descriptors(
             cls,
             target: Type,
@@ -334,32 +330,35 @@ class Record(Model, abstract=True):
         defaults = options.defaults
         coerce = options.coerce
         index = {}
-        for field, typ in fields.items():
+        for field in fields:
             try:
                 default, needed = defaults[field], False
             except KeyError:
                 default, needed = None, True
             descr = getattr(target, field, None)
+            typeinfo = options.polyindex[field]
             if descr is None or not isinstance(descr, FieldDescriptorT):
-                DescriptorType = cls._descriptor_for_type(typ)
+                DescriptorType = field_for_type(typeinfo.member_type)
                 descr = DescriptorType(
                     field=field,
-                    type=typ,
+                    type=typeinfo.member_type,
                     model=cls,
                     required=needed,
                     default=default,
                     parent=parent,
                     coerce=coerce,
+                    generic_type=typeinfo.generic_type,
                 )
             else:
                 descr = descr.clone(
                     field=field,
-                    type=typ,
+                    type=typeinfo.member_type,
                     model=cls,
                     required=needed,
                     default=default,
                     parent=parent,
                     coerce=coerce,
+                    generic_type=typeinfo.generic_type,
                 )
             setattr(target, field, descr)
             index[field] = descr
