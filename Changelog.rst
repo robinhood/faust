@@ -57,6 +57,56 @@ News
 
     See :ref:`worker-cluster` for more information.
 
+- **Models**: Implements model validation.
+
+    Validation of fields can be enabled by using the ``validation=True`` class
+    option:
+
+    .. sourcecode:: python
+
+        import faust
+        from decimal import Decimal
+
+        class X(faust.Record, validation=True):
+            name: str
+            amount: Decimal
+
+    When validation is enabled, the model will validate that the
+    fields values are of the correct type.
+
+    Fields can now also have advanced validation options,
+    and you enable these by writing explicit field descriptors:
+
+    .. sourcecode:: python
+
+        import faust
+        from decimal import Decimal
+        from faust.models.fields import DecimalField, StringField
+
+        class X(faust.Record, validation=True):
+            name: str = StringField(max_length=30)
+            amount: Decimal = DecimalField(min_value=10.0, max_value=1000.0)
+
+    If you want to run validation manually, you can do so by
+    keeping ``validation=False`` on the class, but calling
+    ``model.is_valid()``:
+
+    .. sourcecode:: python
+
+        if not model.is_valid():
+            print(model.validation_errors)
+
+- **Models**: Implements generic coercion support.
+
+    This new feature replaces the ``isodates=True``/``decimals=True`` options
+    and can be enabled by passing ``coerce=True``:
+
+    .. sourcecode:: python
+
+        class Account(faust.Record, coerce=True):
+            name: str
+            login_times: List[datetime]
+
 - **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
   messages.
 
@@ -109,6 +159,8 @@ News
 
 Fixes
 -----
+
+- **Stream**: Fixes bug where non-finished event is acked (Issue #355).
 
 - **Producer**: Exactly once: Support producing to non-transactional
   topics (Issue #339)
