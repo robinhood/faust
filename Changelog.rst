@@ -107,6 +107,13 @@ News
             name: str
             login_times: List[datetime]
 
+- **Testing**: New experimental ``livecheck`` production testing API.
+
+    There is no documentation yet, but an example in
+    ``examples//livecheck.py``.
+
+    This is a new API to do end-to-end testing directly in production.
+
 - **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
   messages.
 
