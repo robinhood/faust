@@ -12,8 +12,8 @@ please visit the :ref:`history` section.
 
 1.7.0
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2019-06-06 6:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
 
 .. _v170-backward-incompatible-changes:
 
