@@ -3,8 +3,8 @@ from faust.web import Blueprint
 from faust.web.base import (
     BlueprintManager,
     DEBUG_BLUEPRINTS,
-    PRODUCTION_BLUEPRINTS,
     DEFAULT_BLUEPRINTS,
+    PRODUCTION_BLUEPRINTS,
     Web,
 )
 from mode.utils.mocks import Mock, patch
