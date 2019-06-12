@@ -3,6 +3,7 @@ from faust.web import Blueprint
 from faust.web.base import (
     BlueprintManager,
     DEBUG_BLUEPRINTS,
+    PRODUCTION_BLUEPRINTS,
     DEFAULT_BLUEPRINTS,
     Web,
 )
@@ -98,7 +99,8 @@ class test_Web:
 
     def test_production_blueprints(self, *, web):
         assert not web.app.conf.debug
-        assert web.blueprints._enabled == DEFAULT_BLUEPRINTS
+        assert web.blueprints._enabled == (
+            DEFAULT_BLUEPRINTS + PRODUCTION_BLUEPRINTS)
 
     def test_url_for(self, *, web):
         web.reverse_names['test'] = '/foo/{bar}/'
@@ -121,3 +123,4 @@ class test_Web:
             gethostname.return_value = 'foobar.example.com'
             app.conf.canonical_url = URL('http://xuzzy.example.com')
             assert web.url == URL('http://xuzzy.example.com')
+

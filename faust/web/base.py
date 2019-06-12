@@ -43,6 +43,9 @@ _BPList = Iterable[Tuple[str, SymbolArg[Type[BlueprintT]]]]
 DEFAULT_BLUEPRINTS: _BPList = [
     ('/router', 'faust.web.apps.router:blueprint'),
     ('/table', 'faust.web.apps.tables.blueprint'),
+]
+
+PRODUCTION_BLUEPRINTS: _BPList = [
     ('', 'faust.web.apps.production_index:blueprint'),
 ]
 
@@ -159,6 +162,7 @@ class Web(Service):
     """Web server and HTTP interface."""
 
     default_blueprints: ClassVar[_BPList] = DEFAULT_BLUEPRINTS  # noqa: E704
+    production_blueprints: ClassVar[_BPList] = PRODUCTION_BLUEPRINTS
     debug_blueprints: ClassVar[_BPList] = DEBUG_BLUEPRINTS
 
     app: AppT
@@ -180,7 +184,9 @@ class Web(Service):
         self.reverse_names = {}
         blueprints = list(self.default_blueprints)
         if self.app.conf.debug:
-            blueprints += self.debug_blueprints
+            blueprints.extend(self.debug_blueprints)
+        else:
+            blueprints.extend(self.production_blueprints)
         self.blueprints = BlueprintManager(blueprints)
         Service.__init__(self, **kwargs)
 
@@ -400,3 +406,4 @@ class Request(abc.ABC):
     def cookies(self) -> Mapping[str, Any]:
         """Return cookies as a mapping."""
         ...
+
