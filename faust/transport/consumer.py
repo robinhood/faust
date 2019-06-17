@@ -644,7 +644,7 @@ class Consumer(Service, ConsumerT):
             for tp, record in records_it:
                 if not self.flow_active:
                     break
-                if tp in active_partitions:
+                if active_partitions is None or tp in active_partitions:
                     highwater_mark = self.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
@@ -655,10 +655,15 @@ class Consumer(Service, ConsumerT):
         if not self.flow_active:
             await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
-        active_partitions = self._get_active_partitions()
+
+        is_client_only = self.app.client_only
+        if is_client_only:
+            active_partitions = None
+        else:
+            active_partitions = self._get_active_partitions()
 
         records: RecordMap = {}
-        if active_partitions:
+        if is_client_only or active_partitions:
             # Fetch records only if active partitions to avoid the risk of
             # fetching all partitions in the beginning when none of the
             # partitions is paused/resumed.
@@ -780,6 +785,9 @@ class Consumer(Service, ConsumerT):
         Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
+        if self.app.client_only:
+            # client only cannot commit as consumer does not have group_id
+            return False
         if await self.maybe_wait_for_commit_to_finish():
             # original commit finished, return False as we did not commit
             return False
@@ -979,6 +987,7 @@ class Consumer(Service, ConsumerT):
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
+
                 # Sleeping because sometimes getmany is called in a loop
                 # never releasing to the event loop
                 await self.sleep(0)
