@@ -5,8 +5,7 @@ from faust.transport.consumer import Consumer
 from faust.transport.conductor import Conductor
 from faust.types import Message, TP
 from mode import label, shortlabel
-from mode.utils.futures import done_future
-from mode.utils.mocks import AsyncMock, Mock
+from mode.utils.mocks import AsyncMock, Mock, patch
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -58,10 +57,9 @@ class test_Conductor:
 
     @pytest.mark.asyncio
     async def test_wait_for_subscription(self, *, con):
-        con._subscription_done = None
-        await con.wait_for_subscriptions()
-        con._subscription_done = done_future()
-        await con.wait_for_subscriptions()
+        with patch('asyncio.Future', AsyncMock()) as Future:
+            await con.wait_for_subscriptions()
+            Future.assert_called_once_with(loop=con.loop)
 
     @pytest.mark.asyncio
     async def test_update_indices(self, *, con):

@@ -923,6 +923,7 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
+        app.topics.wait_for_subscriptions = AsyncMock()
         app.maybe_start = AsyncMock(name='app.maybe_start')
         await app.start_client()
         assert app.client_only
