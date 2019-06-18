@@ -584,7 +584,7 @@ class Consumer(Service, ConsumerT):
 
     @abc.abstractmethod
     async def _getmany(self,
-                       active_partitions: Set[TP],
+                       active_partitions: Optional[Set[TP]],
                        timeout: float) -> RecordMap:
         ...
 
@@ -651,12 +651,15 @@ class Consumer(Service, ConsumerT):
                     yield tp, to_message(tp, record)
 
     async def _wait_next_records(
-            self, timeout: float) -> Tuple[Optional[RecordMap], Set[TP]]:
+            self, timeout: float) -> Tuple[Optional[RecordMap],
+                                           Optional[Set[TP]]]:
         if not self.flow_active:
             await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
 
         is_client_only = self.app.client_only
+
+        active_partitions: Optional[Set[TP]]
         if is_client_only:
             active_partitions = None
         else:
@@ -1110,7 +1113,7 @@ class ConsumerThread(QueueServiceThread):
 
     @abc.abstractmethod
     async def getmany(self,
-                      active_partitions: Set[TP],
+                      active_partitions: Optional[Set[TP]],
                       timeout: float) -> RecordMap:
         """Fetch batch of messages from server."""
         ...
@@ -1201,7 +1204,7 @@ class ThreadDelegateConsumer(Consumer):
         await promise
 
     async def _getmany(self,
-                       active_partitions: Set[TP],
+                       active_partitions: Optional[Set[TP]],
                        timeout: float) -> RecordMap:
         return await self._thread.getmany(active_partitions, timeout)
 

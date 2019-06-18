@@ -414,7 +414,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         return self._consumer
 
     async def getmany(self,
-                      active_partitions: Set[TP],
+                      active_partitions: Optional[Set[TP]],
                       timeout: float) -> RecordMap:
         """Fetch batch of messages from server."""
         # Implementation for the Fetcher service.

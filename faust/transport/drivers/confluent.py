@@ -320,7 +320,7 @@ class ConfluentConsumerThread(ConsumerThread):
         return self._consumer
 
     async def getmany(self,
-                      active_partitions: Set[TP],
+                      active_partitions: Optional[Set[TP]],
                       timeout: float) -> RecordMap:
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
