@@ -290,6 +290,15 @@ class test_AIOKafkaConsumerThread:
         cthread._create_worker_consumer.assert_called_once_with(
             cthread.transport, loop=loop)
 
+    def test_session_gt_request_timeout(self, *, cthread, app):
+        app.conf.broker_session_timeout = 90
+        app.conf.broker_request_timeout = 10
+
+        with pytest.raises(ImproperlyConfigured):
+            self.assert_create_worker_consumer(
+                cthread, app,
+                in_transaction=False)
+
     def test__create_worker_consumer(self, *, cthread, app):
         self.assert_create_worker_consumer(
             cthread, app,
