@@ -246,7 +246,10 @@ class TransactionManager(Service, TransactionManagerT):
 
     def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
         return {
-            self.transactional_id_format.format(tpg=tpg, group_id=self.app.conf.id)
+            self.transactional_id_format.format(
+                tpg=tpg,
+                group_id=self.app.conf.id
+            )
             for tpg in self._tps_to_active_tpgs(tps)
         }
 
