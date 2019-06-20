@@ -8,6 +8,25 @@ This document contain change notes for bugfix releases in
 the Faust 1.7 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.7.1:
+
+1.7.1
+=====
+:release-date: TBA
+:release-by: TBA
+
+- **Stream**: Exactly once processing now include the app id
+  in transactional ids.
+
+    This was done to support running multiple apps on the same
+    Kafka broker.
+
+    Contributed by Cesar Pantoja (:github_user:`CesarPantoja`).
+
+- **Web**: Fixed bug where sensor index should display when :setting:`debug` is enabled
+
+    Contributed by :github_user:`tyong920`
+
 .. _version-1.7.0:
 
 1.7.0
