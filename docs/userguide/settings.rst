@@ -651,9 +651,14 @@ configured by the user.
 .. versionadded:: 1.4.0
 
 :type: :class:`int`
-:default: ``40.0`` (forty seconds)
+:default: ``90.0`` (seconds)
 
 Kafka client request timeout.
+
+.. note::
+
+    The request timeout must not be less than the
+    :setting:`broker_session_timeout`.
 
 .. setting:: broker_commit_every
 
@@ -730,6 +735,11 @@ will consider it dysfunctional and remove it from the cluster.
 Increase this if you experience the cluster being in a state of constantly
 rebalancing, but make sure you also increase the
 :setting:`broker_heartbeat_interval` at the same time.
+
+.. note::
+
+    The session timeout must not be greater than the
+    :setting:`broker_request_timeout`.
 
 .. setting:: broker_max_poll_records
 

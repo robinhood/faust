@@ -158,7 +158,7 @@ MONITOR_TYPE = 'faust.sensors:Monitor'
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: Kafka consumer request timeout (``request_timeout_ms``).
-BROKER_REQUEST_TIMEOUT = 40.0
+BROKER_REQUEST_TIMEOUT = 90.0
 
 #: How often we commit acknowledged messages: every n messages.
 #: Used as the default value for :setting:`broker_commit_every`.
