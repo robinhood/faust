@@ -248,7 +248,7 @@ class TransactionManager(Service, TransactionManagerT):
         return {
             self.transactional_id_format.format(
                 tpg=tpg,
-                group_id=self.app.conf.id
+                group_id=self.app.conf.id,
             )
             for tpg in self._tps_to_active_tpgs(tps)
         }
