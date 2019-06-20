@@ -182,7 +182,7 @@ class TransactionManager(Service, TransactionManagerT):
 
     app: AppT
 
-    transactional_id_format = '{tpg.group}-{tpg.partition}'
+    transactional_id_format = '{group_id}-{tpg.group}-{tpg.partition}'
 
     def __init__(self, transport: TransportT,
                  *,
@@ -246,7 +246,7 @@ class TransactionManager(Service, TransactionManagerT):
 
     def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
         return {
-            self.transactional_id_format.format(tpg=tpg)
+            self.transactional_id_format.format(tpg=tpg, group_id=self.app.conf.id)
             for tpg in self._tps_to_active_tpgs(tps)
         }
 
@@ -274,7 +274,7 @@ class TransactionManager(Service, TransactionManagerT):
         p = self.consumer.key_partition(topic, key, partition)
         if p is not None:
             group = self.app.assignor.group_for_topic(topic)
-            transactional_id = f'{group}-{p}'
+            transactional_id = f'{self.app.conf.id}-{group}-{p}'
         return await self.producer.send(
             topic, key, value, p, timestamp, headers,
             transactional_id=transactional_id,
@@ -301,7 +301,7 @@ class TransactionManager(Service, TransactionManagerT):
 
         for tp, offset in offsets.items():
             group = self.app.assignor.group_for_topic(tp.topic)
-            transactional_id = f'{group}-{tp.partition}'
+            transactional_id = f'{group_id}-{group}-{tp.partition}'
             by_transactional_id[transactional_id][tp] = offset
 
         if by_transactional_id:

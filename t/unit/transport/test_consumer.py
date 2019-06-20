@@ -172,9 +172,9 @@ class test_TransactionManager:
         await manager.on_rebalance(assigned, revoked, newly_assigned)
 
         manager._stop_transactions.assert_called_once_with(
-            [f'{TP3_group}-{TP3.partition}'])
+            [f'{manager.app.conf.id}-{TP3_group}-{TP3.partition}'])
         manager._start_transactions.assert_called_once_with(
-            [f'{TP2_group}-{TP2.partition}'])
+            [f'{manager.app.conf.id}-{TP2_group}-{TP2.partition}'])
 
         await manager.on_rebalance(set(), set(), set())
 
@@ -210,7 +210,7 @@ class test_TransactionManager:
             't', 'k', 'v', partition=None, headers=None, timestamp=None)
         manager.consumer.key_partition.assert_called_once_with('t', 'k', None)
         producer.send.assert_called_once_with(
-            't', 'k', 'v', 1, None, None, transactional_id='3-1',
+            't', 'k', 'v', 1, None, None, transactional_id='testid-3-1',
         )
 
     @pytest.mark.asyncio
@@ -258,16 +258,16 @@ class test_TransactionManager:
         )
         producer.commit_transactions.assert_called_once_with(
             {
-                '1-0': {
+                'testid-1-0': {
                     TP('foo', 0): 3003,
                 },
-                '1-3': {
+                'testid-1-3': {
                     TP('foo', 3): 4004,
                 },
-                '1-1': {
+                'testid-1-1': {
                     TP('foo', 1): 4005,
                 },
-                '2-0': {
+                'testid-2-0': {
                     TP('bar', 0): 3004,
                 },
             },
