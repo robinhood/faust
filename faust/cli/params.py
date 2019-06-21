@@ -1,5 +1,5 @@
 """Python :pypi:`click` parameter types."""
-from typing import Any, Iterable, Optional
+from typing import Optional
 import click
 from click.types import ParamType, StringParamType
 from yarl import URL
@@ -7,7 +7,6 @@ from yarl import URL
 __all__ = [
     'WritableDirectory',
     'WritableFilePath',
-    'CaseInsensitiveChoice',
     'TCPPort',
     'URLParam',
 ]
@@ -28,22 +27,6 @@ WritableFilePath = click.Path(
     writable=True,      # and read/write access.
     readable=True,      #
 )
-
-
-class CaseInsensitiveChoice(click.Choice):
-    """Case-insensitive version of :class:`click.Choice`."""
-
-    def __init__(self, choices: Iterable[Any]) -> None:
-        self.choices = [str(val).lower() for val in choices]
-
-    def convert(self,
-                value: str,
-                param: Optional[click.Parameter],
-                ctx: Optional[click.Context]) -> Any:
-        """Convert string to case-insensitive choice."""
-        if value.lower() in self.choices:
-            return value
-        return super().convert(value, param, ctx)
 
 
 class TCPPort(click.IntRange):

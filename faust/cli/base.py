@@ -168,7 +168,7 @@ now_builtin_worker_options: OptionSequence = [
         '--loglevel', '-l',
         state_key='loglevel',
         default=DEFAULT_LOGLEVEL,
-        type=params.CaseInsensitiveChoice(LOGLEVELS),
+        type=click.Choice(LOGLEVELS, case_sensitive=False),
         help='Logging level to use.',
     ),
     compat_option(
