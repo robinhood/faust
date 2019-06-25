@@ -72,6 +72,7 @@ class test_settings:
         assert conf.broker_check_crcs
         assert conf.timezone is settings.TIMEZONE
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
+        assert conf.table_key_index_size == settings.TABLE_KEY_INDEX_SIZE
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
@@ -192,6 +193,7 @@ class test_settings:
                                  producer_request_timeout=2.66,
                                  producer_api_version='0.10',
                                  table_cleanup_interval=80.8,
+                                 table_key_index_size=1999,
                                  key_serializer='str',
                                  value_serializer='str',
                                  table_standby_replicas=48,
@@ -259,6 +261,7 @@ class test_settings:
             producer_request_timeout=producer_request_timeout,
             producer_api_version=producer_api_version,
             table_cleanup_interval=table_cleanup_interval,
+            table_key_index_size=table_key_index_size,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             table_standby_replicas=table_standby_replicas,
@@ -316,6 +319,7 @@ class test_settings:
         assert conf.producer_request_timeout == producer_request_timeout
         assert conf.producer_api_version == producer_api_version
         assert conf.table_cleanup_interval == table_cleanup_interval
+        assert conf.table_key_index_size == table_key_index_size
         assert conf.key_serializer == key_serializer
         assert conf.value_serializer == value_serializer
         assert conf.table_standby_replicas == table_standby_replicas

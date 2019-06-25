@@ -124,6 +124,10 @@ TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
 #: Path to table class, used as default for :setting:`Table`.
 TABLE_TYPE = 'faust.Table'
 
+#: Tables keep a cache of key to partition number. This value
+#: configures the maximum size of that cache.
+TABLE_KEY_INDEX_SIZE = 1000
+
 #: Path to "table of sets" class, used as default for :setting:`SetTable`.
 SET_TABLE_TYPE = 'faust.SetTable'
 
@@ -312,6 +316,7 @@ class Settings(abc.ABC):
     stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT
     ssl_context: Optional[ssl.SSLContext] = None
     table_standby_replicas: int = 1
+    table_key_index_size: int = TABLE_KEY_INDEX_SIZE
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
     topic_allow_declare: bool = True
@@ -445,6 +450,7 @@ class Settings(abc.ABC):
             loghandlers: List[logging.Handler] = None,
             table_cleanup_interval: Seconds = None,
             table_standby_replicas: int = None,
+            table_key_index_size: int = None,
             topic_replication_factor: int = None,
             topic_partitions: int = None,
             topic_allow_declare: bool = None,
@@ -559,6 +565,8 @@ class Settings(abc.ABC):
             self.value_serializer = value_serializer
         if table_standby_replicas is not None:
             self.table_standby_replicas = table_standby_replicas
+        if table_key_index_size is not None:
+            self.table_key_index_size = table_key_index_size
         if topic_replication_factor is not None:
             self.topic_replication_factor = topic_replication_factor
         if topic_partitions is not None:

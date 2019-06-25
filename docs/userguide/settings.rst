@@ -1020,6 +1020,21 @@ How often we cleanup tables to remove expired entries.
 
 The number of standby replicas for each table.
 
+.. setting:: table_key_index_size
+
+``table_key_index_size``
+------------------------
+
+.. versionadded:: 1.8
+
+:type: :class:`int`
+:default: ``1000``
+
+Tables keep a cache of key to partition number to speed up
+table lookups.
+
+This setting configures the maximum size of that cache.
+
 .. _settings-stream:
 
 Advanced Stream Settings
