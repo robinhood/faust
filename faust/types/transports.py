@@ -404,6 +404,10 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
         ...
 
     @abc.abstractmethod
+    async def maybe_wait_for_subscriptions(self) -> None:
+        ...
+
+    @abc.abstractmethod
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 

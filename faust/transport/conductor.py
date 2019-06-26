@@ -256,8 +256,13 @@ class Conductor(ConductorT, Service):
 
     async def wait_for_subscriptions(self) -> None:
         """Wait for consumer to be subscribed."""
-        self._subscription_done = asyncio.Future(loop=self.loop)
+        if self._subscription_done is None:
+            self._subscription_done = asyncio.Future(loop=self.loop)
         await self._subscription_done
+
+    async def maybe_wait_for_subscriptions(self) -> None:
+        if self._subscription_done is not None:
+            await self._subscription_done
 
     async def _update_indices(self) -> Iterable[str]:
         self._topic_name_index.clear()

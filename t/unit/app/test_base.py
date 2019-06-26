@@ -371,7 +371,7 @@ class test_App:
             on_rebalance=AsyncMock(),
         )
         app.topics = Mock(
-            wait_for_subscriptions=AsyncMock(),
+            maybe_wait_for_subscriptions=AsyncMock(),
             on_partitions_assigned=AsyncMock(),
         )
 
@@ -384,7 +384,7 @@ class test_App:
 
         app.agents.on_rebalance.assert_called_once_with(
             revoked, newly_assigned)
-        app.topics.wait_for_subscriptions.assert_called_once_with()
+        app.topics.maybe_wait_for_subscriptions.assert_called_once_with()
         app.consumer.pause_partitions.assert_called_once_with(assigned)
         app.topics.on_partitions_assigned.assert_called_once_with(assigned)
         app.consumer.transactions.on_rebalance.assert_not_called()

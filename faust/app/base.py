@@ -1528,7 +1528,7 @@ class App(AppT, Service):
                 # Wait for transport.Conductor to finish
                 # calling Consumer.subscribe
                 on_timeout.info('topics.wait_for_subscriptions()')
-                await T(self.topics.wait_for_subscriptions)()
+                await T(self.topics.maybe_wait_for_subscriptions)()
                 on_timeout.info('consumer.pause_partitions()')
                 T(consumer.pause_partitions)(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
