@@ -101,9 +101,9 @@ class test_Store:
         store = Store('rocksdb://foobar/', app, table)
         assert store.url == URL('rocksdb://foobar/')
 
-    def test_init(self, *, store):
+    def test_init(self, *, store, app):
         assert isinstance(store.rocksdb_options, RocksDBOptions)
-        assert store.key_index_size == 10_000
+        assert store.key_index_size == app.conf.table_key_index_size
         assert store._dbs == {}
         assert store._key_index is not None
 
