@@ -153,12 +153,14 @@ class Store(base.SerializedStore):
                  options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         if rocksdb is None:
+            error = ImproperlyConfigured(
+                'RocksDB bindings not installed? pip install python-rocksdb')
             try:
                 import rocksdb as _rocksdb  # noqa: F401
-            except Exception as exc:
-                raise ImproperlyConfigured(
-                    'RocksDB bindings not installed? '
-                    'pip install python-rocksdb') from exc
+            except Exception as exc:  # pragma: no cover
+                raise error from exc
+            else:  # pragma: no cover
+                raise error
         super().__init__(url, app, table, **kwargs)
         if not self.url.path:
             self.url /= self.table_name

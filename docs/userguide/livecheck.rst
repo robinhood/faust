@@ -62,5 +62,5 @@ LiveCheck Example.
         $ python examples/livecheck.py post_order --side=sell
 
 The probability of a test execution happening is 50%
-so have to do this at least twice to see activity happening
+so you have to do this at least twice to see activity happening
 in the LiveCheck instance terminal.
