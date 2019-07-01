@@ -137,6 +137,9 @@ def test_datetimes():
     class Date(Record, coerce=True):
         date: datetime
 
+    class OptionalDate(Record, coerce=True):
+        date: Optional[datetime]
+
     class TupleOfDate(Record, coerce=True):
         dates: Tuple[datetime]
 
@@ -157,6 +160,8 @@ def test_datetimes():
 
     n1 = datetime.utcnow()
     assert Date.loads(Date(date=n1).dumps()).date == n1
+    assert OptionalDate.loads(OptionalDate(date=n1).dumps()).date == n1
+    assert OptionalDate.loads(OptionalDate(date=None).dumps()).date is None
     n2 = datetime.utcnow()
     assert ListOfDate.loads(ListOfDate(
         dates=[n1, n2]).dumps()).dates == [n1, n2]

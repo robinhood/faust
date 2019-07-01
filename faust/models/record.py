@@ -106,8 +106,9 @@ def _is_model(cls: Type) -> Tuple[bool, Type, Optional[Type]]:
         polymorphic_type, cls = guess_polymorphic_type(cls)
     except TypeError:
         pass
+    member_type = remove_optional(cls)
     try:
-        return issubclass(remove_optional(cls), ModelT), cls, polymorphic_type
+        return issubclass(member_type, ModelT), member_type, polymorphic_type
     except TypeError:  # typing.Any cannot be used with subclass
         return False, cls, None
 
