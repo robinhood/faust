@@ -42,6 +42,18 @@ Commonly Used Settings
 
 Use in development to expose sensor information endpoint.
 
+
+.. tip::
+
+    If you want to enable the sensor statistics endpoint in production,
+    without enabling the :setting:`debug` setting, you can do so
+    by adding the following code:
+
+    .. sourcecode:: python
+
+        app.web.blueprints.add('/stats/', 'faust.web.apps.stats:blueprint')
+
+
 .. setting:: broker
 
 ``broker``
