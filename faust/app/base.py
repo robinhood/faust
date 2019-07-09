@@ -564,6 +564,9 @@ class App(AppT, Service):
     async def on_start(self) -> None:
         """Call every time app start/restarts."""
         self.finalize()
+        if self.conf.debug:
+            logger.warning(
+                '!!! DEBUG is enabled -- disable for production environments')
 
     async def on_started(self) -> None:
         """Call when app is fully started."""
@@ -1215,6 +1218,11 @@ class App(AppT, Service):
         """
         self.client_only = True
         await self.maybe_start()
+        self.consumer.stop_flow()
+        await self.topics.wait_for_subscriptions()
+        await self.topics.on_client_only_start()
+        self.consumer.resume_flow()
+        self.flow_control.resume()
 
     async def maybe_start_client(self) -> None:
         """Start the app in Client-Only mode if not started as Server."""
@@ -1520,7 +1528,7 @@ class App(AppT, Service):
                 # Wait for transport.Conductor to finish
                 # calling Consumer.subscribe
                 on_timeout.info('topics.wait_for_subscriptions()')
-                await T(self.topics.wait_for_subscriptions)()
+                await T(self.topics.maybe_wait_for_subscriptions)()
                 on_timeout.info('consumer.pause_partitions()')
                 T(consumer.pause_partitions)(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')

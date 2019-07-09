@@ -35,6 +35,7 @@ class CaseInsensitiveChoice(click.Choice):
 
     def __init__(self, choices: Iterable[Any]) -> None:
         self.choices = [str(val).lower() for val in choices]
+        self.case_sensitive = False  # required by click 7.x
 
     def convert(self,
                 value: str,

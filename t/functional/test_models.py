@@ -3,7 +3,16 @@ from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 import faust
+from faust.exceptions import ValidationError
 from faust.models import maybe_model
+from faust.models.fields import (
+    BytesField,
+    DecimalField,
+    FieldDescriptor,
+    FloatField,
+    IntegerField,
+    StringField,
+)
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -123,27 +132,82 @@ def test_parameters_with_custom_init_and_super():
     assert p2.z == 40
 
 
-def test_isodates():
+def test_datetimes():
 
-    class Date(Record, isodates=True):
+    class Date(Record, coerce=True):
         date: datetime
 
-    class TupleOfDate(Record, isodates=True):
+    class OptionalDate(Record, coerce=True):
+        date: Optional[datetime]
+
+    class TupleOfDate(Record, coerce=True):
         dates: Tuple[datetime]
 
-    class SetOfDate(Record, isodates=True):
+    class SetOfDate(Record, coerce=True):
         dates: Set[datetime]
 
-    class MapOfDate(Record, isodates=True):
+    class MapOfDate(Record, coerce=True):
         dates: Mapping[int, datetime]
 
-    class ListOfDate(Record, isodates=True):
+    class ListOfDate(Record, coerce=True):
         dates: List[datetime]
 
-    class OptionalListOfDate(Record, isodates=True):
+    class OptionalListOfDate(Record, coerce=True):
         dates: List[datetime] = None
 
-    class OptionalListOfDate2(Record, isodates=True):
+    class OptionalListOfDate2(Record, coerce=True):
+        dates: Optional[List[datetime]]
+
+    n1 = datetime.utcnow()
+    assert Date.loads(Date(date=n1).dumps()).date == n1
+    assert OptionalDate.loads(OptionalDate(date=n1).dumps()).date == n1
+    assert OptionalDate.loads(OptionalDate(date=None).dumps()).date is None
+    n2 = datetime.utcnow()
+    assert ListOfDate.loads(ListOfDate(
+        dates=[n1, n2]).dumps()).dates == [n1, n2]
+    assert OptionalListOfDate.loads(OptionalListOfDate(
+        dates=None).dumps()).dates is None
+    assert OptionalListOfDate.loads(OptionalListOfDate(
+        dates=[n2, n1]).dumps()).dates == [n2, n1]
+    assert OptionalListOfDate2.loads(OptionalListOfDate2(
+        dates=None).dumps()).dates is None
+    assert OptionalListOfDate2.loads(OptionalListOfDate2(
+        dates=[n1, n2]).dumps()).dates == [n1, n2]
+    assert TupleOfDate.loads(TupleOfDate(
+        dates=(n1, n2)).dumps()).dates == (n1, n2)
+    assert TupleOfDate.loads(TupleOfDate(
+        dates=(n2,)).dumps()).dates == (n2,)
+    assert SetOfDate.loads(SetOfDate(
+        dates={n1, n2}).dumps()).dates == {n1, n2}
+    assert MapOfDate.loads(MapOfDate(
+        dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
+
+    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    assert isinstance(datelist.dates[0], datetime)
+    assert isinstance(datelist.dates[1], datetime)
+
+
+def test_datetimes__isodates_compat():
+
+    class Date(Record, coerce=False, isodates=True):
+        date: datetime
+
+    class TupleOfDate(Record, coerce=False, isodates=True):
+        dates: Tuple[datetime]
+
+    class SetOfDate(Record, coerce=False, isodates=True):
+        dates: Set[datetime]
+
+    class MapOfDate(Record, coerce=False, isodates=True):
+        dates: Mapping[int, datetime]
+
+    class ListOfDate(Record, coerce=False, isodates=True):
+        dates: List[datetime]
+
+    class OptionalListOfDate(Record, coerce=False, isodates=True):
+        dates: List[datetime] = None
+
+    class OptionalListOfDate2(Record, coerce=False, isodates=True):
         dates: Optional[List[datetime]]
 
     n1 = datetime.utcnow()
@@ -168,28 +232,32 @@ def test_isodates():
     assert MapOfDate.loads(MapOfDate(
         dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
 
+    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    assert isinstance(datelist.dates[0], datetime)
+    assert isinstance(datelist.dates[1], datetime)
+
 
 def test_decimals():
 
-    class IsDecimal(Record, decimals=True, serializer='json'):
+    class IsDecimal(Record, coerce=True, serializer='json'):
         number: Decimal
 
-    class ListOfDecimal(Record, decimals=True, serializer='json'):
+    class ListOfDecimal(Record, coerce=True, serializer='json'):
         numbers: List[Decimal]
 
-    class OptionalListOfDecimal(Record, decimals=True, serializer='json'):
+    class OptionalListOfDecimal(Record, coerce=True, serializer='json'):
         numbers: List[Decimal] = None
 
-    class OptionalListOfDecimal2(Record, decimals=True, serializer='json'):
+    class OptionalListOfDecimal2(Record, coerce=True, serializer='json'):
         numbers: Optional[List[Decimal]]
 
-    class TupleOfDecimal(Record, decimals=True, serializer='json'):
+    class TupleOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Tuple[Decimal]
 
-    class SetOfDecimal(Record, decimals=True, serializer='json'):
+    class SetOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Set[Decimal]
 
-    class MapOfDecimal(Record, decimals=True, serializer='json'):
+    class MapOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Mapping[str, Decimal]
 
     n1 = Decimal('1.31341324')
@@ -213,6 +281,78 @@ def test_decimals():
         numbers={n1, n2}).dumps()).numbers == {n1, n2}
     assert MapOfDecimal.loads(MapOfDecimal(
         numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
+
+    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    assert isinstance(dlist.numbers[0], Decimal)
+    assert isinstance(dlist.numbers[1], Decimal)
+
+
+def test_decimals_compat():
+
+    class IsDecimal(Record, coerce=False, decimals=True, serializer='json'):
+        number: Decimal
+
+    class ListOfDecimal(Record,
+                        coerce=False,
+                        decimals=True,
+                        serializer='json'):
+        numbers: List[Decimal]
+
+    class OptionalListOfDecimal(Record,
+                                coerce=False,
+                                decimals=True,
+                                serializer='json'):
+        numbers: List[Decimal] = None
+
+    class OptionalListOfDecimal2(Record,
+                                 coerce=False,
+                                 decimals=True,
+                                 serializer='json'):
+        numbers: Optional[List[Decimal]]
+
+    class TupleOfDecimal(Record,
+                         coerce=False,
+                         decimals=True,
+                         serializer='json'):
+        numbers: Tuple[Decimal]
+
+    class SetOfDecimal(Record,
+                       coerce=False,
+                       decimals=True,
+                       serializer='json'):
+        numbers: Set[Decimal]
+
+    class MapOfDecimal(Record,
+                       coerce=False,
+                       decimals=True,
+                       serializer='json'):
+        numbers: Mapping[str, Decimal]
+
+    n1 = Decimal('1.31341324')
+    assert IsDecimal.loads(IsDecimal(number=n1).dumps()).number == n1
+    n2 = Decimal('3.41569')
+    assert ListOfDecimal.loads(ListOfDecimal(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=[n2, n1]).dumps()).numbers == [n2, n1]
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n1, n2)).dumps()).numbers == (n1, n2)
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n2,)).dumps()).numbers == (n2,)
+    assert SetOfDecimal.loads(SetOfDecimal(
+        numbers={n1, n2}).dumps()).numbers == {n1, n2}
+    assert MapOfDecimal.loads(MapOfDecimal(
+        numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
+
+    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    assert isinstance(dlist.numbers[0], Decimal)
+    assert isinstance(dlist.numbers[1], Decimal)
 
 
 def test_custom_coercion():
@@ -502,7 +642,7 @@ def test_subclass_preserves_required_values():
     Y(x=10, y=20)
 
 
-class test_too_many_arguments_raises_TypeError():
+def test_too_many_arguments_raises_TypeError():
     class X(Record):
         x: int
 
@@ -512,7 +652,8 @@ class test_too_many_arguments_raises_TypeError():
     with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
     reason = str(einfo.value)
-    assert reason == '__init__() takes 3 positional arguments but 4 were given'
+    print(reason)
+    assert '__init__() takes' in reason
 
 
 def test_fields_with_concrete_polymorphic_type__dict():
@@ -1007,7 +1148,7 @@ def test_model_with_custom_eq():
     assert X(10) == X(20)
 
 
-class test_Record_comparison():
+def test_Record_comparison():
     class X(Record):
         x: int
         y: int
@@ -1047,3 +1188,148 @@ def test_maybe_model():
 
     x1 = X(10, 20)
     assert maybe_model(json.loads(x1.dumps(serializer='json'))) == x1
+
+
+def test_StringField():
+
+    class Moo(Record):
+        foo: str = StringField(max_length=10, min_length=3, allow_blank=False)
+
+    too_long_moo = Moo('thequickbrownfoxjumpsoverthelazydog')
+    too_short_moo = Moo('xo')
+    perfect_moo = Moo('foobar')
+
+    assert perfect_moo.is_valid()
+    assert not too_long_moo.is_valid()
+    assert not too_short_moo.is_valid()
+
+    assert not perfect_moo.validation_errors
+    assert too_long_moo.validation_errors
+    assert too_short_moo.validation_errors
+
+    assert too_long_moo.foo == 'thequickbrownfoxjumpsoverthelazydog'
+    assert too_short_moo.foo == 'xo'
+    assert perfect_moo.foo == 'foobar'
+
+    assert not Moo('').is_valid()
+    assert Moo('').validation_errors
+    assert 'blank' in str(Moo('').validation_errors[0])
+
+
+def test_validation_ensures_types_match():
+
+    class Order(Record, validation=True):
+        price: Decimal = DecimalField()
+        quantity: int = IntegerField()
+        side: str = StringField()
+        foo: float = FloatField(required=False, default=3.33)
+
+    # Field descriptors are not considered defaults
+    with pytest.raises(TypeError):
+        Order()
+    with pytest.raises(TypeError):
+        Order(price=Decimal('3.13'))
+    with pytest.raises(TypeError):
+        Order(price=Decimal('3.13'), quantity=30)
+
+    with pytest.raises(ValidationError):
+        Order(price='NaN', quantity=2, side='BUY')
+    with pytest.raises(ValueError):
+        Order(price='3.13', quantity='xyz', side='BUY')
+
+    assert Order(price=Decimal(3.13), quantity=10, side='BUY')
+
+    order = Order(price='3.13', quantity='10', side='BUY', foo='3.33')
+    assert order.price == Decimal('3.13')
+    assert isinstance(order.price, Decimal)
+    assert order.quantity == 10
+    assert order.side == 'BUY'
+    assert order.foo == 3.33
+    assert isinstance(order.foo, float)
+
+
+def test_Decimal_max_digits():
+
+    class X(Record, validation=True):
+        foo: Decimal = DecimalField(max_digits=3)
+
+    with pytest.raises(ValidationError):
+        X(foo='3333.3333333333')
+
+    assert X(foo='33.33333333333333333').foo
+
+
+def test_StringField_trim_whitespace():
+
+    class X(Record, validation=True):
+        foo: str = StringField(trim_whitespace=True)
+
+    assert X(foo='  the quick    ').foo == 'the quick'
+
+
+def test_BytesField():
+
+    class X(Record, validation=True):
+        foo: bytes = BytesField(max_length=10, min_length=3)
+
+    assert X(foo='foo').foo == b'foo'
+
+
+def test_BytesField_trim_whitespace():
+
+    class X(Record, validation=True):
+        foo: bytes = BytesField(trim_whitespace=True)
+
+    assert X(foo='  the quick    ').foo == b'the quick'
+
+
+def test_field_descriptors_may_mix_with_non_defaults():
+
+    class Person(faust.Record, validation=True):
+        age: int = IntegerField(min_value=18, max_value=200)
+        name: str
+
+    with pytest.raises(ValidationError):
+        Person(age=9, name='Robin')
+
+    with pytest.raises(ValidationError):
+        Person(age=203, name='Abraham Lincoln')
+
+
+def test_implicit_descritor_types():
+
+    class X(Record):
+        a: int
+        b: float
+        c: str
+        d: bytes
+        e: Decimal
+
+    assert isinstance(X.a, IntegerField)
+    assert isinstance(X.b, FloatField)
+    assert isinstance(X.c, StringField)
+    assert isinstance(X.d, BytesField)
+    assert isinstance(X.e, DecimalField)
+
+
+def test_custom_field_validation():
+
+    class ChoiceField(FieldDescriptor[str]):
+
+        def __init__(self, choices: List[str], **kwargs) -> None:
+            self.choices = choices
+            # Must pass any custom args to init,
+            # so we pass the choices keyword argument also here.
+            super().__init__(choices=choices, **kwargs)
+
+        def validate(self, value: str):
+            if value not in self.choices:
+                choices = ', '.join(self.choices)
+                yield self.validation_error(
+                    f'Field {self.field} must be one of {choices}')
+
+    class Order(faust.Record, validation=True):
+        side: str = ChoiceField(['SELL', 'BUY'])
+
+    with pytest.raises(ValidationError):
+        Order(side='LEFT')

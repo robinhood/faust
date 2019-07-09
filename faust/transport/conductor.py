@@ -82,7 +82,7 @@ class ConductorCompiler:  # pragma: no cover
 
                 # keep track of the number of channels we delivered to,
                 # so that if a DecodeError is raised we can propagate
-                # that errors to the remaining channels.
+                # that error to the remaining channels.
                 delivered: Set[_Topic] = set()
                 full: List[Tuple[EventT, _Topic]] = []
                 try:
@@ -208,8 +208,13 @@ class Conductor(ConductorT, Service):
 
         get_callback_for_tp = self._tp_to_callback.__getitem__
 
-        async def on_message(message: Message) -> None:
-            return await get_callback_for_tp(message.tp)(message)
+        if self.app.client_only:
+            async def on_message(message: Message) -> None:
+                tp = TP(topic=message.topic, partition=0)
+                return await get_callback_for_tp(tp)(message)
+        else:
+            async def on_message(message: Message) -> None:
+                return await get_callback_for_tp(message.tp)(message)
 
         return on_message
 
@@ -251,6 +256,11 @@ class Conductor(ConductorT, Service):
 
     async def wait_for_subscriptions(self) -> None:
         """Wait for consumer to be subscribed."""
+        if self._subscription_done is None:
+            self._subscription_done = asyncio.Future(loop=self.loop)
+        await self._subscription_done
+
+    async def maybe_wait_for_subscriptions(self) -> None:
         if self._subscription_done is not None:
             await self._subscription_done
 
@@ -273,6 +283,14 @@ class Conductor(ConductorT, Service):
         self._tp_index.clear()
         T(self._update_tp_index)(assigned)
         T(self._update_callback_map)()
+
+    async def on_client_only_start(self) -> None:
+        tp_index = self._tp_index
+        for topic in self._topics:
+            for subtopic in topic.topics:
+                tp = TP(topic=subtopic, partition=0)
+                tp_index[tp].add(topic)
+        self._update_callback_map()
 
     def _update_tp_index(self, assigned: Set[TP]) -> None:
         assignmap = tp_set_to_map(assigned)

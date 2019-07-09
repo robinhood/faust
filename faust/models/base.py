@@ -28,15 +28,14 @@ Models are mainly used for describing the data in messages: both keys and
 values can be described as models.
 """
 import abc
-import inspect
 import warnings
 
-from operator import attrgetter
 from typing import (
     Any,
     Callable,
     ClassVar,
     Iterable,
+    List,
     MutableMapping,
     Optional,
     Tuple,
@@ -45,15 +44,17 @@ from typing import (
 
 from mode.utils.objects import canoname
 
+from faust.exceptions import ValidationError
 from faust.serializers.codecs import CodecArg, dumps, loads
 from faust.types.models import (
     CoercionMapping,
     FieldDescriptorT,
+    FieldMap,
     ModelOptions,
     ModelT,
 )
 
-__all__ = ['Model', 'FieldDescriptor', 'maybe_model', 'registry']
+__all__ = ['Model', 'maybe_model', 'registry']
 
 # NOTES:
 # - Records are described in the same notation as named tuples in Python 3.6.
@@ -144,6 +145,8 @@ class Model(ModelT):
     #: Set to True if this is an abstract base class.
     __is_abstract__: ClassVar[bool] = True
 
+    __validation_errors__ = None
+
     #: Serialized data may contain a "blessed key" that mandates
     #: how the data should be deserialized.  This probably only
     #: applies to records, but we need to support it at Model level.
@@ -231,8 +234,10 @@ class Model(ModelT):
                           abstract: bool = False,
                           allow_blessed_key: bool = None,
                           decimals: bool = None,
+                          coerce: bool = None,
                           coercions: CoercionMapping = None,
                           polymorphic_fields: bool = None,
+                          validation: bool = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -251,8 +256,10 @@ class Model(ModelT):
             abstract,
             allow_blessed_key,
             decimals,
+            coerce,
             coercions,
             polymorphic_fields,
+            validation,
         )
 
     @classmethod
@@ -264,8 +271,10 @@ class Model(ModelT):
                        abstract: bool = False,
                        allow_blessed_key: bool = None,
                        decimals: bool = None,
+                       coerce: bool = None,
                        coercions: CoercionMapping = None,
-                       polymorphic_fields: bool = None) -> None:
+                       polymorphic_fields: bool = None,
+                       validation: bool = None) -> None:
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
@@ -284,6 +293,8 @@ class Model(ModelT):
             options = options.clone_defaults()
         if custom_options:
             options.__dict__.update(custom_options.__dict__)
+        if coerce is not None:
+            options.coerce = coerce
         if coercions is not None:
             options.coercions.update(coercions)
         if serializer is not None:
@@ -298,6 +309,9 @@ class Model(ModelT):
             options.allow_blessed_key = allow_blessed_key
         if polymorphic_fields is not None:
             options.polymorphic_fields = polymorphic_fields
+        if validation is not None:
+            options.validation = validation
+            options.coerce = True  # validation implies coerce
 
         options.namespace = namespace or canoname(cls)
 
@@ -312,7 +326,8 @@ class Model(ModelT):
         # Add introspection capabilities
         cls._contribute_to_options(options)
         # Add FieldDescriptors for every field.
-        cls._contribute_field_descriptors(cls, options)
+        options.descriptors = cls._contribute_field_descriptors(
+            cls, options)
 
         # Store options on new subclass.
         cls._options = options
@@ -364,7 +379,7 @@ class Model(ModelT):
             cls,
             target: Type,
             options: ModelOptions,
-            parent: FieldDescriptorT = None) -> None:  # pragma: no cover
+            parent: FieldDescriptorT = None) -> FieldMap:  # pragma: no cover
         ...
 
     @classmethod
@@ -391,6 +406,28 @@ class Model(ModelT):
         """Return string representation of object for debugging purposes."""
         ...
 
+    def is_valid(self) -> bool:
+        return True if not self.validate() else False
+
+    def validate(self) -> List[ValidationError]:
+        errors = self.__validation_errors__
+        if errors is None:
+            errors = self.__validation_errors__ = list(self._itervalidate())
+        return errors
+
+    def validate_or_raise(self) -> None:
+        errors = self.validate()
+        if errors:
+            raise errors[0]
+
+    def _itervalidate(self) -> Iterable[ValidationError]:
+        for name, descr in self._options.descriptors.items():
+            yield from descr.validate(getattr(self, name))
+
+    @property
+    def validation_errors(self) -> List[ValidationError]:
+        return self.validate()
+
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         """Derive new model with certain fields changed."""
         return self._derive(*objects, **fields)
@@ -406,104 +443,3 @@ class Model(ModelT):
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._humanize()}>'
-
-
-def _is_concrete_model(typ: Type = None) -> bool:
-    return (typ is not None and
-            inspect.isclass(typ) and
-            issubclass(typ, ModelT) and
-            typ is not ModelT and
-            not getattr(typ, '__is_abstract__', False))
-
-
-class FieldDescriptor(FieldDescriptorT):
-    """Describes a field.
-
-    Used for every field in Record so that they can be used in join's
-    /group_by etc.
-
-    Examples:
-        >>> class Withdrawal(Record):
-        ...    account_id: str
-        ...    amount: float = 0.0
-
-        >>> Withdrawal.account_id
-        <FieldDescriptor: Withdrawal.account_id: str>
-        >>> Withdrawal.amount
-        <FieldDescriptor: Withdrawal.amount: float = 0.0>
-
-    Arguments:
-        field (str): Name of field.
-        type (Type): Field value type.
-        model (Type): Model class the field belongs to.
-        required (bool): Set to false if field is optional.
-        default (Any): Default value when `required=False`.
-    """
-
-    #: Name of attribute on Model.
-    field: str
-
-    #: Type of value (e.g. ``int``, or ``Optional[int]``)).
-    type: Type
-
-    #: The model class this field is associated with.
-    model: Type[ModelT]
-
-    #: Set if a value for this field is required (cannot be :const:`None`).
-    required: bool = True
-
-    #: Default value for non-required field.
-    default: Any = None  # noqa: E704
-
-    def __init__(self,
-                 field: str,
-                 type: Type,
-                 model: Type[ModelT],
-                 required: bool = True,
-                 default: Any = None,
-                 parent: FieldDescriptorT = None) -> None:
-        self.field = field
-        self.type = type
-        self.model = model
-        self.required = required
-        self.default = default
-        self.parent = parent
-        self._copy_descriptors(self.type)
-
-    def _copy_descriptors(self, typ: Type = None) -> None:
-        if typ is not None and _is_concrete_model(typ):
-            typ._contribute_field_descriptors(self, typ._options, parent=self)
-
-    def __get__(self, instance: Any, owner: Type) -> Any:
-        # class attribute accessed
-        if instance is None:
-            return self
-
-        # instance attribute accessed
-        return instance.__dict__[self.field]
-
-    def getattr(self, obj: ModelT) -> Any:
-        """Get attribute from model recursively.
-
-        Supports recursive lookups e.g. ``model.getattr('x.y.z')``.
-        """
-        return attrgetter('.'.join(reversed(list(self._parents_path()))))(obj)
-
-    def _parents_path(self) -> Iterable[str]:
-        node: Optional[FieldDescriptorT] = self
-        while node:
-            yield node.field
-            node = node.parent
-
-    def __set__(self, instance: Any, value: Any) -> None:
-        instance.__dict__[self.field] = value
-
-    def __repr__(self) -> str:
-        default = '' if self.required else f' = {self.default!r}'
-        typ = self.type.__name__
-        return f'<{type(self).__name__}: {self.ident}: {typ}{default}>'
-
-    @property
-    def ident(self) -> str:
-        """Return the fields identifier."""
-        return f'{self.model.__name__}.{self.field}'

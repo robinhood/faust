@@ -79,6 +79,7 @@ class CollectionT(ServiceT, JoinableT):
     help: str
     recovery_buffer_size: int
     standby_buffer_size: int
+    options: Optional[Mapping[str, Any]]
 
     @abc.abstractmethod
     def __init__(self,
@@ -98,6 +99,7 @@ class CollectionT(ServiceT, JoinableT):
                  recovery_buffer_size: int = 1000,
                  standby_buffer_size: int = None,
                  extra_topic_configs: Mapping[str, Any] = None,
+                 options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         ...
 

@@ -182,7 +182,7 @@ class TransactionManager(Service, TransactionManagerT):
 
     app: AppT
 
-    transactional_id_format = '{tpg.group}-{tpg.partition}'
+    transactional_id_format = '{group_id}-{tpg.group}-{tpg.partition}'
 
     def __init__(self, transport: TransportT,
                  *,
@@ -246,7 +246,10 @@ class TransactionManager(Service, TransactionManagerT):
 
     def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
         return {
-            self.transactional_id_format.format(tpg=tpg)
+            self.transactional_id_format.format(
+                tpg=tpg,
+                group_id=self.app.conf.id,
+            )
             for tpg in self._tps_to_active_tpgs(tps)
         }
 
@@ -274,7 +277,7 @@ class TransactionManager(Service, TransactionManagerT):
         p = self.consumer.key_partition(topic, key, partition)
         if p is not None:
             group = self.app.assignor.group_for_topic(topic)
-            transactional_id = f'{group}-{p}'
+            transactional_id = f'{self.app.conf.id}-{group}-{p}'
         return await self.producer.send(
             topic, key, value, p, timestamp, headers,
             transactional_id=transactional_id,
@@ -301,7 +304,7 @@ class TransactionManager(Service, TransactionManagerT):
 
         for tp, offset in offsets.items():
             group = self.app.assignor.group_for_topic(tp.topic)
-            transactional_id = f'{group}-{tp.partition}'
+            transactional_id = f'{group_id}-{group}-{tp.partition}'
             by_transactional_id[transactional_id][tp] = offset
 
         if by_transactional_id:
@@ -584,7 +587,7 @@ class Consumer(Service, ConsumerT):
 
     @abc.abstractmethod
     async def _getmany(self,
-                       active_partitions: Set[TP],
+                       active_partitions: Optional[Set[TP]],
                        timeout: float) -> RecordMap:
         ...
 
@@ -644,21 +647,29 @@ class Consumer(Service, ConsumerT):
             for tp, record in records_it:
                 if not self.flow_active:
                     break
-                if tp in active_partitions:
+                if active_partitions is None or tp in active_partitions:
                     highwater_mark = self.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
                     yield tp, to_message(tp, record)
 
     async def _wait_next_records(
-            self, timeout: float) -> Tuple[Optional[RecordMap], Set[TP]]:
+            self, timeout: float) -> Tuple[Optional[RecordMap],
+                                           Optional[Set[TP]]]:
         if not self.flow_active:
             await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
-        active_partitions = self._get_active_partitions()
+
+        is_client_only = self.app.client_only
+
+        active_partitions: Optional[Set[TP]]
+        if is_client_only:
+            active_partitions = None
+        else:
+            active_partitions = self._get_active_partitions()
 
         records: RecordMap = {}
-        if active_partitions:
+        if is_client_only or active_partitions:
             # Fetch records only if active partitions to avoid the risk of
             # fetching all partitions in the beginning when none of the
             # partitions is paused/resumed.
@@ -780,6 +791,9 @@ class Consumer(Service, ConsumerT):
         Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
+        if self.app.client_only:
+            # client only cannot commit as consumer does not have group_id
+            return False
         if await self.maybe_wait_for_commit_to_finish():
             # original commit finished, return False as we did not commit
             return False
@@ -947,7 +961,7 @@ class Consumer(Service, ConsumerT):
             # find first list of consecutive numbers
             batch = next(consecutive_numbers(acked))
             # remove them from the list to clean up.
-            acked[:len(batch)] = []
+            acked[:len(batch) - 1] = []
             self._acked_index[tp].difference_update(batch)
             # return the highest commit offset
             return batch[-1]
@@ -979,6 +993,7 @@ class Consumer(Service, ConsumerT):
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
+
                 # Sleeping because sometimes getmany is called in a loop
                 # never releasing to the event loop
                 await self.sleep(0)
@@ -1101,7 +1116,7 @@ class ConsumerThread(QueueServiceThread):
 
     @abc.abstractmethod
     async def getmany(self,
-                      active_partitions: Set[TP],
+                      active_partitions: Optional[Set[TP]],
                       timeout: float) -> RecordMap:
         """Fetch batch of messages from server."""
         ...
@@ -1192,7 +1207,7 @@ class ThreadDelegateConsumer(Consumer):
         await promise
 
     async def _getmany(self,
-                       active_partitions: Set[TP],
+                       active_partitions: Optional[Set[TP]],
                        timeout: float) -> RecordMap:
         return await self._thread.getmany(active_partitions, timeout)
 

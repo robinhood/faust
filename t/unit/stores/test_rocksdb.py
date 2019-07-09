@@ -101,9 +101,9 @@ class test_Store:
         store = Store('rocksdb://foobar/', app, table)
         assert store.url == URL('rocksdb://foobar/')
 
-    def test_init(self, *, store):
-        assert isinstance(store.options, RocksDBOptions)
-        assert store.key_index_size == 10_000
+    def test_init(self, *, store, app):
+        assert isinstance(store.rocksdb_options, RocksDBOptions)
+        assert store.key_index_size == app.conf.table_key_index_size
         assert store._dbs == {}
         assert store._key_index is not None
 
@@ -225,10 +225,9 @@ class test_Store:
         ofp.assert_called_once_with(1)
 
     def test_open_for_partition(self, *, store):
-        store.options.open = Mock(name='options.open')
-        assert store._open_for_partition(1) is store.options.open.return_value
-        store.options.open.assert_called_once_with(
-            store.partition_path(1))
+        open = store.rocksdb_options.open = Mock(name='options.open')
+        assert store._open_for_partition(1) is open.return_value
+        open.assert_called_once_with(store.partition_path(1))
 
     def test__get__missing(self, *, store):
         store._get_bucket_for_key = Mock(name='get_bucket_for_key')

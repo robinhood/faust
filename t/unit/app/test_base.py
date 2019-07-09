@@ -371,7 +371,7 @@ class test_App:
             on_rebalance=AsyncMock(),
         )
         app.topics = Mock(
-            wait_for_subscriptions=AsyncMock(),
+            maybe_wait_for_subscriptions=AsyncMock(),
             on_partitions_assigned=AsyncMock(),
         )
 
@@ -384,7 +384,7 @@ class test_App:
 
         app.agents.on_rebalance.assert_called_once_with(
             revoked, newly_assigned)
-        app.topics.wait_for_subscriptions.assert_called_once_with()
+        app.topics.maybe_wait_for_subscriptions.assert_called_once_with()
         app.consumer.pause_partitions.assert_called_once_with(assigned)
         app.topics.on_partitions_assigned.assert_called_once_with(assigned)
         app.consumer.transactions.on_rebalance.assert_not_called()
@@ -433,6 +433,7 @@ class test_App:
         fixup2 = Mock(name='fixup2', autospec=Fixup)
         app.fixups = [fixup1, fixup2]
         app.worker_init()
+        app.worker_init_post_autodiscover()
         fixup1.on_worker_init.assert_called_once_with()
         fixup2.on_worker_init.assert_called_once_with()
 
@@ -923,6 +924,7 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
+        app.topics.wait_for_subscriptions = AsyncMock()
         app.maybe_start = AsyncMock(name='app.maybe_start')
         await app.start_client()
         assert app.client_only

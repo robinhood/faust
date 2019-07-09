@@ -1,6 +1,12 @@
 import pytest
 from faust.web import Blueprint
-from faust.web.base import BlueprintManager, Web
+from faust.web.base import (
+    BlueprintManager,
+    DEBUG_BLUEPRINTS,
+    DEFAULT_BLUEPRINTS,
+    PRODUCTION_BLUEPRINTS,
+    Web,
+)
 from mode.utils.mocks import Mock, patch
 from yarl import URL
 
@@ -84,6 +90,17 @@ class test_Web:
     @pytest.fixture()
     def web(self, *, app):
         return MyWeb(app)
+
+    @pytest.mark.conf(debug=True)
+    def test_debug_blueprints(self, *, web):
+        assert web.app.conf.debug
+        assert web.blueprints._enabled == (
+            DEFAULT_BLUEPRINTS + DEBUG_BLUEPRINTS)
+
+    def test_production_blueprints(self, *, web):
+        assert not web.app.conf.debug
+        assert web.blueprints._enabled == (
+            DEFAULT_BLUEPRINTS + PRODUCTION_BLUEPRINTS)
 
     def test_url_for(self, *, web):
         web.reverse_names['test'] = '/foo/{bar}/'

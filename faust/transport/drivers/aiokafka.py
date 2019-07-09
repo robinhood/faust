@@ -224,6 +224,16 @@ class AIOKafkaConsumerThread(ConsumerThread):
         auth_settings = credentials_to_aiokafka_auth(
             conf.broker_credentials, conf.ssl_context)
         max_poll_interval = conf.broker_max_poll_interval or 0
+
+        request_timeout = conf.broker_request_timeout
+        session_timeout = conf.broker_session_timeout
+
+        if session_timeout > request_timeout:
+            raise ImproperlyConfigured(
+                f'Setting broker_session_timeout={session_timeout} '
+                f'cannot be greater than '
+                f'broker_request_timeout={request_timeout}')
+
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -237,9 +247,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
             max_poll_interval_ms=int(max_poll_interval * 1000.0),
             max_partition_fetch_bytes=conf.consumer_max_fetch_size,
             fetch_max_wait_ms=1500,
-            request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
+            request_timeout_ms=int(request_timeout * 1000.0),
             check_crcs=conf.broker_check_crcs,
-            session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
+            session_timeout_ms=int(session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
             isolation_level=isolation_level,
             traced_from_parent_span=self.traced_from_parent_span,
@@ -414,7 +424,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         return self._consumer
 
     async def getmany(self,
-                      active_partitions: Set[TP],
+                      active_partitions: Optional[Set[TP]],
                       timeout: float) -> RecordMap:
         """Fetch batch of messages from server."""
         # Implementation for the Fetcher service.

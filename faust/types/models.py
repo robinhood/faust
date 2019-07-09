@@ -5,26 +5,37 @@ from typing import (
     Callable,
     ClassVar,
     FrozenSet,
+    Generic,
+    Iterable,
+    List,
     Mapping,
     MutableMapping,
     NamedTuple,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
+from faust.exceptions import ValidationError  # XXX !!coupled
 from .codecs import CodecArg
 
 __all__ = [
     'CoercionHandler',
     'FieldDescriptorT',
+    'FieldMap',
     'IsInstanceArgT',
     'ModelArg',
     'ModelOptions',
     'ModelT',
     'TypeCoerce',
+    'TypeInfo',
 ]
+
+FieldMap = Mapping[str, 'FieldDescriptorT']
+
+T = TypeVar('T')
 
 # Workaround for https://bugs.python.org/issue29581
 try:
@@ -57,6 +68,11 @@ class TypeCoerce(NamedTuple):
     handler: CoercionHandler
 
 
+class TypeInfo(NamedTuple):
+    generic_type: Optional[Type]
+    member_type: Type
+
+
 class ModelOptions(abc.ABC):
     serializer: Optional[CodecArg] = None
     namespace: str
@@ -65,6 +81,8 @@ class ModelOptions(abc.ABC):
     allow_blessed_key: bool = False  # XXX compat
     isodates: bool = False
     decimals: bool = False
+    validation: bool = False
+    coerce: bool = False
     coercions: CoercionMapping = cast(CoercionMapping, None)
 
     # If we set `attr = None` mypy will think the values can be None
@@ -79,6 +97,9 @@ class ModelOptions(abc.ABC):
 
     #: Index: Set of required field names, for fast argument checking.
     fieldset: FrozenSet[str] = cast(FrozenSet[str], None)
+
+    #: Index: Mapping of field name to field descriptor.
+    descriptors: FieldMap = cast(FieldMap, None)
 
     #: Index: Positional argument index to field name.
     #: Used by Record.__init__ to map positional arguments to fields.
@@ -108,6 +129,10 @@ class ModelOptions(abc.ABC):
     initfield: Mapping[str, CoercionHandler] = cast(
         Mapping[str, CoercionHandler], None)
 
+    #: Index of field to polymorphic type
+    polyindex: Mapping[str, TypeInfo] = cast(
+        Mapping[str, TypeInfo], None)
+
     def clone_defaults(self) -> 'ModelOptions':
         new_options = type(self)()
         new_options.serializer = self.serializer
@@ -117,6 +142,7 @@ class ModelOptions(abc.ABC):
         new_options.allow_blessed_key = self.allow_blessed_key
         new_options.isodates = self.isodates
         new_options.decimals = self.decimals
+        new_options.coerce = self.coerce
         new_options.coercions = dict(self.coercions)
         return new_options
 
@@ -158,27 +184,58 @@ class ModelT(base):  # type: ignore
     def to_representation(self) -> Any:
         ...
 
-
-class FieldDescriptorT(abc.ABC):
-    field: str
-    type: Type
-    model: Type[ModelT]
-    required: bool = True
-    default: Any = None  # noqa: E704
-    parent: Optional['FieldDescriptorT']
-
     @abc.abstractmethod
-    def __init__(self,
-                 field: str,
-                 type: Type,
-                 model: Type[ModelT],
-                 required: bool = True,
-                 default: Any = None,
-                 parent: 'FieldDescriptorT' = None) -> None:
+    def is_valid(self) -> bool:
         ...
 
     @abc.abstractmethod
-    def getattr(self, obj: ModelT) -> Any:
+    def validate(self) -> List[ValidationError]:
+        ...
+
+    @abc.abstractmethod
+    def validate_or_raise(self) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def validation_errors(self) -> List[ValidationError]:
+        ...
+
+
+class FieldDescriptorT(Generic[T]):
+
+    field: str
+    type: Type[T]
+    model: Type[ModelT]
+    required: bool = True
+    default: Optional[T] = None  # noqa: E704
+    parent: Optional['FieldDescriptorT']
+    generic_type: Optional[Type]
+    member_type: Optional[Type]
+
+    @abc.abstractmethod
+    def __init__(self, *,
+                 field: str = None,
+                 type: Type[T] = None,
+                 model: Type[ModelT] = None,
+                 required: bool = True,
+                 default: T = None,
+                 parent: 'FieldDescriptorT' = None,
+                 generic_type: Type = None,
+                 member_type: Type = None,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def validate(self, value: T) -> Iterable[ValidationError]:
+        ...
+
+    @abc.abstractmethod
+    def prepare_value(self, value: Any) -> Optional[T]:
+        ...
+
+    @abc.abstractmethod
+    def getattr(self, obj: ModelT) -> T:
         ...
 
     @property

@@ -8,12 +8,53 @@ This document contain change notes for bugfix releases in
 the Faust 1.7 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.7.1:
+
+1.7.1
+=====
+:release-date: TBA
+:release-by: TBA
+
+- **Stream**: Exactly once processing now include the app id
+  in transactional ids.
+
+    This was done to support running multiple apps on the same
+    Kafka broker.
+
+    Contributed by Cesar Pantoja (:github_user:`CesarPantoja`).
+
+- **Web**: Fixed bug where sensor index should display when :setting:`debug` is enabled
+
+    Contributed by :github_user:`tyong920`
+
+- **Transport**: The default value for :setting:`broker_request_timeout` is now
+  90 seconds (Issue #259)
+
+- **Transport**: Raise error if :setting:`broker_session_timeout` is greater
+  than :setting:`broker_request_timeout` (Closes #259)
+
+- **Dependencies**: Now supports :pypi:`click` 7.0 and later.
+
+- **Dependencies**: ``faust[debug]`` now depends on :pypi:`aiomonitor` 0.4.4
+  or later.
+
+- **RocksDB**: Adds :setting:`table_key_index_size` setting (Closes #372)
+
+- **RocksDB**: Reraise original error if :pypi:`python-rocksdb` cannot
+  be imported.
+
+    Thanks to Sohaib Farooqi.
+
+- **Documentation** improvements by:
+
+  + Witek Bedyk (:github_user:`witekest`)
+
 .. _version-1.7.0:
 
 1.7.0
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2019-06-06 6:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
 
 .. _v170-backward-incompatible-changes:
 
@@ -57,6 +98,63 @@ News
 
     See :ref:`worker-cluster` for more information.
 
+- **Models**: Implements model validation.
+
+    Validation of fields can be enabled by using the ``validation=True`` class
+    option:
+
+    .. sourcecode:: python
+
+        import faust
+        from decimal import Decimal
+
+        class X(faust.Record, validation=True):
+            name: str
+            amount: Decimal
+
+    When validation is enabled, the model will validate that the
+    fields values are of the correct type.
+
+    Fields can now also have advanced validation options,
+    and you enable these by writing explicit field descriptors:
+
+    .. sourcecode:: python
+
+        import faust
+        from decimal import Decimal
+        from faust.models.fields import DecimalField, StringField
+
+        class X(faust.Record, validation=True):
+            name: str = StringField(max_length=30)
+            amount: Decimal = DecimalField(min_value=10.0, max_value=1000.0)
+
+    If you want to run validation manually, you can do so by
+    keeping ``validation=False`` on the class, but calling
+    ``model.is_valid()``:
+
+    .. sourcecode:: python
+
+        if not model.is_valid():
+            print(model.validation_errors)
+
+- **Models**: Implements generic coercion support.
+
+    This new feature replaces the ``isodates=True``/``decimals=True`` options
+    and can be enabled by passing ``coerce=True``:
+
+    .. sourcecode:: python
+
+        class Account(faust.Record, coerce=True):
+            name: str
+            login_times: List[datetime]
+
+- **Testing**: New experimental ``livecheck`` production testing API.
+
+    There is no documentation yet, but an example in
+    ``examples//livecheck.py``.
+
+    This is a new API to do end-to-end testing directly in production.
+
 - **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
   messages.
 
@@ -92,15 +190,25 @@ News
 
 - **App**: New :setting:`broker_max_poll_interval` setting.
 
-  Contributed by Miha Troha :github_user:`mihatroha`.
+  Contributed by Miha Troha (:github_user:`mihatroha`).
 
 - **App**: New :setting:`topic_disable_leader` setting disables
   the leader topic.
+
+- **Table**: Table constructor now accepts ``options`` argument
+  passed on to underlying RocksDB storage.
+
+    This can be used to configure advanced RocksDB options,
+    such as block size, cache size, etc.
+
+    Contributed by Miha Troha (:github_user:`mihatroha`).
 
 .. _v170-fixes:
 
 Fixes
 -----
+
+- **Stream**: Fixes bug where non-finished event is acked (Issue #355).
 
 - **Producer**: Exactly once: Support producing to non-transactional
   topics (Issue #339)
@@ -131,3 +239,11 @@ Improvements
 ------------
 
 - **Documentation**: Rewrote fragmented documentation to be more concise.
+
+- **Documentation improvements by**
+
+    + Igor Mozharovsky (:github_user:`seedofjoy`)
+
+    + Stephen Sorriaux (:github_user:`StephenSorriaux`)
+
+    + Lifei Chen (:github_user:`hustclf`)

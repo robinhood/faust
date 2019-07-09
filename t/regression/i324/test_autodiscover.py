@@ -20,8 +20,8 @@ def test_main(*, app, loop):
         with ExitStack() as stack:
             stack.enter_context(patch(
                 'sys.argv',
-                ['proj', 'my_process_command_i324']))
-            assert sys.argv == ['proj', 'my_process_command_i324']
+                ['proj', 'myprocesscommandi324']))
+            assert sys.argv == ['proj', 'myprocesscommandi324']
             stack.enter_context(pytest.raises(SystemExit))
             stack.enter_context(redirect_stdout(stdout))
             stack.enter_context(redirect_stderr(stderr))

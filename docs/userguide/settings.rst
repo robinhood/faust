@@ -32,6 +32,16 @@ This parameter is required.
 Commonly Used Settings
 ======================
 
+.. setting:: debug
+
+``debug``
+---------
+
+:type: :class:`bool`
+:default: :const:`False`
+
+Use in development to expose sensor information endpoint.
+
 .. setting:: broker
 
 ``broker``
@@ -641,9 +651,14 @@ configured by the user.
 .. versionadded:: 1.4.0
 
 :type: :class:`int`
-:default: ``40.0`` (forty seconds)
+:default: ``90.0`` (seconds)
 
 Kafka client request timeout.
+
+.. note::
+
+    The request timeout must not be less than the
+    :setting:`broker_session_timeout`.
 
 .. setting:: broker_commit_every
 
@@ -720,6 +735,11 @@ will consider it dysfunctional and remove it from the cluster.
 Increase this if you experience the cluster being in a state of constantly
 rebalancing, but make sure you also increase the
 :setting:`broker_heartbeat_interval` at the same time.
+
+.. note::
+
+    The session timeout must not be greater than the
+    :setting:`broker_request_timeout`.
 
 .. setting:: broker_max_poll_records
 
@@ -851,7 +871,7 @@ Should rarely have to change this.
 :type: :class:`int`
 :default: 16384
 
-Max number of records in each producer batch.
+Max size of each producer batch, in bytes.
 
 .. setting:: producer_max_request_size
 
@@ -999,6 +1019,21 @@ How often we cleanup tables to remove expired entries.
 :default: ``1``
 
 The number of standby replicas for each table.
+
+.. setting:: table_key_index_size
+
+``table_key_index_size``
+------------------------
+
+.. versionadded:: 1.8
+
+:type: :class:`int`
+:default: ``1000``
+
+Tables keep a cache of key to partition number to speed up
+table lookups.
+
+This setting configures the maximum size of that cache.
 
 .. _settings-stream:
 

@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -44,6 +45,7 @@ class Store(StoreT[KT, VT], Service):
                  value_type: ModelArg = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
+                 options: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.url = URL(url)
@@ -54,6 +56,7 @@ class Store(StoreT[KT, VT], Service):
         self.value_type = value_type
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+        self.options = options
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         """Return the persisted offset for this topic and partition."""
