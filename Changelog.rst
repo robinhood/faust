@@ -12,8 +12,8 @@ please visit the :ref:`history` section.
 
 1.7.1
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2019-07-09 2:36 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
 
 - **Stream**: Exactly once processing now include the app id
   in transactional ids.
@@ -24,6 +24,16 @@ please visit the :ref:`history` section.
     Contributed by Cesar Pantoja (:github_user:`CesarPantoja`).
 
 - **Web**: Fixed bug where sensor index should display when :setting:`debug` is enabled
+
+    .. tip::
+
+        If you want to enable the sensor statistics endpoint in production,
+        without enabling the :setting:`debug` setting, you can do so
+        by adding the following code:
+
+        .. sourcecode:: python
+
+            app.web.blueprints.add('/stats/', 'faust.web.apps.stats:blueprint')
 
     Contributed by :github_user:`tyong920`
 
@@ -37,6 +47,21 @@ please visit the :ref:`history` section.
 
 - **Dependencies**: ``faust[debug]`` now depends on :pypi:`aiomonitor` 0.4.4
   or later.
+
+- **Models**: Field defined as ``Optional[datetime]`` now works with
+  ``coerce`` and ``isodates`` settings.
+
+    Previously a model would not recognize:
+
+    .. sourcecode:: python
+
+        class X(faust.Record, coerce=True):
+            date: Optional[datetime]
+
+        as a :class:`~faust.models.fields.DatetimeField` and when
+        deserializing the field would end up as a string.
+
+        It's now properly converted to :class:`~datetime.datetime`.
 
 - **RocksDB**: Adds :setting:`table_key_index_size` setting (Closes #372)
 
