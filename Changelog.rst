@@ -45,9 +45,13 @@ please visit the :ref:`history` section.
 
     Thanks to Sohaib Farooqi.
 
+- **Django**: Autodiscovery support now waits for Django to be fully setup.
+
+    Contributed by Tomasz Nguyen (:github_user:`swist`).
+
 - **Documentation** improvements by:
 
-  + Witek Bedyk (:github_user:`witekest`)
+  + Witek Bedyk (:github_user:`witekest`).
 
 .. _version-1.7.0:
 
