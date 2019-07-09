@@ -27,6 +27,24 @@ please visit the :ref:`history` section.
 
     Contributed by :github_user:`tyong920`
 
+- **Transport**: The default value for :setting:`broker_request_timeout` is now
+  90 seconds (Issue #259)
+
+- **Transport**: Raise error if :setting:`broker_session_timeout` is greater
+  than :setting:`broker_request_timeout` (Closes #259)
+
+- **Dependencies**: Now supports :pypi:`click` 7.0 and later.
+
+- **Dependencies**: ``faust[debug]`` now depends on :pypi:`aiomonitor` 0.4.4
+  or later.
+
+- **RocksDB**: Adds :setting:`table_key_index_size` setting (Closes #372)
+
+- **RocksDB**: Reraise original error if :pypi:`python-rocksdb` cannot
+  be imported.
+
+    Thanks to Sohaib Farooqi.
+
 .. _version-1.7.0:
 
 1.7.0
