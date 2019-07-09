@@ -45,6 +45,10 @@ please visit the :ref:`history` section.
 
     Thanks to Sohaib Farooqi.
 
+- **Documentation** improvements by:
+
+  + Witek Bedyk (:github_user:`witekest`)
+
 .. _version-1.7.0:
 
 1.7.0
