@@ -1309,7 +1309,7 @@ If you want more careful control you can specify a list of modules to traverse i
     See also :ref:`project-layout-django`.
 
 Problem: Entry Point
-~~~~~~~~~~~~~~~~~~~-
+~~~~~~~~~~~~~~~~~~~~
 
 The :file:`proj/__main__.py` module can act as the entry point for this
 project:
