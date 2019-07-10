@@ -521,8 +521,9 @@ class Record(Model, abstract=True):
         ]
 
         fields = [
-            f'  {field!r}: {cls._BUILD_asdict_field(field)},'
-            for field in cls._options.fields
+            f'  {name!r}: {cls._BUILD_asdict_field(name, field)},'
+            for name, field in cls._options.descriptors.items()
+            if not field.exclude
         ]
 
         postamble = [
@@ -541,23 +542,23 @@ class Record(Model, abstract=True):
         return payload
 
     @classmethod
-    def _BUILD_asdict_field(cls, field: str) -> str:
+    def _BUILD_asdict_field(cls, name: str, field: FieldDescriptorT) -> str:
         modelattrs = cls._options.modelattrs
-        is_model = field in modelattrs
+        is_model = name in modelattrs
         if is_model:
-            generic = modelattrs[field]
+            generic = modelattrs[name]
             if generic is list or generic is tuple:
-                return (f'[v.to_representation() for v in self.{field}] '
-                        f'if self.{field} is not None else None')
+                return (f'[v.to_representation() for v in self.{name}] '
+                        f'if self.{name} is not None else None')
             elif generic is set:
-                return f'self.{field}'
+                return f'self.{name}'
             elif generic is dict:
                 return (f'{{k: v.to_representation() '
-                        f'  for k, v in self.{field}.items()}}')
+                        f'  for k, v in self.{name}.items()}}')
             else:
-                return f'_maybe_to_representation(self.{field})'
+                return f'_maybe_to_representation(self.{name})'
         else:
-            return f'self.{field}'
+            return f'self.{name}'
 
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         data = self.asdict()

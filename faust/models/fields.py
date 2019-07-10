@@ -95,7 +95,24 @@ class FieldDescriptor(FieldDescriptorT[T]):
     #: Default value for non-required field.
     default: Optional[T] = None  # noqa: E704
 
+    #: Coerce value to field descriptors type.
+    #: This means assigning a value to this field, will first convert
+    #: the value to the requested type.
+    #: For example for a :class:`FloatField` the input will be converted
+    #: to float, and passing any value that cannot be converted to float
+    #: will raise an error.
+    #:
+    #: If coerce is not enabled you can store any type of value.
+    #:
+    #: Note: :const:`None` is usually considered a valid value for any field
+    #: but this depends on the descriptor type.
     coerce: bool = False
+
+    #: Exclude field from model representation.
+    #: This means the field will not be part of the serialized structure.
+    #: (``Model.dumps()``, ``Model.asdict()``, and
+    #: ``Model.to_representation()``).
+    exclude: bool = False
 
     def __init__(self, *,
                  field: str = None,
@@ -107,6 +124,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  coerce: bool = None,
                  generic_type: Type = None,
                  member_type: Type = None,
+                 exclude: bool = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
         self.type = cast(Type[T], type)
@@ -119,6 +137,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
         self._copy_descriptors(self.type)
         if coerce is not None:
             self.coerce = coerce
+        if exclude is not None:
+            self.exclude = exclude
         self.options = options
 
     def __set_name__(self, owner: Type[ModelT], name: str) -> None:
@@ -139,6 +159,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
             'coerce': self.coerce,
             'generic_type': self.generic_type,
             'member_type': self.member_type,
+            'exclude': self.exclude,
             **self.options,
         }
 

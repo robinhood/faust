@@ -618,7 +618,7 @@ define a new model class we add it to this index.
 .. _model-validation:
 
 Validation
-~~~~~~~~~~
+----------
 
 For models there is no validation of data by default:
 if you have a field described as an int, it will happily accept a string
@@ -727,6 +727,55 @@ After defining the subclass you may use it to define model fields:
     >>> Order(side='LEFT')
     faust.exceptions.ValidationError: (
         'side must be one of SELL, BUY', <ChoiceField: Order.side: str>)
+
+.. _model-field-exclude:
+
+Excluding fields from representation
+------------------------------------
+
+If you want your model to accept a certain field when deserializing,
+but exclude the same field from serialization, you can do so
+by marking that field as ``exclude=True``:
+
+.. sourcecode:: python
+
+    import faust
+    from faust.models.fields import StringField
+
+
+    class Order(faust.Record):
+        price: float
+        quantity: float
+        user_id: str = StringField(required=True, exclude=True)
+
+
+This model will accept ``user_id`` as a keyword argument, and from any
+serialized structure:
+
+.. sourcecode:: pycon
+
+    >>> order = Order(price=30.0, quantity=2.0, user_id='foo')
+    >>> order.user_id
+    'foo'
+
+    >>> order2 = Order.loads(
+    ...     '{"price": "30.0", quantity="2.0", "user_id": "foo"}',
+    ...     serializer='json',
+    ... )
+
+    >>> order2.user_id
+    'foo'
+
+But when serializing the order, the field will be excluded:
+
+.. sourcecode:: pycon
+
+    >>> order.asdict()
+    {'price': 30.0, 'quantity': 2.0}
+
+    >>> order.dumps(serializer='json')
+    '{"price": "30.0", "quantity": "2.0"}'
+
 
 Reference
 ~~~~~~~~~

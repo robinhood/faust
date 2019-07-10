@@ -1312,6 +1312,28 @@ def test_implicit_descritor_types():
     assert isinstance(X.e, DecimalField)
 
 
+def test_exclude():
+
+    class X(Record):
+        a: str
+        b: str
+        c: str = StringField(exclude=True)
+
+    x = X('A', 'B', 'C')
+
+    assert X.a.required
+    assert X.b.required
+    assert X.c.required
+
+    assert not X.a.exclude
+    assert not X.b.exclude
+    assert X.c.exclude
+
+    assert x.asdict() == {'a': 'A', 'b': 'B'}
+
+    assert 'c' not in x.to_representation()
+
+
 def test_custom_field_validation():
 
     class ChoiceField(FieldDescriptor[str]):
