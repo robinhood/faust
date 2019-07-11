@@ -356,11 +356,13 @@ class StringField(CharField[str]):
 
 
 class DatetimeField(FieldDescriptor[datetime]):
-    coerce = True  # always coerces, for info only
 
     def prepare_value(self, value: Any) -> Optional[datetime]:
-        if value is not None and not isinstance(value, datetime):
-            return iso8601.parse(value)
+        if self.should_coerce(value):
+            if value is not None and not isinstance(value, datetime):
+                return iso8601.parse(value)
+            else:
+                return value
         else:
             return value
 

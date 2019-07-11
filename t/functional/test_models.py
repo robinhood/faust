@@ -1355,3 +1355,20 @@ def test_custom_field_validation():
 
     with pytest.raises(ValidationError):
         Order(side='LEFT')
+
+
+def test_datetime_does_not_coerce():
+
+    class X(Record, coerce=False):
+        d: datetime
+
+    date_string = 'Sat Jan 12 00:44:36 +0000 2019'
+    assert X(date_string).d == date_string
+
+
+class test_float_does_not_coerce():
+
+    class X(Record, coerce=False):
+        f: float
+
+    assert X('3.14').f == '3.14'
