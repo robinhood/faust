@@ -1,5 +1,6 @@
 import abc
 import typing
+from datetime import datetime
 from typing import (
     Any,
     Callable,
@@ -84,6 +85,8 @@ class ModelOptions(abc.ABC):
     validation: bool = False
     coerce: bool = False
     coercions: CoercionMapping = cast(CoercionMapping, None)
+
+    date_parser: Optional[Callable[[Any], datetime]] = None
 
     # If we set `attr = None` mypy will think the values can be None
     # on the instance, but if we don't set it Sphinx will find
@@ -212,6 +215,7 @@ class FieldDescriptorT(Generic[T]):
     parent: Optional['FieldDescriptorT']
     generic_type: Optional[Type]
     member_type: Optional[Type]
+    exclude: bool
 
     @abc.abstractmethod
     def __init__(self, *,
@@ -223,8 +227,13 @@ class FieldDescriptorT(Generic[T]):
                  parent: 'FieldDescriptorT' = None,
                  generic_type: Type = None,
                  member_type: Type = None,
+                 exclude: bool = None,
+                 date_parser: Callable[[Any], datetime] = None,
                  **kwargs: Any) -> None:
-        ...
+        # we have to do this in __init__ or mypy will think
+        # this is a method
+        self.date_parser: Callable[[Any], datetime] = cast(
+            Callable[[Any], datetime], date_parser)
 
     @abc.abstractmethod
     def validate(self, value: T) -> Iterable[ValidationError]:

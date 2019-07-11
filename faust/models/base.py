@@ -30,6 +30,7 @@ values can be described as models.
 import abc
 import warnings
 
+from datetime import datetime
 from typing import (
     Any,
     Callable,
@@ -238,6 +239,7 @@ class Model(ModelT):
                           coercions: CoercionMapping = None,
                           polymorphic_fields: bool = None,
                           validation: bool = None,
+                          date_parser: Callable[[Any], datetime] = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -260,6 +262,7 @@ class Model(ModelT):
             coercions,
             polymorphic_fields,
             validation,
+            date_parser,
         )
 
     @classmethod
@@ -274,7 +277,8 @@ class Model(ModelT):
                        coerce: bool = None,
                        coercions: CoercionMapping = None,
                        polymorphic_fields: bool = None,
-                       validation: bool = None) -> None:
+                       validation: bool = None,
+                       date_parser: Callable[[Any], datetime] = None) -> None:
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
@@ -312,6 +316,8 @@ class Model(ModelT):
         if validation is not None:
             options.validation = validation
             options.coerce = True  # validation implies coerce
+        if date_parser is not None:
+            options.date_parser = date_parser
 
         options.namespace = namespace or canoname(cls)
 

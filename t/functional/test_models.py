@@ -2,6 +2,7 @@ import abc
 from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
+from dateutil.parser import parse as parse_date
 import faust
 from faust.exceptions import ValidationError
 from faust.models import maybe_model
@@ -1364,6 +1365,15 @@ def test_datetime_does_not_coerce():
 
     date_string = 'Sat Jan 12 00:44:36 +0000 2019'
     assert X(date_string).d == date_string
+
+
+def test_datetime_custom_date_parser():
+
+    class X(Record, coerce=True, date_parser=parse_date):
+        d: datetime
+
+    date_string = 'Sat Jan 12 00:44:36 +0000 2019'
+    assert X(date_string).d == parse_date(date_string)
 
 
 class test_float_does_not_coerce():

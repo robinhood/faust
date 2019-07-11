@@ -329,6 +329,7 @@ class Record(Model, abstract=True):
             parent: FieldDescriptorT = None) -> FieldMap:
         fields = options.fields
         defaults = options.defaults
+        date_parser = options.date_parser
         coerce = options.coerce
         index = {}
         for field, typ in fields.items():
@@ -350,6 +351,7 @@ class Record(Model, abstract=True):
                     coerce=coerce,
                     generic_type=typeinfo.generic_type,
                     member_type=typeinfo.member_type,
+                    date_parser=date_parser,
                 )
             else:
                 descr = descr.clone(

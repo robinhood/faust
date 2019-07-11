@@ -426,6 +426,40 @@ back into into :class:`~datetime.datetime` when deserializing.
     class Account(faust.Record, coerce=True, serializer='json'):
         date_joined: datetime
 
+
+Other date formats
+^^^^^^^^^^^^^^^^^^
+
+The default date parser supports ISO-8601 only.  To support
+this format and many other formats (such as ``'Sat Jan 12 00:44:36 +0000 2019'``)
+you can select to use :pypi:`python-dateutil` as the parser.
+
+To change the date parsing function for a model globally:
+
+.. sourcecode:: python
+
+    from dateutil.parser import parse as parse_date
+
+    class Account(faust.Record, coerce=True, date_parser=parse_date):
+        date_joined: datetime
+
+To change the date parsing function for a specific field:
+
+.. sourcecode:: python
+
+    from dateutil.parser import parse as parse_date
+    from faust.models.fields import DatetimeField
+
+    class Account(faust.Record, coerce=True):
+        # date_joined: supports ISO-8601 only (default)
+        date_joined: datetime
+
+        #: date_last_login: comes from weird system with more human
+        #: readable dates ('Sat Jan 12 00:44:36 +0000 2019').
+        #: The dateutil parser can handle many different date and time
+        #: formats.
+        date_last_login: datetime = DatetimeField(date_parser=parse_date)
+
 :class:`~decimal.Decimal`
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

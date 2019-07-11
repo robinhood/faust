@@ -6,6 +6,7 @@ from functools import lru_cache
 from operator import attrgetter
 from typing import (
     Any,
+    Callable,
     Iterable,
     Mapping,
     Optional,
@@ -125,6 +126,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  generic_type: Type = None,
                  member_type: Type = None,
                  exclude: bool = None,
+                 date_parser: Callable[[Any], datetime] = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
         self.type = cast(Type[T], type)
@@ -140,6 +142,9 @@ class FieldDescriptor(FieldDescriptorT[T]):
         if exclude is not None:
             self.exclude = exclude
         self.options = options
+        if date_parser is None:
+            date_parser = iso8601.parse
+        self.date_parser: Callable[[Any], datetime] = date_parser
 
     def __set_name__(self, owner: Type[ModelT], name: str) -> None:
         self.model = owner
@@ -160,6 +165,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
             'generic_type': self.generic_type,
             'member_type': self.member_type,
             'exclude': self.exclude,
+            'date_parser': self.date_parser,
             **self.options,
         }
 
@@ -360,7 +366,7 @@ class DatetimeField(FieldDescriptor[datetime]):
     def prepare_value(self, value: Any) -> Optional[datetime]:
         if self.should_coerce(value):
             if value is not None and not isinstance(value, datetime):
-                return iso8601.parse(value)
+                return self.date_parser(value)
             else:
                 return value
         else:
