@@ -7,7 +7,8 @@ The Producer is responsible for:
    - Sending messages.
 """
 import asyncio
-from typing import Any, Awaitable, Mapping, Optional
+from asyncio import QueueEmpty
+from typing import Any, Awaitable, Mapping, Optional, cast
 from mode import Seconds, Service
 from faust.types import AppT, HeadersArg
 from faust.types.tuples import FutureMessage, RecordMetadata, TP
@@ -18,23 +19,71 @@ __all__ = ['Producer']
 
 class ProducerBuffer(Service):
 
+    max_messages: int = 100
+
     pending: asyncio.Queue
 
     def __post_init__(self) -> None:
         self.pending = asyncio.Queue()
 
     def put(self, fut: FutureMessage) -> None:
+        """Add message to buffer.
+
+        The message will be eventually produced, you can await
+        the future to wait for that to happen.
+        """
         self.pending.put_nowait(fut)
 
     async def on_stop(self) -> None:
         await self.flush()
 
     async def flush(self) -> None:
-        pending_list = self.pending._queue  # type: ignore
-        [await self._send_pending(fut) for fut in pending_list]
+        """Flush all messages (draining the buffer)."""
+        get_pending = self.pending.get_nowait
+        send_pending = self._send_pending
+
+        if self.size:
+            while True:
+                try:
+                    msg = get_pending()
+                except QueueEmpty:
+                    break
+                else:
+                    await send_pending(msg)
+
+    async def flush_atmost(self, n: int) -> int:
+        """Flush at most ``n`` messages."""
+        get_pending = self.pending.get_nowait
+        send_pending = self._send_pending
+
+        if self.size:
+            for i in range(n):
+                try:
+                    msg = get_pending()
+                except QueueEmpty:
+                    return i
+                else:
+                    await send_pending(msg)
+        return 0
 
     async def _send_pending(self, fut: FutureMessage) -> None:
         await fut.message.channel.publish_message(fut, wait=False)
+
+    async def wait_until_ebb(self) -> None:
+        """Wait until buffer is of an acceptable size.
+
+        Modifying a table key is using the Python dictionary API,
+        and as ``__getitem__`` is synchronous we have to add
+        pending messages to a buffer.
+
+        The ``__getitem__`` method cannot drain the buffer as doing
+        so requires trampolining into the event loop.
+
+        To solve this, we have the conductor wait until the buffer
+        is of an acceptable size before resuming stream processing flow.
+        """
+        if self.size > self.max_messages:
+            await self.flush_atmost(self.max_messages)
 
     @Service.task
     async def _handle_pending(self) -> None:
@@ -43,6 +92,13 @@ class ProducerBuffer(Service):
         while not self.should_stop:
             msg = await get_pending()
             await send_pending(msg)
+
+    @property
+    def size(self) -> int:
+        """Current buffer size (messages waiting to be produced)."""
+        queue_items = self.pending._queue  # type: ignore
+        queue_items = cast(list, queue_items)
+        return len(queue_items)
 
 
 class Producer(Service, ProducerT):
@@ -74,6 +130,9 @@ class Producer(Service, ProducerT):
 
         self.buffer = ProducerBuffer(loop=self.loop, beacon=self.beacon)
 
+    async def on_start(self) -> None:
+        await self.add_runtime_dependency(self.buffer)
+
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
@@ -99,6 +158,7 @@ class Producer(Service, ProducerT):
 
     async def flush(self) -> None:
         """Flush all in-flight messages."""
+        # XXX subclasses must call self.buffer.flush() here.
         ...
 
     async def create_topic(self,
