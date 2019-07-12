@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 # In this exapmple we have a function `publish_every_2secs` publishing a
-# message every 2 senconds to topic `hopping_topic`
+# message every 2 senconds to topic `hopping_topic`.
 # We have created an agent `print_windowed_events` consuming events from
-# `hopping_topic` that mutates the windowed table `hopping_table`
+# `hopping_topic` that mutates the windowed table `hopping_table`.
 
-# `hopping_table` is a table with tumbling (overlaping) windows. Each of
+# `hopping_table` is a table with hopping (overlaping) windows. Each of
 # its windows is 10 seconds of duration, and we create a new window every 5
 # seconds.
 # |----------|
@@ -15,14 +15,14 @@
 # Since we produce an event every 2 seconds and our windows are 10
 # seconds of duration we expect different the following results per method
 # called in `WindowWrapper`:
-# - now(): Gets the closest value to current local time. After 6 seconds it
-# will always be between 3 and 5
-# - current(): Gets the value relative to the event's timestamp. After 6
-# seconds it will always be between 3 and 5
-# - value(): Gets the value relative to default relative option. After 6
-# seconds it will always be between 3 and 5
+# - now(): Gets the closest value to current local time. It will always be
+# between 1 and 3.
+# - current(): Gets the value relative to the event's timestamp. It will
+# always be between 1 and 3.
+# - value(): Gets the value relative to default relative option. It will
+# always be between 1 and 3.
 # - delta(30): Gets the value of window 30 secs before the current event. For
-# the first 30 seconds it will be 0 and after second 40 it will always be 5.
+# the first 20 seconds it will be 0 and after second 30 it will always be 5.
 
 from random import random
 from datetime import timedelta
