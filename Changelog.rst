@@ -8,6 +8,15 @@ This document contain change notes for bugfix releases in
 the Faust 1.7 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.7.3:
+
+1.7.3
+=====
+:release-date: 2019-07-12 1:13 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Tables**: Fix for Issue #383 when using the Cython extension.
+
 .. _version-1.7.2:
 
 1.7.2
