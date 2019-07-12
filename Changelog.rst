@@ -15,6 +15,9 @@ please visit the :ref:`history` section.
 :release-date: TBA
 :release-by: TBA
 
+- **Tables**: Fixed memory leak/back pressure in changelog producer buffer
+  (Issue #383)
+
 - **Models**: Do not attempt to parse datetime when coerce/isodates disabled.
 
     Version 1.7 introduced a regression where datetimes were attempted
