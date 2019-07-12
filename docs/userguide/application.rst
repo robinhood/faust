@@ -822,6 +822,7 @@ Signals are an implementation of the `Observer`_  design pattern.
 
 :sender: :class:`faust.App`
 :arguments: ``key, value, partition, timestamp, headers``
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
 
 The ``on_produce_message`` signal as a synchronous signal called before
 producing messages.
