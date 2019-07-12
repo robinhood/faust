@@ -8,6 +8,57 @@ This document contain change notes for bugfix releases in
 the Faust 1.7 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.7.2:
+
+1.7.2
+=====
+:release-date: TBA
+:release-by: TBA
+
+- **Models**: Do not attempt to parse datetime when coerce/isodates disabled.
+
+    Version 1.7 introduced a regression where datetimes were attempted
+    to be parsed as ISO-8601 even with the ``isodates`` setting disabled.
+
+    A regression test was added for this bug.
+
+- **Models**: New ``date_parser`` option to change datetime parsing function.
+
+    The default date parser supports ISO-8601 only.  To support
+    this format and many other formats (such as
+    ``'Sat Jan 12 00:44:36 +0000 2019'``) you can select to
+    use :pypi:`python-dateutil` as the parser.
+
+    To change the date parsing function for a model globally:
+
+    .. sourcecode:: python
+
+        from dateutil.parser import parse as parse_date
+
+        class Account(faust.Record, coerce=True, date_parser=parse_date):
+            date_joined: datetime
+
+    To change the date parsing function for a specific field:
+
+    .. sourcecode:: python
+
+        from dateutil.parser import parse as parse_date
+        from faust.models.fields import DatetimeField
+
+        class Account(faust.Record, coerce=True):
+            # date_joined: supports ISO-8601 only (default)
+            date_joined: datetime
+
+            #: date_last_login: comes from weird system with more human
+            #: readable dates ('Sat Jan 12 00:44:36 +0000 2019').
+            #: The dateutil parser can handle many different date and time
+            #: formats.
+            date_last_login: datetime = DatetimeField(date_parser=parse_date)
+
+- **Models**: Adds ``FieldDescriptor.exclude`` to exclude field when serialized
+
+    See :ref:`model-field-exclude` for more information.
+
 .. _version-1.7.1:
 
 1.7.1
