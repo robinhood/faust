@@ -12,8 +12,8 @@ please visit the :ref:`history` section.
 
 1.7.2
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2019-07-12 12:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
 
 - **Tables**: Fixed memory leak/back pressure in changelog producer buffer
   (Issue #383)
