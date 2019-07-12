@@ -59,6 +59,10 @@ please visit the :ref:`history` section.
 
     See :ref:`model-field-exclude` for more information.
 
+- **Documentation**: improvements by...
+
+  + Josh Woodward (:github_user:`jdw6359`).
+
 .. _version-1.7.1:
 
 1.7.1
