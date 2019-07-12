@@ -61,6 +61,7 @@ please visit the :ref:`history` section.
 
 - **Documentation**: improvements by...
 
+  + Witek Bedyk (:github_user:`witekest`).
   + Josh Woodward (:github_user:`jdw6359`).
 
 .. _version-1.7.1:
