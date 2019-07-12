@@ -25,6 +25,7 @@ cdef class ConductorHandler:
         self.topic, self.partition = self.tp
         self.on_topic_buffer_full = self.app.sensors.on_topic_buffer_full
         self.acquire_flow_control = self.app.flow_control.acquire
+        self.wait_until_producer_ebb = self.app.producer.buffer.wait_until_ebb
         self.consumer = self.app.consumer
 
     async def __call__(self, object message):
@@ -35,6 +36,7 @@ cdef class ConductorHandler:
             object keyid
             object dest_event
         await self.acquire_flow_control()
+        await self.wait_until_producer_ebb()
         channels = self.channels
         channels_n = len(channels)
         if channels_n:
