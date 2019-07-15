@@ -358,7 +358,9 @@ class WindowWrapperT(MutableMapping):
 
     @abc.abstractmethod
     def __init__(self, table: TableT, *,
-                 relative_to: RelativeArg = None) -> None:
+                 relative_to: RelativeArg = None,
+                 key_index: bool = False,
+                 key_index_table: TableT = None) -> None:
         ...
 
     @property

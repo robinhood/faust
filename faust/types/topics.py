@@ -25,10 +25,6 @@ class TopicT(ChannelT):
     #: Iterable/Sequence of topic names to subscribe to.
     topics: Sequence[str]
 
-    #: or instead of ``topics``, a regular expression used
-    #: to match topics we want to subscribe to.
-    pattern: Optional[Pattern]
-
     #: Topic retention setting: expiry time in seconds
     #: for messages in the topic.
     retention: Optional[Seconds]

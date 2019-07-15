@@ -21,7 +21,7 @@ from mode.utils.times import Seconds
 import faust
 from faust.app.base import SCAN_CATEGORIES
 from faust.sensors.base import Sensor
-from faust.types import AgentT, AppT, ChannelT, EventT, StreamT, TP, TopicT
+from faust.types import AgentT, AppT, EventT, StreamT, TP, TopicT
 from faust.utils import venusian
 
 from . import patches
@@ -94,7 +94,6 @@ class LiveCheck(faust.App):
     report_topic_name: str = 'livecheck-report'
 
     cases: Dict[str, _Case]
-    bus: ChannelT
 
     _resolved_signals: Dict[Tuple[str, str, Any], SignalEvent]
 

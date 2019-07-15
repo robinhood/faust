@@ -39,8 +39,11 @@ logger = get_logger(__name__)
 
 @formatter
 def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
+    # This adds custom formatting to certain log messages.
+
     if arg and isinstance(arg, Mapping):
         first_k, first_v = next(iter(arg.items()))
+        # Mapping of name to TopicT is changed to terminal table.
         if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
             return '\n' + terminal.logtable(
@@ -48,6 +51,8 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )
+        # Mapping where values are TopicPartition tuples are changed
+        # to a terminal table.
         elif isinstance(first_v, TP):
             return '\n' + terminal.logtable(
                 [(k.topic, k.partition, v) for k, v in arg.items()],
@@ -55,6 +60,7 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
                 headers=['topic', 'partition', 'offset'],
             )
     elif arg and isinstance(arg, (set, list)):
+        # Sets/Lists of TopicPartition are converted to terminal table.
         if isinstance(next(iter(arg)), TP):
             topics: Dict[str, Set[int]] = defaultdict(set)
             for tp in arg:
@@ -69,6 +75,9 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
 
 class Worker(mode.Worker):
     """Worker.
+
+    See Also:
+        This is a subclass of :class:`mode.Worker`.
 
     Usage:
         You can start a worker using:
@@ -184,7 +193,10 @@ class Worker(mode.Worker):
 
     async def on_start(self) -> None:
         """Signal called every time the worker starts."""
+
+        # This flag is set when running inside a worker process.
         self.app.in_worker = True
+
         await super().on_start()
 
     def _on_sigint(self) -> None:
@@ -207,6 +219,8 @@ class Worker(mode.Worker):
         # block detection started here after changelog stuff,
         # and blocking RocksDB bulk updates.
         await self.maybe_start_blockdetection()
+
+        # end progress spinner, or it will mangle terminal output.
         self._on_startup_end_spinner()
 
     def _on_startup_end_spinner(self) -> None:

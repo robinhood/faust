@@ -77,7 +77,7 @@ class BarrierState(asyncio.Future):
         super().__init__(**kwargs)
         self.reply_to = reply_to
         self.pending = set()
-        loop: asyncio.AbstractEventLoop = self._loop  # type: ignore
+        loop: asyncio.AbstractEventLoop = self._loop
         self._results = asyncio.Queue(maxsize=1000, loop=loop)
 
     def add(self, p: ReplyPromise) -> None:

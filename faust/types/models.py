@@ -236,6 +236,14 @@ class FieldDescriptorT(Generic[T]):
             Callable[[Any], datetime], date_parser)
 
     @abc.abstractmethod
+    def clone(self, **kwargs: Any) -> 'FieldDescriptorT':
+        ...
+
+    @abc.abstractmethod
+    def as_dict(self) -> Mapping[str, Any]:
+        ...
+
+    @abc.abstractmethod
     def validate(self, value: T) -> Iterable[ValidationError]:
         ...
 
@@ -244,7 +252,15 @@ class FieldDescriptorT(Generic[T]):
         ...
 
     @abc.abstractmethod
+    def should_coerce(self, value: Any) -> bool:
+        ...
+
+    @abc.abstractmethod
     def getattr(self, obj: ModelT) -> T:
+        ...
+
+    @abc.abstractmethod
+    def validation_error(self, reason: str) -> ValidationError:
         ...
 
     @property

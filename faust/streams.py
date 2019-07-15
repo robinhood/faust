@@ -558,7 +558,7 @@ class Stream(StreamT[T_co], Service):
                 'Agent with concurrency>1 cannot use stream.group_by!')
         if not name:
             if isinstance(key, FieldDescriptorT):
-                name = cast(FieldDescriptorT, key).ident
+                name = key.ident
             else:
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
@@ -617,7 +617,7 @@ class Stream(StreamT[T_co], Service):
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
         if isinstance(key, FieldDescriptorT):
-            return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
+            return key.getattr(cast(ModelT, value))
         return await maybe_async(cast(Callable, key)(value))
 
     def derive_topic(self,
@@ -710,7 +710,7 @@ class Stream(StreamT[T_co], Service):
     async def send(self, value: T_contra) -> None:
         """Send value into stream locally (bypasses topic)."""
         if isinstance(self.channel, ChannelT):
-            await cast(ChannelT, self.channel).put(value)
+            await self.channel.put(value)
         else:
             raise NotImplementedError(
                 'Cannot send to non-topic channel stream.')

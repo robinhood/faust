@@ -141,7 +141,6 @@ class Registry(RegistryT):
         is_model = False
         if isinstance(key, ModelT):
             is_model = True
-            key = cast(ModelT, key)
             serializer = key._options.serializer or serializer
         serializer = self._serializer(typ, serializer, self.key_serializer)
         if serializer and not isinstance(key, skip):
@@ -169,7 +168,6 @@ class Registry(RegistryT):
         is_model = False
         if isinstance(value, ModelT):
             is_model = True
-            value = cast(ModelT, value)
             serializer = value._options.serializer or serializer
         serializer = self._serializer(typ, serializer, self.value_serializer)
         if serializer and not isinstance(value, skip):

@@ -64,7 +64,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         Interface copied from :mod:`kafka.coordinator.assignors.abstract`.
     """
 
-    _metadata: ClientMetadata
     _assignment: ClientAssignment
     _table_manager: TableManagerT
     _member_urls: MutableMapping[str, str]

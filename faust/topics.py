@@ -458,7 +458,7 @@ class Topic(Channel, TopicT):
         if isinstance(obj, str):
             return obj
         elif isinstance(obj, TopicT):
-            return cast(TopicT, obj).get_topic_name()
+            return obj.get_topic_name()
         else:
             return self.get_topic_name()
 

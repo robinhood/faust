@@ -475,7 +475,7 @@ class Agent(AgentT, Service):
         app = self.app
         channel = f'{app.conf.id}-{self.name}' if channel is None else channel
         if isinstance(channel, ChannelT):
-            return cast(ChannelT, channel)
+            return channel
         elif isinstance(channel, str):
             return app.topic(
                 channel,
@@ -664,7 +664,7 @@ class Agent(AgentT, Service):
     async def _delegate_to_sinks(self, value: Any) -> None:
         for sink in self._sinks:
             if isinstance(sink, AgentT):
-                await cast(AgentT, sink).send(value=value)
+                await sink.send(value=value)
             elif isinstance(sink, ChannelT):
                 await cast(TopicT, sink).send(value=value)
             else:
@@ -832,12 +832,12 @@ class Agent(AgentT, Service):
     def _get_strtopic(self,
                       topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
         if isinstance(topic, AgentT):
-            return self._get_strtopic(cast(AgentT, topic).channel)
+            return self._get_strtopic(topic.channel)
         if isinstance(topic, TopicT):
-            return cast(TopicT, topic).get_topic_name()
+            return topic.get_topic_name()
         if isinstance(topic, ChannelT):
             raise ValueError('Channels are unnamed topics')
-        return cast(str, topic)
+        return topic
 
     async def map(self,
                   values: Union[AsyncIterable, Iterable],
