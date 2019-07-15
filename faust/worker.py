@@ -193,7 +193,6 @@ class Worker(mode.Worker):
 
     async def on_start(self) -> None:
         """Signal called every time the worker starts."""
-
         # This flag is set when running inside a worker process.
         self.app.in_worker = True
 
