@@ -5,6 +5,7 @@
 =============================================
 
 .. module:: faust
+    :noindex:
 
 .. currentmodule:: faust
 

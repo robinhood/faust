@@ -1,2 +1,2 @@
 -r docs-plugins.txt
-sphinx>=2.0,<3.0
+sphinx>=2.1,<3.0

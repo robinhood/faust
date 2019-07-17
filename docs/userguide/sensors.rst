@@ -8,7 +8,8 @@
     :local:
     :depth: 1
 
-.. module:: Faust
+.. module:: faust
+    :noindex:
 
 .. currentmodule:: faust
 

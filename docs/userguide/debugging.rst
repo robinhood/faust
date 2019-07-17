@@ -9,6 +9,7 @@
     :depth: 1
 
 .. module:: faust
+    :noindex:
 
 .. currentmodule:: faust
 

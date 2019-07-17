@@ -11,6 +11,7 @@
     -- Goethe, *Faust: First part*
 
 .. module:: faust
+    :noindex:
 
 .. currentmodule:: faust
 

@@ -22,7 +22,6 @@ globals().update(conf.build_config(
     include_intersphinx={'sphinx'},
     extra_extensions=[
         'sphinx.ext.napoleon',
-        'sphinxcontrib.asyncio',
         'alabaster',
         'typehints',
         'faustdocs',

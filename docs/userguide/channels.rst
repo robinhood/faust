@@ -9,6 +9,7 @@
     :depth: 1
 
 .. module:: faust
+    :noindex:
 
 .. currentmodule:: faust
 
@@ -74,13 +75,13 @@ Sending messages to channel
 .. class:: Channel
     :noindex:
 
-    .. autocomethod:: send
+    .. automethod:: send
         :noindex:
 
     .. automethod:: as_future_message
         :noindex:
 
-    .. autocomethod:: publish_message
+    .. automethod:: publish_message
         :noindex:
 
 
@@ -100,10 +101,10 @@ Declaring
 .. class:: Channel
     :noindex:
 
-    .. autocomethod:: maybe_declare
+    .. automethod:: maybe_declare
         :noindex:
 
-    .. autocomethod:: declare
+    .. automethod:: declare
         :noindex:
 
 Topics
