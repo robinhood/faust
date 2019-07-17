@@ -1,5 +1,6 @@
 import asyncio
 
+import faust
 import pytest
 from faust import App, Channel, Record
 from faust.agents.actor import Actor
@@ -199,6 +200,12 @@ class test_Agent:
                 value
 
         return other_agent
+
+    def test_init_schema_and_channel(self, *, app):
+        with pytest.raises(AssertionError):
+            @app.agent(app.topic('foo'), schema=faust.Schema(key_type=bytes))
+            async def foo():
+                ...
 
     def test_init_key_type_and_channel(self, *, app):
         with pytest.raises(AssertionError):
@@ -860,6 +867,7 @@ class test_Agent:
         channel = agent.channel
         agent._prepare_channel.assert_called_once_with(
             agent._channel_arg,
+            schema=agent._schema,
             key_type=agent._key_type,
             value_type=agent._value_type,
             **agent._channel_kwargs)

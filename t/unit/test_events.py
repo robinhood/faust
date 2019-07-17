@@ -24,6 +24,7 @@ class test_Event:
     @pytest.mark.asyncio
     async def test_send(self, *, event):
         callback = Mock(name='callback')
+        schema = Mock(name='schema')
         event._send = AsyncMock(name='event._send')
         await event.send(
             channel='chan',
@@ -32,8 +33,9 @@ class test_Event:
             partition=3,
             timestamp=None,
             headers={'k': 'v'},
+            schema=schema,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         event._send.assert_called_once_with(
@@ -43,8 +45,9 @@ class test_Event:
             3,
             None,
             {'k': 'v'},
+            schema,
             'kser',
-            'vset',
+            'vser',
             callback,
             force=False,
         )
@@ -58,8 +61,9 @@ class test_Event:
             channel='chan',
             partition=3,
             timestamp=None,
+            schema=None,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         event._send.assert_called_once_with(
@@ -69,8 +73,9 @@ class test_Event:
             3,
             None,
             event.headers,
+            None,
             'kser',
-            'vset',
+            'vser',
             callback,
             force=False,
         )
@@ -86,8 +91,9 @@ class test_Event:
             headers={'k': 'v'},
             partition=3,
             timestamp=1234,
+            schema=None,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         event._send.assert_called_once_with(
@@ -97,8 +103,9 @@ class test_Event:
             3,
             1234,
             {'k': 'v'},
+            None,
             'kser',
-            'vset',
+            'vser',
             callback,
             force=False,
         )
@@ -108,12 +115,14 @@ class test_Event:
         callback = Mock(name='callback')
         event._send = AsyncMock(name='event._send')
         event.message.headers = {'k1': 'v1'}
+        schema = Mock(name='schema')
         await event.forward(
             channel='chan',
             partition=3,
             timestamp=None,
+            schema=schema,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         event._send.assert_called_once_with(
@@ -123,14 +132,16 @@ class test_Event:
             3,
             None,
             event.message.headers,
+            schema,
             'kser',
-            'vset',
+            'vser',
             callback,
             force=False,
         )
 
     def test_attach(self, *, event, app):
         callback = Mock(name='callback')
+        schema = Mock(name='schema')
         app._attachments.put = Mock(name='_attachments.put')
         result = event._attach(
             channel='chan',
@@ -139,8 +150,9 @@ class test_Event:
             partition=3,
             timestamp=None,
             headers={'k': 'v'},
+            schema=schema,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         app._attachments.put.assert_called_once_with(
@@ -151,8 +163,9 @@ class test_Event:
             partition=3,
             timestamp=None,
             headers={'k': 'v'},
+            schema=schema,
             key_serializer='kser',
-            value_serializer='vset',
+            value_serializer='vser',
             callback=callback,
         )
         assert result is app._attachments.put()
@@ -161,6 +174,7 @@ class test_Event:
     async def test__send(self, *, event, app):
         app._attachments.maybe_put = AsyncMock(name='maybe_put')
         callback = Mock(name='callback')
+        schema = Mock(name='schema')
         await event._send(
             channel='chan',
             key=b'k',
@@ -168,6 +182,7 @@ class test_Event:
             partition=4,
             timestamp=33.31234,
             headers=[('k', 'v')],
+            schema=schema,
             key_serializer='kser',
             value_serializer='vser',
             callback=callback,
@@ -181,6 +196,7 @@ class test_Event:
             4,
             33.31234,
             [('k', 'v')],
+            schema,
             'kser',
             'vser',
             callback,

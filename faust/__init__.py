@@ -125,7 +125,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from .events import Event, EventT                           # noqa: E402
     from .models import Model, ModelOptions, Record             # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
-    from .serializers import Codec                              # noqa: E402
+    from .serializers import Codec, Schema                      # noqa: E402
     from .streams import Stream, StreamT, current_event         # noqa: E402
     from .tables.table import Table                             # noqa: E402
     from .tables.sets import SetTable                           # noqa: E402
@@ -153,9 +153,11 @@ __all__ = [
     'ModelOptions',
     'Record',
     'Monitor',
+    'Schema',
     'Sensor',
     'SetTable',
     'Codec',
+    'Schema',
     'Service',
     'ServiceT',
     'Stream',
@@ -187,7 +189,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.events': ['Event', 'EventT'],
     'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
-    'faust.serializers': ['Codec'],
+    'faust.serializers': ['Codec', 'Schema'],
     'faust.streams': [
         'Stream',
         'StreamT',

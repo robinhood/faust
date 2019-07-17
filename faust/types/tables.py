@@ -34,10 +34,12 @@ if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .models import FieldDescriptorT as _FieldDescriptorT
     from .models import ModelArg as _ModelArg
+    from .serializers import SchemaT as _SchemaT
 else:
     class _AppT: ...  # noqa
     class _FieldDescriptorT: ...  # noqa
     class _ModelArg: ...  # noqa
+    class _SchemaT: ...   # noqa
 
 __all__ = [
     'RecoverCallback',
@@ -72,6 +74,7 @@ class CollectionT(ServiceT, JoinableT):
     app: _AppT
     name: str
     default: Any  # noqa: E704
+    schema: Optional[_SchemaT]
     key_type: Optional[_ModelArg]
     value_type: Optional[_ModelArg]
     partitions: Optional[int]
@@ -88,6 +91,7 @@ class CollectionT(ServiceT, JoinableT):
                  name: str = None,
                  default: Callable[[], Any] = None,
                  store: Union[str, URL] = None,
+                 schema: _SchemaT = None,
                  key_type: _ModelArg = None,
                  value_type: _ModelArg = None,
                  partitions: int = None,

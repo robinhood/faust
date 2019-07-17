@@ -82,6 +82,7 @@ class test_Collection:
             'name': table.name,
             'store': table._store,
             'default': table.default,
+            'schema': table.schema,
             'key_type': table.key_type,
             'value_type': table.value_type,
             'changelog_topic': table._changelog_topic,

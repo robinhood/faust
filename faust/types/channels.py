@@ -21,16 +21,19 @@ if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .events import EventT as _EventT
     from .models import ModelArg as _ModelArg
+    from .serializers import SchemaT as _SchemaT
     from .streams import StreamT as _StreamT
 else:
     class _AppT: ...             # noqa
     class _EventT: ...           # noqa
     class _ModelArg: ...         # noqa
+    class _SchemaT: ...          # noqa
     class _StreamT: ...          # noqa
 
 
 class ChannelT(AsyncIterator):
     app: _AppT
+    schema: _SchemaT
     key_type: Optional[_ModelArg]
     value_type: Optional[_ModelArg]
     loop: Optional[asyncio.AbstractEventLoop]
@@ -41,6 +44,7 @@ class ChannelT(AsyncIterator):
     def __init__(self,
                  app: _AppT,
                  *,
+                 schema: _SchemaT = None,
                  key_type: _ModelArg = None,
                  value_type: _ModelArg = None,
                  is_iterator: bool = False,
@@ -75,6 +79,7 @@ class ChannelT(AsyncIterator):
                    partition: int = None,
                    timestamp: float = None,
                    headers: HeadersArg = None,
+                   schema: _SchemaT = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -89,6 +94,7 @@ class ChannelT(AsyncIterator):
                   partition: int = None,
                   timestamp: float = None,
                   headers: HeadersArg = None,
+                  schema: _SchemaT = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
@@ -103,6 +109,7 @@ class ChannelT(AsyncIterator):
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: _SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
@@ -123,11 +130,17 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
+    def prepare_key(self,
+                    key: K,
+                    key_serializer: CodecArg,
+                    schema: _SchemaT = None) -> Any:
         ...
 
     @abc.abstractmethod
-    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
+    def prepare_value(self,
+                      value: V,
+                      value_serializer: CodecArg,
+                      schema: _SchemaT = None) -> Any:
         ...
 
     @abc.abstractmethod

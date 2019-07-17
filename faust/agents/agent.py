@@ -72,6 +72,7 @@ from faust.types.agents import (
     SinkT,
 )
 from faust.types.core import merge_headers, prepare_headers
+from faust.types.serializers import SchemaT
 
 from .actor import Actor, AsyncIterableActor, AwaitableActor
 from .models import (
@@ -193,6 +194,7 @@ class Agent(AgentT, Service):
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None,
+                 schema: SchemaT = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  isolated_partitions: bool = False,
@@ -203,11 +205,14 @@ class Agent(AgentT, Service):
         self.name = name or canonshortname(self.fun)
         # key-type/value_type arguments only apply when a channel
         # is not set
+        if schema is not None:
+            assert channel is None or isinstance(channel, str)
         if key_type is not None:
             assert channel is None or isinstance(channel, str)
         self._key_type = key_type
         if value_type is not None:
             assert channel is None or isinstance(channel, str)
+        self._schema = schema
         self._value_type = value_type
         self._channel_arg = channel
         self._channel_kwargs = kwargs
@@ -469,6 +474,7 @@ class Agent(AgentT, Service):
     def _prepare_channel(self,
                          channel: Union[str, ChannelT] = None,
                          internal: bool = True,
+                         schema: SchemaT = None,
                          key_type: ModelArg = None,
                          value_type: ModelArg = None,
                          **kwargs: Any) -> ChannelT:
@@ -480,6 +486,7 @@ class Agent(AgentT, Service):
             return app.topic(
                 channel,
                 internal=internal,
+                schema=schema,
                 key_type=key_type,
                 value_type=value_type,
                 **kwargs)
@@ -972,6 +979,7 @@ class Agent(AgentT, Service):
         if self._channel is None:
             self._channel = self._prepare_channel(
                 self._channel_arg,
+                schema=self._schema,
                 key_type=self._key_type,
                 value_type=self._value_type,
                 **self._channel_kwargs,

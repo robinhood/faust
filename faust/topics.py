@@ -3,7 +3,6 @@ import asyncio
 import re
 import typing
 
-from contextlib import suppress
 from functools import partial
 from typing import (
     Any,
@@ -14,6 +13,7 @@ from typing import (
     Pattern,
     Sequence,
     Set,
+    Tuple,
     Union,
     cast,
     no_type_check,
@@ -26,6 +26,7 @@ from mode.utils.queues import ThrowableQueue
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .events import Event
+from .serializers import Schema
 from .streams import current_event
 from .types import (
     AppT,
@@ -39,9 +40,11 @@ from .types import (
     ModelArg,
     PendingMessage,
     RecordMetadata,
+    SchemaT,
     TP,
     V,
 )
+from .types.core import OpenHeadersArg
 from .types.topics import ChannelT, TopicT
 from .types.transports import ProducerT
 
@@ -81,12 +84,15 @@ class Topic(Channel, TopicT):
                    be expired by the server.
         pattern: Regular expression evaluated to decide what topics to
                  subscribe to. You cannot specify both topics and a pattern.
+        schema: Schema used for serialization/deserialization.
         key_type: How to deserialize keys for messages in this topic.
                   Can be a :class:`faust.Model` type, :class:`str`,
                   :class:`bytes`, or :const:`None` for "autodetect"
+                  (Overrides schema if one is defined).
         value_type: How to deserialize values for messages in this topic.
                   Can be a :class:`faust.Model` type, :class:`str`,
                   :class:`bytes`, or :const:`None` for "autodetect"
+                  (Overrides schema if ones is defined).
         active_partitions: Set of :class:`faust.types.tuples.TP` that this
                   topic should be restricted to.
 
@@ -102,6 +108,7 @@ class Topic(Channel, TopicT):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
+                 schema: SchemaT = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
@@ -121,22 +128,30 @@ class Topic(Channel, TopicT):
                  active_partitions: Set[TP] = None,
                  allow_empty: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.topics = topics or []
+        if schema is not None:
+            self._contribute_to_schema(
+                schema,
+                key_type=key_type,
+                value_type=value_type,
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
+            )
+        else:
+            schema = self._get_default_schema(
+                key_type, value_type, key_serializer, value_serializer)
+
         super().__init__(
             app,
+            schema=schema,
             key_type=key_type,
             value_type=value_type,
             loop=loop,
+            active_partitions=active_partitions,
             is_iterator=is_iterator,
             queue=queue,
             maxsize=maxsize,
         )
-        self.key_serializer = key_serializer
-        if self.key_serializer is None and key_type:
-            self.key_serializer = _model_serializer(key_type)
-        self.value_serializer = value_serializer
-        if self.value_serializer is None and value_type:
-            self.value_serializer = _model_serializer(value_type)
+        self.topics = topics or []
         self.pattern = cast(Pattern, pattern)
         self.partitions = partitions
         self.retention = retention
@@ -145,9 +160,37 @@ class Topic(Channel, TopicT):
         self.replicas = replicas
         self.acks = acks
         self.internal = internal
-        self.active_partitions = active_partitions
         self.config = config or {}
         self.allow_empty = allow_empty
+
+        self.key_serializer = self.schema.key_serializer
+        self.value_serializer = self.schema.value_serializer
+
+    def _contribute_to_schema(self, schema: SchemaT, *,
+                              key_type: ModelArg = None,
+                              value_type: ModelArg = None,
+                              key_serializer: CodecArg = None,
+                              value_serializer: CodecArg = None) -> None:
+        # Update schema and take compat attributes
+        # from passed schema.
+        schema.update(
+            key_type=key_type,
+            value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+        )
+
+    def _get_default_schema(self,
+                            key_type: ModelArg = None,
+                            value_type: ModelArg = None,
+                            key_serializer: CodecArg = None,
+                            value_serializer: CodecArg = None) -> SchemaT:
+        return Schema(
+            key_type=key_type,
+            value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+        )
 
     async def send(self,
                    *,
@@ -156,6 +199,7 @@ class Topic(Channel, TopicT):
                    partition: int = None,
                    timestamp: float = None,
                    headers: HeadersArg = None,
+                   schema: SchemaT = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -171,6 +215,7 @@ class Topic(Channel, TopicT):
                     partition=partition,
                     timestamp=timestamp,
                     headers=headers,
+                    schema=schema,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -181,6 +226,7 @@ class Topic(Channel, TopicT):
             partition=partition,
             timestamp=timestamp,
             headers=headers,
+            schema=schema,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -193,6 +239,7 @@ class Topic(Channel, TopicT):
                   partition: int = None,
                   timestamp: float = None,
                   headers: HeadersArg = None,
+                  schema: SchemaT = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
@@ -209,6 +256,7 @@ class Topic(Channel, TopicT):
             partition=partition,
             timestamp=timestamp,
             headers=headers,
+            schema=schema,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -236,17 +284,18 @@ class Topic(Channel, TopicT):
 
     def _compile_decode(self) -> DecodeFunction:
         app = self.app
-        key_type = self.key_type
-        value_type = self.value_type
+        schema = self.schema
         loads_key = app.serializers.loads_key
         loads_value = app.serializers.loads_value
         create_event = self._create_event
-        key_serializer = self.key_serializer
-        value_serializer = self.value_serializer
+
+        assert schema is not None
+        schema_loads_key = schema.loads_key
+        schema_loads_value = schema.loads_value
 
         async def decode(message: Message, *, propagate: bool = False) -> Any:
             try:
-                k = loads_key(key_type, message.key, serializer=key_serializer)
+                k = schema_loads_key(app, message, loads=loads_key)
             except KeyDecodeError as exc:
                 if propagate:
                     raise
@@ -255,8 +304,7 @@ class Topic(Channel, TopicT):
                 try:
                     if message.value is None and self.allow_empty:
                         return create_event(k, None, message.headers, message)
-                    v = loads_value(
-                        value_type, message.value, serializer=value_serializer)
+                    v = schema_loads_value(app, message, loads=loads_value)
                 except ValueDecodeError as exc:
                     if propagate:
                         raise
@@ -279,6 +327,7 @@ class Topic(Channel, TopicT):
                 'deleting': self.deleting,
                 'replicas': self.replicas,
                 'internal': self.internal,
+                'schema': self.schema,
                 'key_serializer': self.key_serializer,
                 'value_serializer': self.value_serializer,
                 'acks': self.acks,
@@ -342,6 +391,7 @@ class Topic(Channel, TopicT):
     def derive_topic(self,
                      *,
                      topics: Sequence[str] = None,
+                     schema: SchemaT = None,
                      key_type: ModelArg = None,
                      value_type: ModelArg = None,
                      key_serializer: CodecArg = None,
@@ -366,14 +416,11 @@ class Topic(Channel, TopicT):
             self.app,
             topics=topics,
             pattern=self.pattern,
-            key_type=self.key_type if key_type is None else key_type,
-            value_type=self.value_type if value_type is None else value_type,
-            key_serializer=(
-                self.key_serializer
-                if key_serializer is None else key_serializer),
-            value_serializer=(
-                self.value_serializer
-                if value_serializer is None else value_serializer),
+            schema=self.schema if schema is None else schema,
+            key_type=key_type,
+            value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
             partitions=self.partitions if partitions is None else partitions,
             retention=self.retention if retention is None else retention,
             compacting=self.compacting if compacting is None else compacting,
@@ -477,21 +524,33 @@ class Topic(Channel, TopicT):
                 message.message.callback(message)
             self.app.sensors.on_send_completed(producer, state, res)
 
-    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
+    def prepare_key(
+            self,
+            key: K,
+            key_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
         """Serialize key to format suitable for transport."""
         if key is not None:
-            return self.app.serializers.dumps_key(
-                self.key_type,
-                key,
-                serializer=key_serializer or self.key_serializer)
-        return None
+            schema = schema or self.schema
+            assert schema is not None
+            return schema.dumps_key(self.app, key,
+                                    serializer=key_serializer,
+                                    headers=headers)
+        return None, headers
 
-    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
+    def prepare_value(
+            self,
+            value: V,
+            value_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
         """Serialize value to format suitable for transport."""
-        return self.app.serializers.dumps_value(
-            self.value_type,
-            value,
-            serializer=value_serializer or self.value_serializer)
+        schema = schema or self.schema
+        assert schema is not None
+        return schema.dumps_value(self.app, value,
+                                  serializer=value_serializer,
+                                  headers=headers)
 
     @stampede
     async def maybe_declare(self) -> None:
@@ -529,8 +588,3 @@ class Topic(Channel, TopicT):
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
-
-
-def _model_serializer(typ: Any) -> Optional[CodecArg]:
-    with suppress(AttributeError):
-        return typ._options.serializer

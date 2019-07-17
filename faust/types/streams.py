@@ -32,9 +32,11 @@ from .tuples import TP
 if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .join import JoinT as _JoinT
+    from .serializers import SchemaT as _SchemaT
 else:
-    class _AppT: ...    # noqa
-    class _JoinT: ...   # noqa
+    class _AppT: ...     # noqa
+    class _JoinT: ...    # noqa
+    class _SchemaT: ...  # noqa
 
 __all__ = [
     'Processor',
@@ -196,6 +198,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     def derive_topic(self,
                      name: str,
                      *,
+                     schema: _SchemaT = None,
                      key_type: ModelArg = None,
                      value_type: ModelArg = None,
                      prefix: str = '',

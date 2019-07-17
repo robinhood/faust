@@ -29,6 +29,7 @@ from .codecs import CodecArg
 from .core import HeadersArg, K, V
 from .events import EventT
 from .models import ModelArg
+from .serializers import SchemaT
 from .streams import StreamT
 from .topics import ChannelT
 from .tuples import Message, RecordMetadata, TP
@@ -129,6 +130,7 @@ class AgentT(ServiceT):
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None,
+                 schema: SchemaT = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  isolated_partitions: bool = False,

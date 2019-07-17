@@ -84,7 +84,7 @@ from faust.types.core import HeadersArg, K, V
 from faust.types.enums import ProcessingGuarantee
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
-from faust.types.serializers import RegistryT
+from faust.types.serializers import RegistryT, SchemaT
 from faust.types.settings import Settings as _Settings
 from faust.types.streams import StreamT
 from faust.types.tables import CollectionT, TableManagerT, TableT
@@ -737,6 +737,7 @@ class App(AppT, Service):
     def topic(self,
               *topics: str,
               pattern: Union[str, Pattern] = None,
+              schema: SchemaT = None,
               key_type: ModelArg = None,
               value_type: ModelArg = None,
               key_serializer: CodecArg = None,
@@ -765,6 +766,7 @@ class App(AppT, Service):
             self,
             topics=topics,
             pattern=pattern,
+            schema=schema,
             key_type=key_type,
             value_type=value_type,
             key_serializer=key_serializer,
@@ -783,6 +785,7 @@ class App(AppT, Service):
 
     def channel(self,
                 *,
+                schema: SchemaT = None,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
                 maxsize: int = None,
@@ -799,6 +802,7 @@ class App(AppT, Service):
         """
         return Channel(
             self,
+            schema=schema,
             key_type=key_type,
             value_type=value_type,
             maxsize=maxsize,
@@ -1277,6 +1281,7 @@ class App(AppT, Service):
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -1292,8 +1297,11 @@ class App(AppT, Service):
                 UTC) to use as the message timestamp. Defaults to current time.
             headers: Mapping of key/value pairs, or iterable of key value
                 pairs to use as headers for the message.
+            schema: :class:`~faust.Schema` to use for serialization.
             key_serializer: Serializer to use (if value is not model).
+                Overrides schema if one is specified.
             value_serializer: Serializer to use (if value is not model).
+                Overrides schema if one is specified.
             callback: Called after the message is fully delivered to the
                 channel, but not to the consumer.
                 Signature must be unary as the
@@ -1314,6 +1322,7 @@ class App(AppT, Service):
             partition=partition,
             timestamp=timestamp,
             headers=headers,
+            schema=schema,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,

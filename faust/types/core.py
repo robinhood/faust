@@ -26,13 +26,28 @@ K = Optional[Union[bytes, _ModelT, Any]]
 #: Shorthand for the type of a value
 V = Union[bytes, _ModelT, Any]
 
+#: Kafka message headers (immutable)
+Headers = Union[List[Tuple[str, bytes]], Mapping[str, bytes]]
 
-HeadersArg = Union[List[Tuple[str, bytes]], Mapping[str, bytes]]
-OpenHeadersArg = Union[List[Tuple[str, bytes]], MutableMapping[str, bytes]]
+#: Kafka message headers as optional argument (immutable)
+HeadersArg = Optional[Headers]
 
+#: Kafka message headers (mutable)
+OpenHeaders = Union[List[Tuple[str, bytes]], MutableMapping[str, bytes]]
+
+#: Kafka message headers as optional argument (mutable)
+OpenHeadersArg = Optional[OpenHeaders]
+
+#: Tuple of types/classes
 _TYPTUP = Tuple[Type, ...]
+
+#: List of classes to check if object is a tuple.
 _TUPLE_TYPES: _TYPTUP = (tuple,)
+
+#: List of classes to check if object is a mapping.
 _MUTABLE_MAP_TYPES: _TYPTUP = (dict, MutableMapping)
+
+#: List of classes to check if object is a sequence.
 _MUTABLE_SEQ_TYPES: _TYPTUP = (list, MutableSequence)
 
 

@@ -15,6 +15,7 @@ from typing import (
     MutableSet,
     Optional,
     Set,
+    Tuple,
     cast,
 )
 from weakref import WeakSet
@@ -24,6 +25,7 @@ from mode.utils.futures import maybe_async, stampede
 from mode.utils.queues import ThrowableQueue
 
 from .events import Event
+from .serializers import Schema
 from .types import (
     AppT,
     ChannelT,
@@ -36,6 +38,7 @@ from .types import (
     ModelArg,
     PendingMessage,
     RecordMetadata,
+    SchemaT,
     StreamT,
     TP,
     V,
@@ -54,8 +57,11 @@ class Channel(ChannelT):
     Arguments:
         app: The app that created this channel (``app.channel()``)
 
+        schema: Schema used for serialization/deserialization
         key_type:  The Model used for keys in this channel.
+           (overrides schema if one is defined)
         value_type: The Model used for values in this channel.
+           (overrides schema if one is defined)
         maxsize: The maximum number of messages this channel can hold.
                  If exceeded any new ``put`` call will block until a message
                  is removed from the channel.
@@ -63,12 +69,13 @@ class Channel(ChannelT):
             ``stream.clone(is_iterator=True)`` so this attribute
             denotes that this channel instance is currently being iterated
             over.
-        active_partition: Set of active topic partitions this
+        active_partitions: Set of active topic partitions this
            channel instance is assigned to.
         loop: The :mod:`asyncio` event loop to use.
     """
 
     app: AppT
+    schema: SchemaT
     key_type: Optional[ModelArg]
     value_type: Optional[ModelArg]
     is_iterator: bool
@@ -80,6 +87,7 @@ class Channel(ChannelT):
     def __init__(self,
                  app: AppT,
                  *,
+                 schema: SchemaT = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
@@ -90,8 +98,6 @@ class Channel(ChannelT):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
-        self.key_type = key_type
-        self.value_type = value_type
         self.is_iterator = is_iterator
         self._queue = queue
         self.maxsize = maxsize
@@ -99,6 +105,22 @@ class Channel(ChannelT):
         self._root = cast(Channel, root)
         self.active_partitions = active_partitions
         self._subscribers = WeakSet()
+
+        if schema is None:
+            self.schema = self._get_default_schema(key_type, value_type)
+        else:
+            self.schema = schema
+            self.schema.update(key_type=key_type, value_type=value_type)
+        self.key_type = self.schema.key_type
+        self.value_type = self.schema.value_type
+
+    def _get_default_schema(self,
+                            key_type: ModelArg = None,
+                            value_type: ModelArg = None) -> SchemaT:
+        return Schema(
+            key_type=key_type,
+            value_type=value_type,
+        )
 
     @property
     def queue(self) -> ThrowableQueue:
@@ -150,6 +172,7 @@ class Channel(ChannelT):
         return {
             'app': self.app,
             'loop': self.loop,
+            'schema': self.schema,
             'key_type': self.key_type,
             'value_type': self.value_type,
             'maxsize': self.maxsize,
@@ -173,6 +196,7 @@ class Channel(ChannelT):
                    partition: int = None,
                    timestamp: float = None,
                    headers: HeadersArg = None,
+                   schema: SchemaT = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -184,6 +208,7 @@ class Channel(ChannelT):
             partition=partition,
             timestamp=timestamp,
             headers=headers,
+            schema=schema,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -196,6 +221,7 @@ class Channel(ChannelT):
                   partition: int = None,
                   timestamp: float = None,
                   headers: HeadersArg = None,
+                  schema: SchemaT = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
@@ -216,20 +242,26 @@ class Channel(ChannelT):
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
         """Create promise that message will be transmitted."""
+        open_headers = self.prepare_headers(headers)
+        final_key, open_headers = self.prepare_key(
+            key, key_serializer, schema, open_headers)
+        final_value, open_headers = self.prepare_value(
+            value, value_serializer, schema, open_headers)
         return FutureMessage(
             PendingMessage(
                 self,
-                self.prepare_key(key, key_serializer),
-                self.prepare_value(value, value_serializer),
+                final_key,
+                final_value,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
                 partition=partition,
                 timestamp=timestamp,
-                headers=self.prepare_headers(headers),
+                headers=open_headers,
                 callback=callback,
                 # Python 3.6.0: NamedTuple doesn't support optional fields
                 # [ask]
@@ -252,13 +284,14 @@ class Channel(ChannelT):
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
             self.as_future_message(
                 key, value, partition, timestamp, headers,
-                key_serializer, value_serializer, callback))
+                schema, key_serializer, value_serializer, callback))
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:
@@ -311,21 +344,31 @@ class Channel(ChannelT):
         """
         ...
 
-    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
+    def prepare_key(
+            self,
+            key: K,
+            key_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
         """Prepare key before it is sent to this channel.
 
         :class:`~faust.Topic` uses this to implement serialization of keys
         sent to the channel.
         """
-        return key
+        return key, headers
 
-    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
+    def prepare_value(
+            self,
+            value: V,
+            value_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
         """Prepare value before it is sent to this channel.
 
         :class:`~faust.Topic` uses this to implement serialization of values
         sent to the channel.
         """
-        return value
+        return value, headers
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:

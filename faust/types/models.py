@@ -22,6 +22,13 @@ from typing import (
 from faust.exceptions import ValidationError  # XXX !!coupled
 from .codecs import CodecArg
 
+if typing.TYPE_CHECKING:
+    from .app import AppT as _AppT
+    from .tuples import Message as _Message
+else:
+    class _AppT: ...   # noqa
+    class _Message: ...  # noqa
+
 __all__ = [
     'CoercionHandler',
     'FieldDescriptorT',

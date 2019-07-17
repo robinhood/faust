@@ -15,7 +15,7 @@ from typing import (
 from mode.utils.objects import Unordered, cached_property
 
 from faust.streams import current_event
-from faust.types import AppT, ChannelT, CodecArg, RecordMetadata, TP
+from faust.types import AppT, ChannelT, CodecArg, RecordMetadata, SchemaT, TP
 from faust.types.core import HeadersArg, K, V
 from faust.types.tuples import FutureMessage, Message, MessageSentCallback
 
@@ -85,6 +85,7 @@ class Attachments:
                         partition: int = None,
                         timestamp: float = None,
                         headers: HeadersArg = None,
+                        schema: SchemaT = None,
                         key_serializer: CodecArg = None,
                         value_serializer: CodecArg = None,
                         callback: MessageSentCallback = None,
@@ -110,6 +111,7 @@ class Attachments:
                     partition=partition,
                     timestamp=timestamp,
                     headers=headers,
+                    schema=schema,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -121,6 +123,7 @@ class Attachments:
             partition=partition,
             timestamp=timestamp,
             headers=headers,
+            schema=schema,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -134,6 +137,7 @@ class Attachments:
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -148,7 +152,7 @@ class Attachments:
         chan = self.app.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(
             key, value, partition, timestamp, headers,
-            key_serializer, value_serializer, callback)
+            schema, key_serializer, value_serializer, callback)
         # Note: Since FutureMessage have members that are unhashable
         # we wrap it in an Unordered object to stop heappush from crashing.
         # Unordered simply orders by random order, which is fine

@@ -12,7 +12,7 @@ from .fixups import FixupT
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
-from .serializers import RegistryT
+from .serializers import RegistryT, SchemaT
 from .stores import StoreT
 from .streams import (
     JoinableT,
@@ -76,6 +76,7 @@ __all__ = [
 
     # types.serializers
     'RegistryT',
+    'SchemaT',
 
     # types.stores
     'StoreT',

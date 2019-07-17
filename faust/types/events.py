@@ -9,9 +9,11 @@ from .tuples import Message, MessageSentCallback, RecordMetadata
 if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .channels import ChannelT as _ChannelT
+    from .serializers import SchemaT as _SchemaT
 else:
     class _AppT: ...  # noqa
     class _ChannelT: ...  # noqa
+    class _SchemaT: ...   # noqa
 
 
 class EventT(AsyncContextManager):
@@ -42,6 +44,7 @@ class EventT(AsyncContextManager):
                    partition: int = None,
                    timestamp: float = None,
                    headers: HeadersArg = None,
+                   schema: _SchemaT = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -56,6 +59,7 @@ class EventT(AsyncContextManager):
                       partition: int = None,
                       timestamp: float = None,
                       headers: HeadersArg = None,
+                      schema: _SchemaT = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None,

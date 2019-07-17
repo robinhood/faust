@@ -39,6 +39,7 @@ from .exceptions import ImproperlyConfigured, Skip
 from .types import AppT, ConsumerT, EventT, K, ModelArg, ModelT, TP, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
+from .types.serializers import SchemaT
 from .types.streams import (
     GroupByKeyArg,
     JoinableT,
@@ -623,6 +624,7 @@ class Stream(StreamT[T_co], Service):
     def derive_topic(self,
                      name: str,
                      *,
+                     schema: SchemaT = None,
                      key_type: ModelArg = None,
                      value_type: ModelArg = None,
                      prefix: str = '',
@@ -643,6 +645,7 @@ class Stream(StreamT[T_co], Service):
         if isinstance(self.channel, TopicT):
             return self.channel.derive_topic(
                 topics=[name],
+                schema=schema,
                 key_type=key_type,
                 value_type=value_type,
                 prefix=prefix,

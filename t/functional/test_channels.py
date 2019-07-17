@@ -22,6 +22,53 @@ def test_repr(*, channel):
     assert repr(channel)
 
 
+def test_schema__default(*, channel):
+    assert channel.key_type is None
+    assert channel.value_type is None
+
+    assert channel.schema is not None
+    assert channel.schema.key_type is None
+    assert channel.schema.value_type is None
+    assert channel.schema.key_serializer is None
+    assert channel.schema.value_serializer is None
+
+
+def test_schema__from_schema(*, app):
+    schema = faust.Schema(
+        key_type='bytes',
+        value_type='bytes',
+        key_serializer='msgpack',
+        value_serializer='msgpack',
+    )
+    channel = app.channel(schema=schema)
+
+    assert channel.key_type == 'bytes'
+    assert channel.value_type == 'bytes'
+
+    assert channel.schema is schema
+    assert channel.schema.key_type == channel.key_type
+    assert channel.schema.value_type == channel.value_type
+    assert channel.schema.key_serializer == 'msgpack'
+    assert channel.schema.value_serializer == 'msgpack'
+
+
+def test_schema__overriding(*, app):
+    schema = faust.Schema(
+        key_type='bytes',
+        value_type='bytes',
+        key_serializer='msgpack',
+        value_serializer='msgpack',
+    )
+    channel = app.channel(schema=schema, key_type='str', value_type='str')
+
+    assert channel.key_type == 'str'
+    assert channel.value_type == 'str'
+    assert channel.schema.key_type == 'str'
+    assert channel.schema.value_type == 'str'
+    assert channel.schema.key_serializer == 'msgpack'
+    assert channel.schema.value_serializer == 'msgpack'
+
+
 def test_repr__active_partitions_empty(*, channel):
     channel.active_partitions = set()
     assert repr(channel)

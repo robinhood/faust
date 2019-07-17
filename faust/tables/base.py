@@ -37,6 +37,7 @@ from faust.types import (
     FutureMessage,
     JoinT,
     RecordMetadata,
+    SchemaT,
     TP,
     TopicT,
 )
@@ -100,6 +101,7 @@ class Collection(Service, CollectionT):
                  name: str = None,
                  default: Callable[[], Any] = None,
                  store: Union[str, URL] = None,
+                 schema: SchemaT = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  partitions: int = None,
@@ -119,6 +121,7 @@ class Collection(Service, CollectionT):
         self.name = cast(str, name)  # set lazily so CAN BE NONE!
         self.default = default
         self._store = URL(store) if store else None
+        self.schema = schema
         self.key_type = key_type
         self.value_type = value_type
         self.partitions = partitions
@@ -209,6 +212,7 @@ class Collection(Service, CollectionT):
             'name': self.name,
             'default': self.default,
             'store': self._store,
+            'schema': self.schema,
             'key_type': self.key_type,
             'value_type': self.value_type,
             'partitions': self.partitions,
@@ -399,6 +403,7 @@ class Collection(Service, CollectionT):
             retention = self.window.expires
         return self.app.topic(
             self._changelog_topic_name(),
+            schema=self.schema,
             key_type=self.key_type,
             value_type=self.value_type,
             key_serializer=self.key_serializer,

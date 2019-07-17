@@ -57,9 +57,11 @@ if typing.TYPE_CHECKING:
     from faust.sensors.monitor import Monitor as _Monitor
     from faust.worker import Worker as _Worker
     from .models import ModelArg as _ModelArg
+    from .serializers import SchemaT as _SchemaT
     from .settings import Settings as _Settings
 else:
     class _AppCommand: ...     # noqa
+    class _SchemaT: ...        # noqa
     class _LiveCheck: ...      # noqa
     class _Monitor: ...        # noqa
     class _Worker: ...         # noqa
@@ -197,6 +199,7 @@ class AppT(ServiceT):
     def topic(self,
               *topics: str,
               pattern: Union[str, Pattern] = None,
+              schema: _SchemaT = None,
               key_type: _ModelArg = None,
               value_type: _ModelArg = None,
               key_serializer: CodecArg = None,
@@ -217,6 +220,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def channel(self,
                 *,
+                schema: _SchemaT = None,
                 key_type: _ModelArg = None,
                 value_type: _ModelArg = None,
                 maxsize: int = None,
@@ -331,6 +335,7 @@ class AppT(ServiceT):
             partition: int = None,
             timestamp: float = None,
             headers: HeadersArg = None,
+            schema: _SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:

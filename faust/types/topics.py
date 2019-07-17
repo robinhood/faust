@@ -13,9 +13,11 @@ from .tuples import TP
 if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .models import ModelArg as _ModelArg
+    from .serializers import SchemaT as _SchemaT
 else:
     class _AppT: ...             # noqa
     class _ModelArg: ...         # noqa
+    class _SchemaT: ...          # noqa
 
 __all__ = ['TopicT']
 
@@ -57,6 +59,7 @@ class TopicT(ChannelT):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
+                 schema: _SchemaT = None,
                  key_type: _ModelArg = None,
                  value_type: _ModelArg = None,
                  is_iterator: bool = False,
@@ -104,6 +107,7 @@ class TopicT(ChannelT):
     def derive_topic(self,
                      *,
                      topics: Sequence[str] = None,
+                     schema: _SchemaT = None,
                      key_type: _ModelArg = None,
                      value_type: _ModelArg = None,
                      partitions: int = None,
