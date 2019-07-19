@@ -15,6 +15,7 @@ cdef class ConductorHandler:
         object on_topic_buffer_full
         object acquire_flow_control
         object consumer
+        object wait_until_producer_ebb
 
     def __init__(self, object conductor, object tp, object channels):
         self.conductor = conductor
