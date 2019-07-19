@@ -282,17 +282,10 @@ class test_Topic:
         app.producer.send_soon.assert_called_once_with(fut)
 
     @pytest.mark.asyncio
-    async def test_decode(self, *, topic, message):
-        topic._compile_decode = Mock(name='_compile_decode')
-        topic._compile_decode.return_value = AsyncMock()
-
-        await topic.decode(message, propagate=True)
-        topic._compile_decode.assert_called_once_with()
-
-    @pytest.mark.asyncio
     async def test_decode__decode_error_propagate(self, *, topic, message):
         exc = KeyDecodeError()
         topic.app.serializers.loads_key = Mock(side_effect=exc)
+        topic._compile_decode()
         with pytest.raises(type(exc)):
             await topic.decode(message, propagate=True)
 
@@ -301,6 +294,7 @@ class test_Topic:
         exc = KeyDecodeError()
         topic.app.serializers.loads_key = Mock(side_effect=exc)
         topic.on_key_decode_error = AsyncMock()
+        topic._compile_decode()
         await topic.decode(message, propagate=False)
         topic.on_key_decode_error.assert_called_once_with(exc, message)
 
@@ -337,6 +331,7 @@ class test_Topic:
             self, *, topic, message_empty_value):
         topic = topic.derive_topic(value_serializer='json', value_type=Dummy)
         topic.on_value_decode_error = AsyncMock()
+        topic._compile_decode()
         await topic.decode(message_empty_value, propagate=False)
         topic.on_value_decode_error.assert_called_once()
 

@@ -141,6 +141,9 @@ class Topic(SerializedChannel, TopicT):
         self.internal = internal
         self.config = config or {}
 
+        self._compile_decode()
+
+    def _compile_decode(self) -> None:
         self.decode = self.schema.compile(  # type: ignore
             self.app,
             on_key_decode_error=self.on_key_decode_error,
