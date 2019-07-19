@@ -1454,6 +1454,29 @@ Example using the string path to a class::
 
     app = App(..., Agent='myproj.agents.Agent')
 
+.. setting:: Event
+
+``Event``
+---------
+
+:type: ``Union[str, Type]``
+:default: :class:`faust.Event`
+
+The :class:`~faust.Event` class to use for creating new event objects,
+or the fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyBaseEvent(faust.Event):
+        ...
+
+    app = App(..., Event=MyBaseEvent)
+
+Example using the string path to a class::
+
+    app = App(..., Event='myproj.events.Event')
+
 .. setting:: Stream
 
 ``Stream``
