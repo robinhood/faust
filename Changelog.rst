@@ -8,6 +8,17 @@ This document contain change notes for bugfix releases in
 the Faust 1.7 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.7.4:
+
+1.7.4
+=====
+:release-date: 2019-07-19 2:57 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Cython**: Fixed missing field declaration (Issue #389).
+
+  Contributed by Victor Miroshnikov (:github_user:`superduper`).
+
 .. _version-1.7.3:
 
 1.7.3
