@@ -1477,6 +1477,29 @@ Example using the string path to a class::
 
     app = App(..., Event='myproj.events.Event')
 
+.. setting:: Schema
+
+``Schema``
+----------
+
+:type: ``Union[str, Type]``
+:default: :class:`faust.Schema`
+
+The :class:`~faust.Schema` class to use as the default
+schema type when no schema specified. or the fully-qualified
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyBaseSchema(faust.Schema):
+        ...
+
+    app = App(..., Schema=MyBaseSchema)
+
+Example using the string path to a class::
+
+    app = App(..., Schema='myproj.schemas.Schema')
+
 .. setting:: Stream
 
 ``Stream``

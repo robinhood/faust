@@ -39,7 +39,7 @@ from .enums import ProcessingGuarantee
 from .events import EventT
 from .router import RouterT
 from .sensors import SensorT
-from .serializers import RegistryT
+from .serializers import RegistryT, SchemaT
 from .streams import StreamT
 from .transports import PartitionerT, SchedulingStrategyT
 from .tables import TableManagerT, TableT
@@ -118,6 +118,9 @@ CONSUMER_SCHEDULER_TYPE = 'faust.transport.utils.DefaultSchedulingStrategy'
 
 #: Default event class type, used as default for :setting:`Event`.
 EVENT_TYPE = 'faust.Event'
+
+#: Default schema class type, used as default for :setting:`Schema`.
+SCHEMA_TYPE = 'faust.Schema'
 
 #: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
@@ -374,6 +377,7 @@ class Settings(abc.ABC):
     _Agent: Type[AgentT]
     _ConsumerScheduler: Type[SchedulingStrategyT]
     _Event: Type[EventT]
+    _Schema: Type[SchemaT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
     _SetTable: Type[TableT]
@@ -492,6 +496,7 @@ class Settings(abc.ABC):
             Agent: SymbolArg[Type[AgentT]] = None,
             ConsumerScheduler: SymbolArg[Type[SchedulingStrategyT]] = None,
             Event: SymbolArg[Type[EventT]] = None,
+            Schema: SymbolArg[Type[SchemaT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             SetTable: SymbolArg[Type[TableT]] = None,
@@ -664,6 +669,7 @@ class Settings(abc.ABC):
             Type[SchedulingStrategyT],
             ConsumerScheduler or CONSUMER_SCHEDULER_TYPE)
         self.Event = cast(EventT, Event or EVENT_TYPE)
+        self.Schema = cast(Type[SchemaT], Schema or SCHEMA_TYPE)
         self.Stream = cast(Type[StreamT], Stream or STREAM_TYPE)
         self.Table = cast(Type[TableT], Table or TABLE_TYPE)
         self.SetTable = cast(Type[TableT], SetTable or SET_TABLE_TYPE)
@@ -995,6 +1001,14 @@ class Settings(abc.ABC):
     @Event.setter
     def Event(self, Event: SymbolArg[Type[EventT]]) -> None:
         self._Event = symbol_by_name(Event)
+
+    @property
+    def Schema(self) -> Type[SchemaT]:
+        return self._Schema
+
+    @Schema.setter
+    def Schema(self, Schema: SymbolArg[Type[SchemaT]]) -> None:
+        self._Schema = symbol_by_name(Schema)
 
     @property
     def Stream(self) -> Type[StreamT]:

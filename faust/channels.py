@@ -25,7 +25,6 @@ from mode import Seconds, get_logger, want_seconds
 from mode.utils.futures import maybe_async, stampede
 from mode.utils.queues import ThrowableQueue
 
-from .serializers import Schema
 from .types import (
     AppT,
     ChannelT,
@@ -117,7 +116,7 @@ class Channel(ChannelT):
     def _get_default_schema(self,
                             key_type: ModelArg = None,
                             value_type: ModelArg = None) -> SchemaT:
-        return Schema(
+        return self.app.conf.Schema(
             key_type=key_type,
             value_type=value_type,
         )
@@ -601,7 +600,7 @@ class SerializedChannel(Channel):
                             key_serializer: CodecArg = None,
                             value_serializer: CodecArg = None,
                             allow_empty: bool = None) -> SchemaT:
-        return Schema(
+        return self.app.conf.Schema(
             key_type=key_type,
             value_type=value_type,
             key_serializer=key_serializer,
