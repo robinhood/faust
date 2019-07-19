@@ -17,6 +17,7 @@ from typing import (
     Set,
     Tuple,
     cast,
+    no_type_check,
 )
 from weakref import WeakSet
 
@@ -24,7 +25,6 @@ from mode import Seconds, get_logger, want_seconds
 from mode.utils.futures import maybe_async, stampede
 from mode.utils.queues import ThrowableQueue
 
-from .events import Event
 from .serializers import Schema
 from .types import (
     AppT,
@@ -402,7 +402,7 @@ class Channel(ChannelT):
                       value: V,
                       headers: Optional[HeadersArg],
                       message: Message) -> EventT:
-        return Event(self.app, key, value, headers, message)
+        return self.app.create_event(key, value, headers, message)
 
     async def put(self, value: Any) -> None:
         """Put event onto this channel."""
@@ -539,3 +539,110 @@ class Channel(ChannelT):
         """Short textual description of channel."""
         sym = '(*)' if self.is_iterator else ''
         return f'{sym}{type(self).__name__}: {self}'
+
+
+class SerializedChannel(Channel):
+
+    def __init__(self,
+                 app: AppT,
+                 *,
+                 schema: SchemaT = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
+                 allow_empty: bool = None,
+                 **kwargs: Any) -> None:
+        if schema is not None:
+            self._contribute_to_schema(
+                schema,
+                key_type=key_type,
+                value_type=value_type,
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
+                allow_empty=allow_empty,
+            )
+        else:
+            schema = self._get_default_schema(
+                key_type, value_type,
+                key_serializer, value_serializer,
+                allow_empty)
+
+        super().__init__(
+            app,
+            schema=schema,
+            key_type=key_type,
+            value_type=value_type,
+            **kwargs,
+        )
+        self.key_serializer = self.schema.key_serializer
+        self.value_serializer = self.schema.value_serializer
+        self.allow_empty = self.schema.allow_empty
+
+    def _contribute_to_schema(self, schema: SchemaT, *,
+                              key_type: ModelArg = None,
+                              value_type: ModelArg = None,
+                              key_serializer: CodecArg = None,
+                              value_serializer: CodecArg = None,
+                              allow_empty: bool = None) -> None:
+        # Update schema and take compat attributes
+        # from passed schema.
+        schema.update(
+            key_type=key_type,
+            value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            allow_empty=allow_empty,
+        )
+
+    def _get_default_schema(self,
+                            key_type: ModelArg = None,
+                            value_type: ModelArg = None,
+                            key_serializer: CodecArg = None,
+                            value_serializer: CodecArg = None,
+                            allow_empty: bool = None) -> SchemaT:
+        return Schema(
+            key_type=key_type,
+            value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            allow_empty=allow_empty,
+        )
+
+    @no_type_check  # incompatible with base class, but OK
+    def _clone_args(self) -> Mapping:
+        return {
+            **super()._clone_args(),
+            **{
+                'key_serializer': self.key_serializer,
+                'value_serializer': self.value_serializer,
+            },
+        }
+
+    def prepare_key(
+            self,
+            key: K,
+            key_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
+        """Serialize key to format suitable for transport."""
+        if key is not None:
+            schema = schema or self.schema
+            assert schema is not None
+            return schema.dumps_key(self.app, key,
+                                    serializer=key_serializer,
+                                    headers=headers)
+        return None, headers
+
+    def prepare_value(
+            self,
+            value: V,
+            value_serializer: CodecArg,
+            schema: SchemaT = None,
+            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
+        """Serialize value to format suitable for transport."""
+        schema = schema or self.schema
+        assert schema is not None
+        return schema.dumps_value(self.app, value,
+                                  serializer=value_serializer,
+                                  headers=headers)

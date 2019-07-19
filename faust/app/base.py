@@ -82,6 +82,7 @@ from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
 from faust.types.core import HeadersArg, K, V
 from faust.types.enums import ProcessingGuarantee
+from faust.types.events import EventT
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
 from faust.types.serializers import RegistryT, SchemaT
@@ -97,6 +98,7 @@ from faust.types.transports import (
     TransportT,
 )
 from faust.types.tuples import (
+    Message,
     MessageSentCallback,
     RecordMetadata,
     TP,
@@ -1213,6 +1215,14 @@ class App(AppT, Service):
             return cmd
 
         return _inner
+
+    def create_event(self,
+                     key: K,
+                     value: V,
+                     headers: HeadersArg,
+                     message: Message) -> EventT:
+        """Create new :class:`faust.Event` object."""
+        return self.conf.Event(self, key, value, headers, message)
 
     async def start_client(self) -> None:
         """Start the app in Client-Only mode necessary for RPC requests.

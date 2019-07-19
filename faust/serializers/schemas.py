@@ -1,13 +1,27 @@
+import typing
 from contextlib import suppress
-from typing import Any, Callable, Optional, Tuple, cast
+from typing import Any, Awaitable, Callable, Optional, Tuple, cast
+from faust.exceptions import KeyDecodeError, ValueDecodeError
 from faust.types.app import AppT
 from faust.types.core import K, OpenHeadersArg, V
 from faust.types.codecs import CodecArg
+from faust.types.events import EventT
 from faust.types.models import ModelArg
 from faust.types.serializers import KT, SchemaT, VT
 from faust.types.tuples import Message
 
 __all__ = ['Schema']
+
+if typing.TYPE_CHECKING:  # pragma: no cover
+    from mypy_extensions import DefaultNamedArg
+
+    DecodeFunction = Callable[[Message, DefaultNamedArg(bool, 'propagate')],
+                              Awaitable[EventT]]
+else:
+    DecodeFunction = Callable[..., Awaitable[EventT]]
+
+OnKeyDecodeErrorFun = Callable[[Exception, Message], Awaitable[None]]
+OnValueDecodeErrorFun = Callable[[Exception, Message], Awaitable[None]]
 
 
 class Schema(SchemaT):
@@ -16,19 +30,22 @@ class Schema(SchemaT):
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  key_serializer: CodecArg = None,
-                 value_serializer: CodecArg = None) -> None:
+                 value_serializer: CodecArg = None,
+                 allow_empty: bool = None) -> None:
         self.update(
             key_type=key_type,
             value_type=value_type,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
+            allow_empty=allow_empty,
         )
 
     def update(self, *,
                key_type: ModelArg = None,
                value_type: ModelArg = None,
                key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
+               value_serializer: CodecArg = None,
+               allow_empty: bool = None) -> None:
         if key_type is not None:
             self.key_type = key_type
         if value_type is not None:
@@ -41,6 +58,8 @@ class Schema(SchemaT):
             self.key_serializer = _model_serializer(key_type)
         if self.value_serializer is None and value_type:
             self.value_serializer = _model_serializer(value_type)
+        if allow_empty is not None:
+            self.allow_empty = allow_empty
 
     def loads_key(self, app: AppT, message: Message, *,
                   loads: Callable = None,
@@ -87,6 +106,51 @@ class Schema(SchemaT):
     def on_dumps_value_prepare_headers(
             self, value: V, headers: OpenHeadersArg) -> OpenHeadersArg:
         return headers
+
+    async def decode(self, app: AppT, message: Message, *,
+                     propagate: bool = False) -> EventT:
+        """Decode message from topic (compiled function not cached)."""
+        # first call to decode compiles and caches it.
+        decode = self.compile(app)
+        return await decode(message, propagate=propagate)
+
+    def compile(
+            self, app: AppT, *,
+            on_key_decode_error: OnKeyDecodeErrorFun = None,
+            on_value_decode_error: OnValueDecodeErrorFun = None,
+            default_propagate: bool = False) -> DecodeFunction:
+        """Compile function used to decode event."""
+        allow_empty = self.allow_empty
+        loads_key = app.serializers.loads_key
+        loads_value = app.serializers.loads_value
+        create_event = app.create_event
+
+        schema_loads_key = self.loads_key
+        schema_loads_value = self.loads_value
+
+        async def decode(message: Message, *,
+                         propagate: bool = default_propagate) -> Any:
+            try:
+                k: K = schema_loads_key(app, message, loads=loads_key)
+            except KeyDecodeError as exc:
+                if propagate:
+                    raise
+                if on_key_decode_error is not None:
+                    await on_key_decode_error(exc, message)
+            else:
+                try:
+                    if message.value is None and allow_empty:
+                        return create_event(k, None, message.headers, message)
+                    v: V = schema_loads_value(app, message, loads=loads_value)
+                except ValueDecodeError as exc:
+                    if propagate:
+                        raise
+                    if on_value_decode_error is not None:
+                        await on_value_decode_error(exc, message)
+                else:
+                    return create_event(k, v, message.headers, message)
+
+        return decode
 
     def __repr__(self) -> str:
         KT = self.key_type if self.key_type else '*default*'

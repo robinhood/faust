@@ -116,6 +116,7 @@ class test_settings:
 
         assert conf.Agent is faust.Agent
         assert conf.ConsumerScheduler is DefaultSchedulingStrategy
+        assert conf.Event is faust.Event
         assert conf.Stream is faust.Stream
         assert conf.Table is faust.Table
         assert conf.TableManager is TableManager

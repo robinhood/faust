@@ -72,11 +72,14 @@ class SchemaT(Generic[KT, VT]):
     key_serializer: Optional[CodecArg] = None
     value_serializer: Optional[CodecArg] = None
 
+    allow_empty: bool = False
+
     def __init__(self, *,
                  key_type: _ModelArg = None,
                  value_type: _ModelArg = None,
                  key_serializer: CodecArg = None,
-                 value_serializer: CodecArg = None) -> None:
+                 value_serializer: CodecArg = None,
+                 allow_empty: bool = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -84,7 +87,8 @@ class SchemaT(Generic[KT, VT]):
                key_type: _ModelArg = None,
                value_type: _ModelArg = None,
                key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
+               value_serializer: CodecArg = None,
+               allow_empty: bool = None) -> None:
         ...
 
     @abc.abstractmethod

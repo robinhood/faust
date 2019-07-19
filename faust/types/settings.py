@@ -36,6 +36,7 @@ from .assignor import LeaderAssignorT, PartitionAssignorT
 from .auth import CredentialsArg, CredentialsT, to_credentials
 from .codecs import CodecArg
 from .enums import ProcessingGuarantee
+from .events import EventT
 from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
@@ -114,6 +115,9 @@ AGENT_TYPE = 'faust.Agent'
 AGENT_SUPERVISOR_TYPE = 'mode.OneForOneSupervisor'
 
 CONSUMER_SCHEDULER_TYPE = 'faust.transport.utils.DefaultSchedulingStrategy'
+
+#: Default event class type, used as default for :setting:`Event`.
+EVENT_TYPE = 'faust.Event'
 
 #: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
@@ -369,6 +373,7 @@ class Settings(abc.ABC):
     _web_transport: URL = WEB_TRANSPORT
     _Agent: Type[AgentT]
     _ConsumerScheduler: Type[SchedulingStrategyT]
+    _Event: Type[EventT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
     _SetTable: Type[TableT]
@@ -486,6 +491,7 @@ class Settings(abc.ABC):
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             ConsumerScheduler: SymbolArg[Type[SchedulingStrategyT]] = None,
+            Event: SymbolArg[Type[EventT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             SetTable: SymbolArg[Type[TableT]] = None,
@@ -657,6 +663,7 @@ class Settings(abc.ABC):
         self.ConsumerScheduler = cast(
             Type[SchedulingStrategyT],
             ConsumerScheduler or CONSUMER_SCHEDULER_TYPE)
+        self.Event = cast(EventT, Event or EVENT_TYPE)
         self.Stream = cast(Type[StreamT], Stream or STREAM_TYPE)
         self.Table = cast(Type[TableT], Table or TABLE_TYPE)
         self.SetTable = cast(Type[TableT], SetTable or SET_TABLE_TYPE)
@@ -980,6 +987,14 @@ class Settings(abc.ABC):
     def ConsumerScheduler(
             self, value: SymbolArg[Type[SchedulingStrategyT]]) -> None:
         self._ConsumerScheduler = symbol_by_name(value)
+
+    @property
+    def Event(self) -> Type[EventT]:
+        return self._Event
+
+    @Event.setter
+    def Event(self, Event: SymbolArg[Type[EventT]]) -> None:
+        self._Event = symbol_by_name(Event)
 
     @property
     def Stream(self) -> Type[StreamT]:

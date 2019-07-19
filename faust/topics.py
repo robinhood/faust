@@ -13,7 +13,6 @@ from typing import (
     Pattern,
     Sequence,
     Set,
-    Tuple,
     Union,
     cast,
     no_type_check,
@@ -23,10 +22,8 @@ from mode import Seconds, get_logger
 from mode.utils.futures import stampede
 from mode.utils.queues import ThrowableQueue
 
-from .channels import Channel
-from .exceptions import KeyDecodeError, ValueDecodeError
+from .channels import SerializedChannel
 from .events import Event
-from .serializers import Schema
 from .streams import current_event
 from .types import (
     AppT,
@@ -35,7 +32,6 @@ from .types import (
     FutureMessage,
     HeadersArg,
     K,
-    Message,
     MessageSentCallback,
     ModelArg,
     PendingMessage,
@@ -44,29 +40,21 @@ from .types import (
     TP,
     V,
 )
-from .types.core import OpenHeadersArg
 from .types.topics import ChannelT, TopicT
 from .types.transports import ProducerT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from mypy_extensions import DefaultNamedArg
-
     from .app import App
-
-    DecodeFunction = Callable[[Message, DefaultNamedArg(bool, 'propagate')],
-                              Awaitable[EventT]]
 else:
-    class App:
-        ...  # noqa
+    class App: ...   # noqa
 
-    DecodeFunction = Callable[..., Awaitable[EventT]]
 
 __all__ = ['Topic']
 
 logger = get_logger(__name__)
 
 
-class Topic(Channel, TopicT):
+class Topic(SerializedChannel, TopicT):
     """Define new topic description.
 
     Arguments:
@@ -126,25 +114,16 @@ class Topic(Channel, TopicT):
                  maxsize: int = None,
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
-                 allow_empty: bool = False,
+                 allow_empty: bool = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        if schema is not None:
-            self._contribute_to_schema(
-                schema,
-                key_type=key_type,
-                value_type=value_type,
-                key_serializer=key_serializer,
-                value_serializer=value_serializer,
-            )
-        else:
-            schema = self._get_default_schema(
-                key_type, value_type, key_serializer, value_serializer)
-
         super().__init__(
             app,
             schema=schema,
             key_type=key_type,
             value_type=value_type,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            allow_empty=allow_empty,
             loop=loop,
             active_partitions=active_partitions,
             is_iterator=is_iterator,
@@ -161,35 +140,11 @@ class Topic(Channel, TopicT):
         self.acks = acks
         self.internal = internal
         self.config = config or {}
-        self.allow_empty = allow_empty
 
-        self.key_serializer = self.schema.key_serializer
-        self.value_serializer = self.schema.value_serializer
-
-    def _contribute_to_schema(self, schema: SchemaT, *,
-                              key_type: ModelArg = None,
-                              value_type: ModelArg = None,
-                              key_serializer: CodecArg = None,
-                              value_serializer: CodecArg = None) -> None:
-        # Update schema and take compat attributes
-        # from passed schema.
-        schema.update(
-            key_type=key_type,
-            value_type=value_type,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-        )
-
-    def _get_default_schema(self,
-                            key_type: ModelArg = None,
-                            value_type: ModelArg = None,
-                            key_serializer: CodecArg = None,
-                            value_serializer: CodecArg = None) -> SchemaT:
-        return Schema(
-            key_type=key_type,
-            value_type=value_type,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
+        self.decode = self.schema.compile(  # type: ignore
+            self.app,
+            on_key_decode_error=self.on_key_decode_error,
+            on_value_decode_error=self.on_value_decode_error,
         )
 
     async def send(self,
@@ -264,13 +219,6 @@ class Topic(Channel, TopicT):
         self.app.producer.send_soon(fut)
         return fut
 
-    async def decode(self, message: Message, *,
-                     propagate: bool = False) -> EventT:
-        """Decode message from topic."""
-        # first call to decode compiles and caches it.
-        decode = self.decode = self._compile_decode()  # type: ignore
-        return await decode(message, propagate=propagate)
-
     async def put(self, event: EventT) -> None:
         """Put even directly onto the underlying queue of this topic.
 
@@ -281,38 +229,6 @@ class Topic(Channel, TopicT):
             raise RuntimeError(
                 f'Cannot put on Topic channel before aiter({self})')
         await self.queue.put(event)
-
-    def _compile_decode(self) -> DecodeFunction:
-        app = self.app
-        schema = self.schema
-        loads_key = app.serializers.loads_key
-        loads_value = app.serializers.loads_value
-        create_event = self._create_event
-
-        assert schema is not None
-        schema_loads_key = schema.loads_key
-        schema_loads_value = schema.loads_value
-
-        async def decode(message: Message, *, propagate: bool = False) -> Any:
-            try:
-                k = schema_loads_key(app, message, loads=loads_key)
-            except KeyDecodeError as exc:
-                if propagate:
-                    raise
-                await self.on_key_decode_error(exc, message)
-            else:
-                try:
-                    if message.value is None and self.allow_empty:
-                        return create_event(k, None, message.headers, message)
-                    v = schema_loads_value(app, message, loads=loads_value)
-                except ValueDecodeError as exc:
-                    if propagate:
-                        raise
-                    await self.on_value_decode_error(exc, message)
-                else:
-                    return create_event(k, v, message.headers, message)
-
-        return decode
 
     @no_type_check  # incompatible with base class, but OK
     def _clone_args(self) -> Mapping:
@@ -327,13 +243,12 @@ class Topic(Channel, TopicT):
                 'deleting': self.deleting,
                 'replicas': self.replicas,
                 'internal': self.internal,
-                'schema': self.schema,
-                'key_serializer': self.key_serializer,
-                'value_serializer': self.value_serializer,
                 'acks': self.acks,
                 'config': self.config,
                 'active_partitions': self.active_partitions,
-                'allow_empty': self.allow_empty}}
+                'allow_empty': self.allow_empty,
+            },
+        }
 
     @property
     def pattern(self) -> Optional[Pattern]:
@@ -524,34 +439,6 @@ class Topic(Channel, TopicT):
                 message.message.callback(message)
             self.app.sensors.on_send_completed(producer, state, res)
 
-    def prepare_key(
-            self,
-            key: K,
-            key_serializer: CodecArg,
-            schema: SchemaT = None,
-            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
-        """Serialize key to format suitable for transport."""
-        if key is not None:
-            schema = schema or self.schema
-            assert schema is not None
-            return schema.dumps_key(self.app, key,
-                                    serializer=key_serializer,
-                                    headers=headers)
-        return None, headers
-
-    def prepare_value(
-            self,
-            value: V,
-            value_serializer: CodecArg,
-            schema: SchemaT = None,
-            headers: OpenHeadersArg = None) -> Tuple[Any, OpenHeadersArg]:
-        """Serialize value to format suitable for transport."""
-        schema = schema or self.schema
-        assert schema is not None
-        return schema.dumps_value(self.app, value,
-                                  serializer=value_serializer,
-                                  headers=headers)
-
     @stampede
     async def maybe_declare(self) -> None:
         """Declare/create this topic, only if it does not exist."""
@@ -583,6 +470,11 @@ class Topic(Channel, TopicT):
             return self
         else:
             channel = self.clone(is_iterator=True)
+            # Once the topic is iterated over we add the topic
+            # to app.topics (Conductor).
+            # When the worker starts, the consumer
+            # will use ``list(app.topics)`` to know what topics
+            # to subscribe to.
             self.app.topics.add(channel)
             return channel
 
