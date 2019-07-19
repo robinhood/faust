@@ -552,6 +552,7 @@ class SerializedChannel(Channel):
                  value_serializer: CodecArg = None,
                  allow_empty: bool = None,
                  **kwargs: Any) -> None:
+        self.app = app  # need to set early
         if schema is not None:
             self._contribute_to_schema(
                 schema,
