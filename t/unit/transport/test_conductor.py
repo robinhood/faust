@@ -1,11 +1,14 @@
 import asyncio
 import pytest
+
+from mode import label, shortlabel
+from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock, patch
+
 from faust import App, Channel, Topic
 from faust.transport.consumer import Consumer
 from faust.transport.conductor import Conductor
 from faust.types import Message, TP
-from mode import label, shortlabel
-from mode.utils.mocks import AsyncMock, Mock, patch
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -15,6 +18,11 @@ class test_Conductor:
 
     @pytest.fixture
     def con(self, *, app):
+        return Conductor(app)
+
+    @pytest.fixture
+    def con_client_only(self, *, app):
+        app.client_only = True
         return Conductor(app)
 
     def test_constructor(self, *, con):
@@ -32,6 +40,18 @@ class test_Conductor:
         assert not con.acks_enabled_for('foo')
         con._acking_topics.add('foo')
         assert con.acks_enabled_for('foo')
+
+    @pytest.mark.asyncio
+    async def test_con_client_only(self, *, con_client_only):
+        assert con_client_only.on_message
+        message = Mock(name='message')
+        tp = TP(topic=message.topic, partition=0)
+        cb = con_client_only._tp_to_callback[tp] = AsyncMock(name='cb')
+
+        ret = await con_client_only.on_message(message)
+        assert ret is cb.coro.return_value
+
+        cb.assert_called_once_with(message)
 
     @pytest.mark.asyncio
     async def test_commit(self, *, con):
@@ -198,6 +218,30 @@ class test_Conductor:
 
     def test_label(self, *, con):
         assert label(con)
+
+    @pytest.mark.asyncio
+    async def test_wait_for_subscriptions__notset(self, *, con):
+        with patch('asyncio.Future') as Future:
+            Future.return_value = done_future()
+            await con.wait_for_subscriptions()
+
+    @pytest.mark.asyncio
+    async def test_maybe_wait_for_subscriptions(self, *, con):
+        con._subscription_done = done_future()
+        await con.maybe_wait_for_subscriptions()
+
+    @pytest.mark.asyncio
+    async def test_maybe_wait_for_subscriptions__none(self, *, con):
+        con._subscription_done = None
+        await con.maybe_wait_for_subscriptions()
+
+    @pytest.mark.asyncio
+    async def test_on_client_only_start(self, *, con, app):
+        topic = app.topic('foo', 'bar')
+        con.add(topic)
+        await con.on_client_only_start()
+        assert con._tp_index[TP(topic='foo', partition=0)] == {topic}
+        assert con._tp_index[TP(topic='bar', partition=0)] == {topic}
 
     def test_shortlabel(self, *, con):
         assert shortlabel(con)
