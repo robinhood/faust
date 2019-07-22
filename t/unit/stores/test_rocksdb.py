@@ -93,7 +93,7 @@ class test_Store:
     def test_default_key_index_size(self, *, store):
         assert store.key_index_size == store.app.conf.table_key_index_size
 
-    def test_set_key_index_size(self, *, app, table):
+    def test_set_key_index_size(self, *, app, rocks, table):
         s = Store('rocksdb://', app, table, key_index_size=12341)
 
         assert s.key_index_size == 12341
