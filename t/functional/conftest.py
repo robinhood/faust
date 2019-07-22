@@ -16,6 +16,18 @@ class AppMarks(NamedTuple):
     cache: str = 'memory://'
 
 
+def create_appmarks(name='funtest',
+                    store='memory://',
+                    cache='memory://',
+                    **rest):
+    options = AppMarks(
+        name=name,
+        store=store,
+        cache=cache,
+    )
+    return options, rest
+
+
 @pytest.yield_fixture()
 def app(event_loop, request):
     os.environ.pop('F_DATADIR', None)
@@ -23,16 +35,13 @@ def app(event_loop, request):
     os.environ.pop('F_WORKDIR', None)
     os.environ.pop('FAUST_WORKDIR', None)
     marks = request.node.get_closest_marker('app')
-    options = AppMarks(**{
-        **{'name': 'funtest',
-           'store': 'memory://',
-           'cache': 'memory://'},
-        **((marks.kwargs or {}) if marks else {}),
-    })
+    options, rest = create_appmarks(
+        **((marks.kwargs or {}) if marks else {}))
     app = faust.App(
         options.name,
         store=options.store,
         cache=options.cache,
+        **rest,
     )
     app.finalize()
     set_current_span(None)
