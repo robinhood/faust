@@ -90,6 +90,14 @@ class test_Store:
         dfp = store._db_for_partition = Mock(name='db_for_partition')
         return dfp
 
+    def test_default_key_index_size(self, *, store):
+        assert store.key_index_size == store.app.conf.table_key_index_size
+
+    def test_set_key_index_size(self, *, app, table):
+        s = Store('rocksdb://', app, table, key_index_size=12341)
+
+        assert s.key_index_size == 12341
+
     def test_no_rocksdb(self, *, app, table, no_rocks):
         with pytest.raises(ImproperlyConfigured):
             Store('rocksdb://', app, table)
