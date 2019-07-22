@@ -1382,3 +1382,12 @@ class test_float_does_not_coerce():
         f: float
 
     assert X('3.14').f == '3.14'
+
+
+def test_model_init_field():
+    account = Account(id='id', name='name')
+    user = User(id='id', username='username', account=account)
+
+    acc2 = account.to_representation()
+    # init_field reconstructs account back into Model object.
+    assert user._init_field('account', acc2) == account
