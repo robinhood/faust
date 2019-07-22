@@ -290,8 +290,7 @@ class DecimalField(NumberField[Decimal]):
 
         mdp = self.max_decimal_places
         if mdp:
-            if decimal_tuple is None:
-                decimal_tuple = value.as_tuple()
+            decimal_tuple = value.as_tuple()
             if abs(decimal_tuple.exponent) > mdp:
                 yield self.validation_error(
                     f'{self.field} must have less than {mdp} decimal places.')
@@ -393,8 +392,10 @@ class BytesField(CharField[bytes]):
 
     def prepare_value(self, value: Any) -> Optional[bytes]:
         if self.should_coerce(value):
-            if isinstance(value, str):
-                val = value.encode(encoding=self.encoding)
+            if isinstance(value, bytes):
+                val = value
+            else:
+                val = cast(str, value).encode(encoding=self.encoding)
             if self.trim_whitespace:
                 return val.strip()
             return val
