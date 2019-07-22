@@ -24,6 +24,10 @@ OnKeyDecodeErrorFun = Callable[[Exception, Message], Awaitable[None]]
 OnValueDecodeErrorFun = Callable[[Exception, Message], Awaitable[None]]
 
 
+async def _noop_decode_error(exc: Exception, message: Message) -> None:
+    ...
+
+
 class Schema(SchemaT):
 
     def __init__(self, *,
@@ -110,14 +114,13 @@ class Schema(SchemaT):
     async def decode(self, app: AppT, message: Message, *,
                      propagate: bool = False) -> EventT:
         """Decode message from topic (compiled function not cached)."""
-        # first call to decode compiles and caches it.
         decode = self.compile(app)
         return await decode(message, propagate=propagate)
 
     def compile(
             self, app: AppT, *,
-            on_key_decode_error: OnKeyDecodeErrorFun = None,
-            on_value_decode_error: OnValueDecodeErrorFun = None,
+            on_key_decode_error: OnKeyDecodeErrorFun = _noop_decode_error,
+            on_value_decode_error: OnValueDecodeErrorFun = _noop_decode_error,
             default_propagate: bool = False) -> DecodeFunction:
         """Compile function used to decode event."""
         allow_empty = self.allow_empty
@@ -135,8 +138,7 @@ class Schema(SchemaT):
             except KeyDecodeError as exc:
                 if propagate:
                     raise
-                if on_key_decode_error is not None:
-                    await on_key_decode_error(exc, message)
+                await on_key_decode_error(exc, message)
             else:
                 try:
                     if message.value is None and allow_empty:
@@ -145,8 +147,7 @@ class Schema(SchemaT):
                 except ValueDecodeError as exc:
                     if propagate:
                         raise
-                    if on_value_decode_error is not None:
-                        await on_value_decode_error(exc, message)
+                    await on_value_decode_error(exc, message)
                 else:
                     return create_event(k, v, message.headers, message)
 

@@ -290,6 +290,10 @@ class test_Topic:
             await topic.decode(message, propagate=True)
 
     @pytest.mark.asyncio
+    async def test_topic_schema_decode_helper(self, *, topic, message):
+        await topic.schema.decode(topic.app, message)
+
+    @pytest.mark.asyncio
     async def test_decode__decode_error_callback(self, *, topic, message):
         exc = KeyDecodeError()
         topic.app.serializers.loads_key = Mock(side_effect=exc)
