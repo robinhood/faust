@@ -48,6 +48,7 @@ from faust.types._env import (
 from faust.types import AppT, CodecArg, ModelT
 from faust.utils import json
 from faust.utils import terminal
+from faust.utils.codegen import reprcall
 
 from . import params
 
@@ -68,25 +69,48 @@ __all__ = [
 ]
 
 
-def argument(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+class argument:
     """Create command-line argument.
 
     SeeAlso:
         :func:`click.argument`
     """
-    return click.argument(*args, **kwargs)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args: Tuple = args
+        self.kwargs: Dict = kwargs
+        self.argument: Callable[[Any], Any] = click.argument(
+            *self.args, **self.kwargs)
+
+    def __call__(self, fun: Any) -> Any:
+        return self.argument(fun)
+
+    def __repr__(self) -> str:
+        return reprcall(type(self).__name__, self.args, self.kwargs)
 
 
-# Our version of click.option enables show_default=True by default.
-def option(*option_decls: Any,
-           show_default: bool = True,
-           **kwargs: Any) -> Callable[[Any], Any]:
+class option:
     """Create command-line option.
 
     SeeAlso:
         :func:`click.option`
     """
-    return click.option(*option_decls, show_default=show_default, **kwargs)
+
+    # Our version of click.option enables show_default=True by default.
+
+    def __init__(self, *args: Any,
+                 show_default: bool = True,
+                 **kwargs: Any) -> None:
+        self.args: Tuple = args
+        self.kwargs: Dict = kwargs
+        self.option: Callable[[Any], Any] = click.option(
+            *args, show_default=show_default, **kwargs)
+
+    def __call__(self, fun: Any) -> Any:
+        return self.option(fun)
+
+    def __repr__(self) -> str:
+        return reprcall(type(self).__name__, self.args, self.kwargs)
 
 
 OptionDecorator = Callable[[Any], Any]

@@ -1,5 +1,5 @@
 """Utilities for generating code at runtime."""
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Mapping, Tuple
 
 __all__ = [
     'Function',
@@ -13,6 +13,8 @@ __all__ = [
     'LtMethod',
     'GeMethod',
     'GtMethod',
+    'reprkwargs',
+    'reprcall',
 ]
 
 MISSING = object()
@@ -142,3 +144,21 @@ def obj_attrs_tuple(obj_name: str, attrs: List[str]) -> str:
     if not attrs:
         return '()'
     return f'({",".join([f"{obj_name}.{f}" for f in attrs])},)'
+
+
+def reprkwargs(kwargs: Mapping[str, Any], *,
+               sep: str = ', ',
+               fmt: str = '{0}={1}') -> str:
+    return sep.join(fmt.format(k, repr(v)) for k, v in kwargs.items())
+
+
+def reprcall(name: str,
+             args: Tuple = (),
+             kwargs: Mapping[str, Any] = {},  # noqa: B006
+             *,
+             sep: str = ', ') -> str:
+    return '{0}({1}{2}{3})'.format(
+        name, sep.join(map(repr, args or ())),
+        (args and kwargs) and sep or '',
+        reprkwargs(kwargs, sep=sep),
+    )
