@@ -1,7 +1,29 @@
 from decimal import Decimal
 import pytest
+from faust import Record
 from faust.exceptions import ValidationError
 from faust.models.fields import BytesField, DecimalField, FieldDescriptor
+
+
+class X(Record):
+    foo: str
+
+
+class test_ValidationError:
+
+    @pytest.fixture()
+    def field(self):
+        return DecimalField(model=X, field='foo')
+
+    @pytest.fixture()
+    def error(self, *, field):
+        return ValidationError('error', field=field)
+
+    def test_repr(self, *, error):
+        assert repr(error)
+
+    def test_str(self, *, error):
+        assert str(error)
 
 
 class test_FieldDescriptor:
