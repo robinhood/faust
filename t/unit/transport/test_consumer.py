@@ -486,7 +486,12 @@ class test_Consumer:
         ]
 
     @pytest.mark.asyncio
-    async def test__wait_next_records(self, *, consumer):
+    @pytest.mark.parametrize('client_only', [
+        False,
+        True,
+    ])
+    async def test__wait_next_records(self, client_only, *, consumer):
+        consumer.app.client_only = client_only
         self._setup_records(
             consumer,
             active_partitions={TP1},
@@ -494,8 +499,9 @@ class test_Consumer:
                 TP1: ['A', 'B', 'C'],
             },
         )
+        expected_active = None if client_only else {TP1}
         ret = await consumer._wait_next_records(1.0)
-        assert ret == ({TP1: ['A', 'B', 'C']}, {TP1})
+        assert ret == ({TP1: ['A', 'B', 'C']}, expected_active)
 
     @pytest.mark.asyncio
     async def test__wait_next_records__flow_inactive(self, *, consumer):
