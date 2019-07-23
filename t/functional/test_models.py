@@ -1391,3 +1391,6 @@ def test_model_init_field():
     acc2 = account.to_representation()
     # init_field reconstructs account back into Model object.
     assert user._init_field('account', acc2) == account
+
+    # init field missing (coverage)
+    assert user._init_field('foo', 123) == 123

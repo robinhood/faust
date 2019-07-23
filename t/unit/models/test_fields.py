@@ -30,16 +30,35 @@ class test_DecimalField:
         assert f4.max_decimal_places is None
 
     @pytest.mark.parametrize('value', [
-        Decimal(4.1),
-        Decimal(4.12),
-        Decimal(4.123),
-        4.1234,
-        Decimal(4.1234),
-        Decimal(123456612341.1234),
+        Decimal('Inf'),
+        Decimal('NaN'),
+        Decimal('sNaN'),
     ])
-    def test_max_decimal_places__good(self, value):
-        f = DecimalField(max_decimal_places=4, coerce=True)
-        assert f.validate(value)
+    def test_infinite(self, value):
+        f = DecimalField(coerce=True, field='foo')
+        with pytest.raises(ValidationError):
+            raise next(f.validate(value))
+
+    @pytest.mark.parametrize('value,places,digits', [
+        (Decimal(4.1), 100, 2),
+        (Decimal(4.1), 100, 2),
+        (Decimal(4.1), None, 2),
+        (Decimal(4.12), 100, None),
+        (Decimal(4.123), 100, None),
+        (4.1234, 100, 2),
+        (Decimal(4.1234), 100, 2),
+        (Decimal(123456612341.1234), 100, 100),
+    ])
+    def test_max_decimal_places__good(self, value, places, digits):
+        f = DecimalField(
+            max_decimal_places=places,
+            max_digits=digits,
+            coerce=True,
+            field='foo',
+        )
+        d: Decimal = f.prepare_value(value)
+        for error in f.validate(d):
+            raise error
 
     @pytest.mark.parametrize('value', [
         Decimal(1.12412421421),
@@ -47,7 +66,17 @@ class test_DecimalField:
         Decimal(123456788.12345),
     ])
     def test_max_decimal_places__bad(self, value):
-        f = DecimalField(max_decimal_places=4, coerce=True)
+        f = DecimalField(max_decimal_places=4, coerce=True, field='foo')
+        with pytest.raises(ValidationError):
+            raise next(f.validate(value))
+
+    @pytest.mark.parametrize('value', [
+        Decimal(12345.12412421421),
+        Decimal(123456.12345),
+        Decimal(123456788.12345),
+    ])
+    def test_max_digits__bad(self, value):
+        f = DecimalField(max_digits=4, coerce=True, field='foo')
         with pytest.raises(ValidationError):
             raise next(f.validate(value))
 

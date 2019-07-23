@@ -76,10 +76,16 @@ class test_Conductor:
         cb.assert_called_once_with(message)
 
     @pytest.mark.asyncio
-    async def test_wait_for_subscription(self, *, con):
+    async def test_wait_for_subscriptions(self, *, con):
         with patch('asyncio.Future', AsyncMock()) as Future:
+            con._subscription_done = None
             await con.wait_for_subscriptions()
             Future.assert_called_once_with(loop=con.loop)
+
+    @pytest.mark.asyncio
+    async def test_wait_for_subscriptions__done(self, *, con):
+        con._subscription_done = done_future()
+        await con.wait_for_subscriptions()
 
     @pytest.mark.asyncio
     async def test_update_indices(self, *, con):

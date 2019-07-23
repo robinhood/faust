@@ -61,6 +61,12 @@ class ValidationError(FaustError, ValueError):
         self.field = field
         super().__init__(reason, field)
 
+    def __str__(self) -> str:
+        return f'{self.reason} {self.field!r}'
+
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__}: {self}>'
+
 
 class DecodeError(FaustError):
     """Error while decoding/deserializing message key/value."""

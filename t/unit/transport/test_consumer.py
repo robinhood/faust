@@ -576,6 +576,11 @@ class test_Consumer:
         assert consumer._committed_offset[TP2] is None
 
     @pytest.mark.asyncio
+    async def test_commit__client_only(self, *, consumer):
+        consumer.app.client_only = True
+        assert not await consumer.commit()
+
+    @pytest.mark.asyncio
     async def test_seek(self, *, consumer):
         consumer._last_batch = 123.3
         consumer._read_offset[TP1] = 301
