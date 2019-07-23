@@ -49,6 +49,54 @@ class test_ProducerBuffer:
             call(buf.pending.get.coro.return_value),
         ])
 
+    @pytest.mark.asyncio
+    async def test_wait_until_ebb(self, *, buf):
+        buf.max_messages = 10
+        buf._send_pending = AsyncMock()
+        self._put(buf, range(20))
+        assert buf.size == 20
+
+        await buf.wait_until_ebb()
+        assert list(buf.pending._queue) == list(range(10, 20))
+        assert buf.size == 10
+
+        await buf.wait_until_ebb()
+        assert list(buf.pending._queue) == list(range(10, 20))
+        assert buf.size == 10
+
+    @pytest.mark.asyncio
+    async def test_flush(self, *, buf):
+        buf._send_pending = AsyncMock()
+        assert not buf.size
+        await buf.flush()
+
+        self._put(buf, range(10))
+        assert buf.size == 10
+
+        await buf.flush()
+        assert not buf.size
+
+    def _put(self, buf, items):
+        for item in items:
+            buf.pending.put_nowait(item)
+
+    @pytest.mark.asyncio
+    async def test_flush_atmost(self, *, buf):
+        buf._send_pending = AsyncMock()
+        assert await buf.flush_atmost(10) == 0
+
+        self._put(buf, range(3))
+        assert buf.size == 3
+        assert await buf.flush_atmost(10) == 3
+
+        self._put(buf, range(10))
+        assert buf.size == 10
+        assert (await buf.flush_atmost(4)) == 4
+        assert buf.size == 6
+
+        assert (await buf.flush_atmost(6)) == 6
+        assert not buf.size
+
 
 class ProducerTests:
 

@@ -64,7 +64,9 @@ class ProducerBuffer(Service):
                     return i
                 else:
                     await send_pending(msg)
-        return 0
+            return n
+        else:
+            return 0
 
     async def _send_pending(self, fut: FutureMessage) -> None:
         await fut.message.channel.publish_message(fut, wait=False)
