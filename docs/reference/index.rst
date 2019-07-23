@@ -104,6 +104,7 @@ Serializers
 
     faust.serializers.codecs
     faust.serializers.registry
+    faust.serializers.schemas
 
 Stores
 ======
