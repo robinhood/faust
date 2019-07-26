@@ -46,6 +46,7 @@ __all__ = [
     'RelativeArg',
     'CollectionT',
     'TableT',
+    'GlobalTableT',
     'TableManagerT',
     'WindowSetT',
     'WindowedItemsViewT',
@@ -181,6 +182,9 @@ class TableT(CollectionT, ManagedUserDict[KT, VT]):
     def as_ansitable(self, **kwargs: Any) -> str:
         ...
 
+
+class GlobalTableT(TableT):
+    pass
 
 class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
     app: _AppT
