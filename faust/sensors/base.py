@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, Set
 
 from mode import Service
 
+from faust import web
 from faust.types import AppT, CollectionT, EventT, StreamT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
@@ -123,6 +124,21 @@ class Sensor(SensorT, Service):
 
     def on_rebalance_end(self, app: AppT, state: Dict) -> None:
         """Cluster rebalance fully completed (including recovery)."""
+        ...
+
+    def on_web_request_start(self, app: AppT, request: web.Request, *,
+                             view: web.View = None) -> Dict:
+        """Web server started working on request."""
+        return {'time_start': monotonic()}
+
+    def on_web_request_end(self,
+                           app: AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
+        """Web server finished working on request."""
         ...
 
     def asdict(self) -> Mapping:
@@ -281,6 +297,27 @@ class SensorDelegate(SensorDelegateT):
         """Cluster rebalance fully completed (including recovery)."""
         for sensor in self._sensors:
             sensor.on_rebalance_end(app, state[sensor])
+
+    def on_web_request_start(self, app: AppT, request: web.Request, *,
+                             view: web.View = None) -> Dict:
+        """Web server started working on request."""
+        return {
+            sensor: sensor.on_web_request_start(app, request,
+                                                view=view)
+            for sensor in self._sensors
+        }
+
+    def on_web_request_end(self,
+                           app: AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
+        """Web server finished working on request."""
+        for sensor in self._sensors:
+            sensor.on_web_request_end(app, request, response, state[sensor],
+                                      view=view)
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'

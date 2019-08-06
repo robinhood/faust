@@ -7,6 +7,7 @@ from typing import (
     ClassVar,
     Mapping,
     MutableMapping,
+    Optional,
     Type,
     Union,
     cast,
@@ -76,6 +77,8 @@ class View:
 
     async def dispatch(self, request: Any) -> Any:
         """Dispatch the request and perform any callbacks/cleanup."""
+        app = self.app
+        sensors = app.sensors
         method = request.method.lower()
         kwargs = request.match_info or {}  # XXX Aiohttp specific
 
@@ -83,10 +86,16 @@ class View:
         # from the URL route (match_info).
         method = cast(Callable[..., Awaitable[Response]], self.methods[method])
 
+        sensor_state = sensors.on_web_request_start(app, request, view=self)
+        response: Optional[Response] = None
         try:
-            return await method(cast(Request, request), **kwargs)
+            response = await method(cast(Request, request), **kwargs)
         except WebError as exc:
-            return await self.on_request_error(request, exc)
+            response = await self.on_request_error(request, exc)
+        finally:
+            sensors.on_web_request_end(
+                app, request, response, sensor_state, view=self)
+        return response
 
     async def on_request_error(self,
                                request: Request,

@@ -2,6 +2,7 @@
 import asyncio
 
 from collections import deque
+from http import HTTPStatus
 from statistics import median
 from time import monotonic
 from typing import (
@@ -19,6 +20,7 @@ from mode import Service, label
 from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter, Deque
 
+from faust import web
 from faust.types import AppT, CollectionT, EventT, StreamT, TopicT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
@@ -189,6 +191,15 @@ class Monitor(Sensor, KeywordReduce):
     #: Average rebalance end latency.
     rebalance_end_avg: float = .0
 
+    #: Counter of returned HTTP status codes.
+    http_response_codes: Counter[HTTPStatus] = cast(Counter[HTTPStatus], None)
+
+    #: Deque of previous n HTTP request->response latencies.
+    http_response_latency: Deque[float] = cast(Deque[float], None)
+
+    #: Average request->response latency.
+    http_response_latency_avg: float = .0
+
     def __init__(self,
                  *,
                  max_avg_history: int = None,
@@ -218,6 +229,9 @@ class Monitor(Sensor, KeywordReduce):
                  rebalance_return_avg: float = 0.0,
                  rebalance_end_avg: float = 0.0,
                  time: Callable[[], float] = monotonic,
+                 http_response_codes: Counter[HTTPStatus] = None,
+                 http_response_latency: Deque[float] = None,
+                 http_response_latency_avg: float = 0.0,
                  **kwargs: Any) -> None:
         if max_avg_history is not None:
             self.max_avg_history = max_avg_history
@@ -263,6 +277,10 @@ class Monitor(Sensor, KeywordReduce):
             deque() if events_runtime is None else events_runtime)
         self.topic_buffer_full = Counter()
         self.time: Callable[[], float] = time
+
+        self.http_response_codes = Counter()
+        self.http_response_latency = deque()
+        self.http_response_latency_avg = http_response_latency_avg
 
         self.metric_counts = Counter()
 
@@ -316,6 +334,10 @@ class Monitor(Sensor, KeywordReduce):
         if self.rebalance_end_latency:
             self.rebalance_end_avg = median(self.rebalance_end_latency)
 
+        if self.http_response_latency:
+            self.http_response_latency_avg = median(
+                self.http_response_latency)
+
         return prev_event_total, prev_message_total
 
     def asdict(self) -> Mapping:
@@ -352,6 +374,9 @@ class Monitor(Sensor, KeywordReduce):
             'rebalance_end_latency': self.rebalance_end_latency,
             'rebalance_return_avg': self.rebalance_return_avg,
             'rebalance_end_avg': self.rebalance_end_avg,
+            'http_response_codes': self._http_response_codes_dict(),
+            'http_response_latency': self.http_response_latency,
+            'http_response_latency_avg': self.http_response_latency_avg,
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -368,6 +393,10 @@ class Monitor(Sensor, KeywordReduce):
 
     def _metric_counts_dict(self) -> MutableMapping[str, int]:
         return {key: count for key, count in self.metric_counts.items()}
+
+    def _http_response_codes_dict(self) -> MutableMapping[int, int]:
+        return {int(code): count
+                for code, count in self.http_response_counts.items()}
 
     def _tp_committed_offsets_dict(self) -> TPOffsetDict:
         return self._tp_offsets_as_dict(self.tp_committed_offsets)
@@ -564,3 +593,29 @@ class Monitor(Sensor, KeywordReduce):
         )
         deque_pushpopmax(
             self.rebalance_end_latency, latency_end, self.max_avg_history)
+
+    def on_web_request_start(self, app: AppT, request: web.Request, *,
+                             view: web.View = None) -> Dict:
+        """Web server started working on request."""
+        return {'time_start': monotonic()}
+
+    def on_web_request_end(self,
+                           app: AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
+        """Web server finished working on request."""
+        status_code = HTTPStatus(response.status if response else 500)
+        time_start = state['time_start']
+        time_end = self.time()
+        latency_end = time_end - time_start
+        state.update(
+            time_end=time_end,
+            latency_end=latency_end,
+            status_code=status_code,
+        )
+        deque_pushpopmax(
+            self.http_response_latency, latency_end, self.max_avg_history)
+        self.http_response_codes[status_code] += 1

@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
+from faust import web
 from faust.exceptions import ImproperlyConfigured
 from faust.types import (
     AppT,
@@ -238,6 +239,22 @@ class StatsdMonitor(Monitor):
         super().track_tp_end_offset(tp, offset)
         metric_name = f'end_offset.{tp.topic}.{tp.partition}'
         self.client.gauge(metric_name, offset)
+
+    def on_web_request_end(self,
+                           app: AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
+        """Web server finished working on request."""
+        super().on_web_request_end(app, request, response, state, view=view)
+        status_code = int(state['status_code'])
+        self.client.incr(f'http_status_code.{status_code}', rate=self.rate)
+        self.client.timing(
+            'http_response_latency',
+            self.ms_since(state['time_end']),
+            rate=self.rate)
 
     def _normalize(self, name: str,
                    *,

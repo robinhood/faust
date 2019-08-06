@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable, Optional
 
 from mode import ServiceT
 
+from . import web
 from .assignor import PartitionAssignorT
 from .events import EventT
 from .streams import StreamT
@@ -114,6 +115,21 @@ class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     def on_rebalance_end(self, app: _AppT, state: Dict) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_web_request_start(self, app: _AppT, request: web.Request, *,
+                             view: web.View = None) -> Dict:
+        ...
+
+    @abc.abstractmethod
+    def on_web_request_end(self,
+                           app: _AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
         ...
 
 

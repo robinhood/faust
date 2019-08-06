@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
+from faust import web
 from faust.exceptions import ImproperlyConfigured
 from faust.sensors.monitor import Monitor, TPOffsetMapping
 from faust.types import (
@@ -332,6 +333,22 @@ class DatadogMonitor(Monitor):
         """Track new topic partition end offset for monitoring lags."""
         super().track_tp_end_offset(tp, offset)
         self.client.gauge('end_offset', offset, labels=self._format_label(tp))
+
+    def on_web_request_end(self,
+                           app: AppT,
+                           request: web.Request,
+                           response: Optional[web.Response],
+                           state: Dict,
+                           *,
+                           view: web.View = None) -> None:
+        """Web server finished working on request."""
+        super().on_web_request_end(app, request, response, state, view=view)
+        status_code = int(state['status_code'])
+        self.client.increment(f'http_status_code.{status_code}')
+        self.client.timing(
+            'http_response_latency',
+            self.ms_since(state['time_end']),
+            rate=self.rate)
 
     def _normalize(self, name: str,
                    *,
