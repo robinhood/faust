@@ -1,4 +1,5 @@
 import pytest
+from faust import web
 from faust import Event, Stream, Table, Topic
 from faust.assignor import PartitionAssignor
 from faust.sensors import Sensor
@@ -48,6 +49,21 @@ def producer():
 @pytest.fixture
 def assignor():
     return Mock(name='assignor', autospec=PartitionAssignor)
+
+
+@pytest.fixture
+def view():
+    return Mock(name='view', autospec=web.View)
+
+
+@pytest.fixture
+def req():
+    return Mock(name='request', autospec=web.Request)
+
+
+@pytest.fixture
+def response():
+    return Mock(name='response', autospec=web.Response)
 
 
 class test_Sensor:
@@ -106,6 +122,13 @@ class test_Sensor:
         assert state['time_start']
         sensor.on_rebalance_return(app, state)
         sensor.on_rebalance_end(app, state)
+
+    def test_on_web_request(self, *, sensor, app, req, response, view):
+        state = sensor.on_web_request_start(app, req, view=view)
+
+        assert state['time_start']
+
+        sensor.on_web_request_end(app, req, response, state, view=view)
 
     def test_on_send_error(self, *, sensor, producer):
         sensor.on_send_error(
@@ -212,6 +235,21 @@ class test_SensorDelegate:
         sensors.on_rebalance_end(app, state)
         sensor.on_rebalance_end.assert_called_once_with(
             app, state[sensor])
+
+    def test_on_web_request(self, *,
+                            sensors,
+                            sensor,
+                            app,
+                            req,
+                            response,
+                            view):
+        state = sensors.on_web_request_start(app, req, view=view)
+        sensor.on_web_request_start.assert_called_once_with(
+            app, req, view=view)
+
+        sensors.on_web_request_end(app, req, response, state, view=view)
+        sensor.on_web_request_end.assert_called_once_with(
+            app, req, response, state[sensor], view=view)
 
     def test_repr(self, *, sensors):
         assert repr(sensors)

@@ -347,8 +347,7 @@ class DatadogMonitor(Monitor):
         self.client.increment(f'http_status_code.{status_code}')
         self.client.timing(
             'http_response_latency',
-            self.ms_since(state['time_end']),
-            rate=self.rate)
+            self.ms_since(state['time_end']))
 
     def _normalize(self, name: str,
                    *,

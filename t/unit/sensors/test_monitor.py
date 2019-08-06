@@ -1,4 +1,5 @@
 from collections import deque
+from http import HTTPStatus
 from statistics import median
 from typing import Any
 import pytest
@@ -152,6 +153,9 @@ class test_Monitor:
             'rebalance_return_avg': mon.rebalance_return_avg,
             'rebalance_return_latency': mon.rebalance_return_latency,
             'rebalances': mon.rebalances,
+            'http_response_codes': mon._http_response_codes_dict(),
+            'http_response_latency': mon.http_response_latency,
+            'http_response_latency_avg': mon.http_response_latency_avg,
         }
 
     def test_on_message_in(self, *, message, mon, time):
@@ -316,6 +320,36 @@ class test_Monitor:
         assert mon.rebalance_end_latency[-1] == time() - other_time
         assert state['time_end'] == time()
         assert state['latency_end'] == time() - other_time
+
+    def test_on_web_request_start(self, *, mon, time, app):
+        request = Mock(name='request')
+        view = Mock(name='view')
+        state = mon.on_web_request_start(app, request, view=view)
+        assert state['time_start'] == time()
+
+    def test_on_web_request_end(self, *, mon, time, app):
+        response = Mock(name='response')
+        response.status = 404
+        self.assert_on_web_request_end(mon, time, app, response,
+                                       expected_status=404)
+
+    def test_on_web_request_end__None_response(self, *, mon, time, app):
+        self.assert_on_web_request_end(mon, time, app, None,
+                                       expected_status=500)
+
+    def assert_on_web_request_end(self, mon, time, app, response,
+                                  expected_status):
+        request = Mock(name='request')
+        view = Mock(name='view')
+        other_time = 156.9
+        state = {'time_start': other_time}
+        mon.on_web_request_end(app, request, response, state, view=view)
+        assert state['time_end'] == time()
+        assert state['latency_end'] == time() - other_time
+        assert state['status_code'] == HTTPStatus(expected_status)
+
+        assert mon.http_response_latency[-1] == time() - other_time
+        assert mon.http_response_codes[HTTPStatus(expected_status)] == 1
 
     def test_TableState_asdict(self, *, mon, table):
         state = mon._table_or_create(table)

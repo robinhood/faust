@@ -208,6 +208,19 @@ Monitor Attributes
             :annotation:
             :noindex:
 
+        .. autoattribute:: http_response_codes
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: http_response_latency
+            :annotation:
+            :noindex:
+
+        .. autoattribute:: http_response_latency_avg
+            :annotation:
+            :noindex:
+
+
 .. _monitor-configuration:
 
 Configuration Attributes
@@ -349,4 +362,16 @@ Producer Callbacks
         :noindex:
 
     .. automethod:: on_send_error
+        :noindex:
+
+Web Callbacks
+-------------
+
+.. class:: Sensor
+    :noindex:
+
+    .. automethod:: on_web_request_start
+        :noindex:
+
+    .. automethod:: on_web_request_end
         :noindex:

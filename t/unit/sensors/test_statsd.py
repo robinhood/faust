@@ -1,4 +1,5 @@
 import pytest
+from faust import web
 from faust.exceptions import ImproperlyConfigured
 from faust.sensors.statsd import StatsdMonitor
 from faust.types import TP
@@ -36,6 +37,18 @@ class test_StatsdMonitor:
         table = Mock(name='table')
         table.name = 'table1'
         return table
+
+    @pytest.fixture()
+    def req(self):
+        return Mock(name='request', autospec=web.Request)
+
+    @pytest.fixture()
+    def response(self):
+        return Mock(name='response', autospec=web.Response)
+
+    @pytest.fixture()
+    def view(self):
+        return Mock(name='view', autospec=web.View)
 
     @pytest.fixture()
     def mon(self, *, statsd, time):
@@ -188,6 +201,30 @@ class test_StatsdMonitor:
             call('rebalance_return_latency',
                  mon.ms_since(state['time_return']), rate=mon.rate),
             call('rebalance_end_latency',
+                 mon.ms_since(state['time_end']), rate=mon.rate),
+        ])
+
+    def test_on_web_request(self, *, mon, request, response, view):
+        response.status = 404
+        self.assert_on_web_request(mon, request, response, view,
+                                   expected_status=404)
+
+    def test_on_web_request__None_response(self, *, mon, request, view):
+        self.assert_on_web_request(mon, request, None, view,
+                                   expected_status=500)
+
+    def assert_on_web_request(self, mon, request, response, view,
+                              expected_status):
+        app = Mock(name='app')
+        state = mon.on_web_request_start(app, request, view=view)
+        mon.on_web_request_end(app, request, response, state, view=view)
+
+        mon.client.incr.assert_has_calls([
+            call(f'http_status_code.{expected_status}', rate=mon.rate),
+        ])
+
+        mon.client.timing.assert_has_calls([
+            call('http_response_latency',
                  mon.ms_since(state['time_end']), rate=mon.rate),
         ])
 

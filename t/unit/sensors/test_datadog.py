@@ -269,6 +269,38 @@ class test_DatadogMonitor:
             tags=None,
         )
 
+    def test_on_web_request(self, *, mon):
+        response = Mock(name='response')
+        response.status = 404
+        self.assert_on_web_request(mon, response, expected_status=404)
+
+    def test_on_web_request__None_status(self, *, mon):
+        self.assert_on_web_request(mon, None, expected_status=500)
+
+    def assert_on_web_request(self, mon, response,
+                              expected_status):
+        app = Mock(name='app')
+        request = Mock(name='request')
+        view = Mock(name='view')
+        client = mon.client.client
+
+        state = mon.on_web_request_start(app, request, view=view)
+        mon.on_web_request_end(app, request, response, state, view=view)
+
+        client.increment.assert_called_once_with(
+            f'http_status_code.{expected_status}',
+            sample_rate=mon.rate,
+            tags=None,
+            value=1.0,
+        )
+
+        client.timing.assert_called_once_with(
+            'http_response_latency',
+            value=mon.ms_since(state['time_end']),
+            sample_rate=mon.rate,
+            tags=None,
+        )
+
     def test_on_rebalance(self, *, mon):
         app = Mock(name='app')
         client = mon.client.client

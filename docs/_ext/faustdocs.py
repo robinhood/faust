@@ -1,6 +1,6 @@
 import typing
 from docutils import nodes
-from sphinx.environment import NoUri
+from sphinx.errors import NoUri
 
 APPATTRS = {
     'Stream': 'faust.Stream',

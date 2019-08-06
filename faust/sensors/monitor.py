@@ -396,7 +396,7 @@ class Monitor(Sensor, KeywordReduce):
 
     def _http_response_codes_dict(self) -> MutableMapping[int, int]:
         return {int(code): count
-                for code, count in self.http_response_counts.items()}
+                for code, count in self.http_response_codes.items()}
 
     def _tp_committed_offsets_dict(self) -> TPOffsetDict:
         return self._tp_offsets_as_dict(self.tp_committed_offsets)
@@ -597,7 +597,7 @@ class Monitor(Sensor, KeywordReduce):
     def on_web_request_start(self, app: AppT, request: web.Request, *,
                              view: web.View = None) -> Dict:
         """Web server started working on request."""
-        return {'time_start': monotonic()}
+        return {'time_start': self.time()}
 
     def on_web_request_end(self,
                            app: AppT,
