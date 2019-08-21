@@ -245,6 +245,7 @@ class Recovery(Service):
         await app._fetcher.maybe_start()
         self.tables.on_actives_ready()
         self.tables.on_standbys_ready()
+        self.tables._recovery_started.clear()
         app.on_rebalance_end()
         self.log.info('Worker ready')
 
@@ -474,6 +475,7 @@ class Recovery(Service):
         self.tables.on_actives_ready()
         if not self.app.assignor.assigned_standbys():
             self.tables.on_standbys_ready()
+        self.tables._recovery_started.clear()
         self.app.on_rebalance_end()
         self.log.info('Worker ready')
 
