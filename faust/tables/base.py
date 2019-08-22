@@ -4,6 +4,7 @@ import time
 
 from contextlib import suppress
 from collections import defaultdict
+from functools import lru_cache
 from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
@@ -115,6 +116,7 @@ class Collection(Service, CollectionT):
                  extra_topic_configs: Mapping[str, Any] = None,
                  recover_callbacks: Set[RecoverCallback] = None,
                  options: Mapping[str, Any] = None,
+                 use_partitioner: bool = False,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -132,6 +134,7 @@ class Collection(Service, CollectionT):
         self._on_changelog_event = on_changelog_event
         self.recovery_buffer_size = recovery_buffer_size
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
+        self.use_partitioner = use_partitioner
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
         self.options = options
@@ -223,6 +226,7 @@ class Collection(Service, CollectionT):
             'recovery_buffer_size': self.recovery_buffer_size,
             'standby_buffer_size': self.standby_buffer_size,
             'extra_topic_configs': self.extra_topic_configs,
+            'use_partitioner': self.use_partitioner,
         }
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
@@ -237,15 +241,13 @@ class Collection(Service, CollectionT):
         """Reset local state."""
         self.data.reset_state()
 
-    def _send_changelog(self,
-                        event: Optional[EventT],
-                        key: Any,
-                        value: Any,
-                        key_serializer: CodecArg = None,
-                        value_serializer: CodecArg = None) -> None:
-        if event is None:
-            raise RuntimeError('Cannot modify table outside of agent/stream.')
-        self._verify_source_topic_partitions(event)
+    def send_changelog(self,
+                       partition: int,
+                       key: Any,
+                       value: Any,
+                       key_serializer: CodecArg = None,
+                       value_serializer: CodecArg = None) -> None:
+        """Send modification event to changelog topic."""
         if key_serializer is None:
             key_serializer = self.key_serializer
         if value_serializer is None:
@@ -253,15 +255,42 @@ class Collection(Service, CollectionT):
         self.changelog_topic.send_soon(
             key=key,
             value=value,
-            partition=event.message.partition,
+            partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=self._on_changelog_sent,
         )
 
-    def _verify_source_topic_partitions(self, event: EventT) -> None:
-        source_topic = event.message.topic
-        change_topic = self.changelog_topic.get_topic_name()
+    def _send_changelog(self,
+                        event: Optional[EventT],
+                        key: Any,
+                        value: Any,
+                        key_serializer: CodecArg = None,
+                        value_serializer: CodecArg = None) -> None:
+        # XXX compat version of send_changelog that needs event argument.
+        if event is None:
+            raise RuntimeError('Cannot modify table outside of agent/stream.')
+        return self.send_changelog(
+            event.message.partition,
+            key, value, key_serializer, value_serializer)
+
+    def partition_for_key(self, key: Any) -> int:
+        if self.use_partitioner:
+            partition = self.app.consumer.key_partition(
+                self.changelog_topic_name, key, None)
+            assert partition
+            return partition
+        else:
+            event = current_event()
+            if event is None:
+                raise TypeError(
+                    'Deleting table key from outside of stream iteration')
+            self._verify_source_topic_partitions(event.message.topic)
+            return event.message.partition
+
+    @lru_cache()
+    def _verify_source_topic_partitions(self, source_topic: str) -> None:
+        change_topic = self.changelog_topic_name
         source_n = self.app.consumer.topic_partitions(source_topic)
         if source_n is not None:
             change_n = self.app.consumer.topic_partitions(change_topic)
@@ -539,6 +568,10 @@ class Collection(Service, CollectionT):
     @changelog_topic.setter
     def changelog_topic(self, topic: TopicT) -> None:
         self._changelog_topic = topic
+
+    @property
+    def changelog_topic_name(self) -> str:
+        return self.changelog_topic.get_topic_name()
 
     def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
         """Apply batch of events from changelog topic local table storage."""

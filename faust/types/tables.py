@@ -23,6 +23,7 @@ from mode import Seconds, ServiceT
 from mode.utils.collections import FastUserDict, ManagedUserDict
 from yarl import URL
 
+from .codecs import CodecArg
 from .events import EventT
 from .stores import StoreT
 from .streams import JoinableT
@@ -83,6 +84,7 @@ class CollectionT(ServiceT, JoinableT):
     recovery_buffer_size: int
     standby_buffer_size: int
     options: Optional[Mapping[str, Any]]
+    use_partitioner: bool
 
     @abc.abstractmethod
     def __init__(self,
@@ -104,6 +106,7 @@ class CollectionT(ServiceT, JoinableT):
                  standby_buffer_size: int = None,
                  extra_topic_configs: Mapping[str, Any] = None,
                  options: Mapping[str, Any] = None,
+                 use_partitioner: bool = False,
                  **kwargs: Any) -> None:
         ...
 
@@ -130,6 +133,19 @@ class CollectionT(ServiceT, JoinableT):
 
     @abc.abstractmethod
     def reset_state(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def send_changelog(self,
+                       partition: int,
+                       key: Any,
+                       value: Any,
+                       key_serializer: CodecArg = None,
+                       value_serializer: CodecArg = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def partition_for_key(self, key: Any) -> int:
         ...
 
     @abc.abstractmethod
