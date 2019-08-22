@@ -17,6 +17,7 @@ from typing import (
     cast,
 )
 
+import typing_inspect
 from mode.utils.objects import (
     annotations,
     guess_polymorphic_type,
@@ -177,6 +178,16 @@ def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
     return val.to_representation() if val is not None else None
 
 
+def _is_of_type(value, typ):
+    if typing_inspect.is_union_type(typ):
+        return any(
+            _is_of_type(value, subtype)
+            for subtype in typing_inspect.get_args(typ)
+        )
+    else:
+        return isinstance(value, typ)
+
+
 class Record(Model, abstract=True):
     """Describes a model type that is a record (Mapping).
 
@@ -317,7 +328,7 @@ class Record(Model, abstract=True):
                            value: Any) -> Any:
         if value is None:
             return None
-        if isinstance(value, typ):
+        if _is_of_type(value, typ):
             return value
         return coerce(value)
 

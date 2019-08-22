@@ -1057,6 +1057,15 @@ def test_optional_modelfield():
     assert isinstance(loads.x, X)
 
 
+def test_optional_modelfield_with_coercion():
+    class X(Record, coercions={str: str}):
+        y: Optional[str]
+
+    x = X(y='test')
+
+    assert x.y == 'test'
+
+
 @pytest.mark.parametrize('flag,expected_default', [
     ('isodates', False),
     ('include_metadata', True),
