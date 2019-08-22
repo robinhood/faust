@@ -101,6 +101,7 @@ class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
 
     logger = logger
+    # Service starting/stopping logs use severity DEBUG in this class.
     mundane_level = 'debug'
 
     _processors: MutableSequence[Processor]
