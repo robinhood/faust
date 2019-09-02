@@ -524,7 +524,6 @@ reference please execute:
 .. sourcecode:: console
 
     $ make apicheck
-    $ make indexcheck
 
 If files are missing you can add them by copying an existing reference file.
 
