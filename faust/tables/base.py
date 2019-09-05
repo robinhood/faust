@@ -284,7 +284,7 @@ class Collection(Service, CollectionT):
             event = current_event()
             if event is None:
                 raise TypeError(
-                    'Deleting table key from outside of stream iteration')
+                    'Cannot modify table key from outside of stream iteration')
             self._verify_source_topic_partitions(event.message.topic)
             return event.message.partition
 

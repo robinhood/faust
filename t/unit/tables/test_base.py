@@ -93,6 +93,7 @@ class test_Collection:
             'partitions': table.partitions,
             'recovery_buffer_size': table.recovery_buffer_size,
             'standby_buffer_size': table.standby_buffer_size,
+            'use_partitioner': table.use_partitioner,
         }
 
     def test_persisted_offset(self, *, table):
@@ -210,9 +211,9 @@ class test_Collection:
         app.consumer.topic_partitions = Mock(side_effect=tps.get)
         if expect_error:
             with pytest.raises(PartitionsMismatch):
-                table._verify_source_topic_partitions(event)
+                table._verify_source_topic_partitions(event.message.topic)
         else:
-            table._verify_source_topic_partitions(event)
+            table._verify_source_topic_partitions(event.message.topic)
 
     @pytest.mark.asyncio
     async def test_clean_data(self, *, table):

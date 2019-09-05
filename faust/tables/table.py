@@ -4,7 +4,6 @@ from typing import Any, ClassVar, Type
 from mode import Seconds
 
 from faust import windows
-from faust.streams import current_event
 from faust.types.tables import KT, TableT, VT, WindowWrapperT
 from faust.types.windows import WindowT
 from faust.utils.terminal.tables import dict_as_ansitable
@@ -70,23 +69,15 @@ class Table(TableT[KT, VT], Collection):
 
     def on_key_set(self, key: KT, value: VT) -> None:
         """Call when the value for a key in this table is set."""
-        event = current_event()
-        if event is None:
-            raise TypeError(
-                'Setting table key from outside of stream iteration')
-        self._send_changelog(event, key, value)
-        partition = event.message.partition
+        partition = self.partition_for_key(key)
+        self.send_changelog(partition, key, value)
         self._maybe_set_key_ttl(key, partition)
         self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: KT) -> None:
         """Call when a key in this table is removed."""
-        event = current_event()
-        if event is None:
-            raise TypeError(
-                'Deleting table key from outside of stream iteration')
-        self._send_changelog(event, key, value=None, value_serializer='raw')
-        partition = event.message.partition
+        partition = self.partition_for_key(key)
+        self.send_changelog(partition, key, value=None, value_serializer='raw')
         self._maybe_del_key_ttl(key, partition)
         self._sensor_on_del(self, key)
 

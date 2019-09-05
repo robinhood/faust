@@ -115,18 +115,24 @@ class test_Table:
         assert table._get_key('foo') == 3
 
     def test_set_key(self, *, table):
-        with patch('faust.tables.table.current_event'):
-            table._send_changelog = Mock(name='_send_changelog')
+        with patch('faust.tables.base.current_event') as current_event:
+            event = current_event.return_value
+            partition = event.message.partition
+            table.send_changelog = Mock(name='send_changelog')
             table._set_key('foo', 'val')
-            table._send_changelog.asssert_called_once_with('foo', 'val')
+            table.send_changelog.asssert_called_once_with(
+                partition, 'foo', 'val')
             assert table['foo'] == 'val'
 
     def test_del_key(self, *, table):
-        with patch('faust.tables.table.current_event'):
-            table._send_changelog = Mock(name='_send_changelog')
+        with patch('faust.tables.base.current_event') as current_event:
+            event = current_event.return_value
+            partition = event.message.partition
+            table.send_changelog = Mock(name='send_changelog')
             table.data['foo'] = 3
             table._del_key('foo')
-            table._send_changelog.asssert_called_once_with('foo', None)
+            table.send_changelog.asssert_called_once_with(
+                partition, 'foo', None)
             assert 'foo' not in table.data
 
     def test_as_ansitable(self, *, table):
