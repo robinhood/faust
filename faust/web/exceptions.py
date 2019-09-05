@@ -89,7 +89,7 @@ class NotFound(WebError):
     """Resource not found (404)."""
 
     code = http.HTTPStatus.NOT_FOUND
-    detauil = 'Not found.'
+    detail = 'Not found.'
 
 
 class MethodNotAllowed(WebError):
