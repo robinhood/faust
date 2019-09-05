@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 import sys
 from contextlib import suppress
 from sphinx_celery import conf
@@ -104,9 +103,6 @@ pygments_style = 'monokai'
 # This option is deprecated and raises an error.
 with suppress(NameError):
     del(html_use_smartypants)  # noqa
-
-if not os.environ.get('APICHECK'):
-    extensions.append('sphinx_autodoc_annotation')
 
 napoleon_use_keyword = True
 
