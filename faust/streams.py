@@ -616,9 +616,13 @@ class Stream(StreamT[T_co], Service):
         return self
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
-        if isinstance(key, FieldDescriptorT):
-            return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
-        return await maybe_async(cast(Callable, key)(value))
+        try:
+            if isinstance(key, FieldDescriptorT) :
+                return key.getattr(cast(ModelT, value))
+            return await maybe_async(cast(Callable, key)(value))
+        except BaseException as exc:
+            self.log.exception('Error in grouping key : %r', exc)
+            raise Skip() from exc
 
     def derive_topic(self,
                      name: str,
