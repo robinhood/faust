@@ -5,6 +5,7 @@ Supported codecs
 
 * **raw**     - No encoding/serialization (bytes only).
 * **json**    - json with UTF-8 encoding.
+* **yaml**    - YAML (safe version)
 * **pickle**  - pickle with base64 encoding (not urlsafe).
 * **binary**  - base64 encoding (not urlsafe).
 
@@ -166,8 +167,15 @@ from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from mode.utils.compat import want_bytes, want_str
 from mode.utils.imports import load_extension_classes
 
+from faust.exceptions import ImproperlyConfigured
 from faust.types.codecs import CodecArg, CodecT
 from faust.utils import json as _json
+
+try:
+    import yaml as _yaml
+except ImportError:  # pragma: no cover
+    _yaml = None  # noqa
+
 
 __all__ = [
     'Codec',
@@ -252,6 +260,20 @@ class json(Codec):
         return want_bytes(_json.dumps(s))
 
 
+class yaml(Codec):
+    """:pypi:`PyYAML` serializer."""
+
+    def _loads(self, s: bytes) -> Any:
+        if _yaml is None:
+            raise ImproperlyConfigured('Missing yaml: pip install PyYAML')
+        return _yaml.safe_load(want_str(s))
+
+    def _dumps(self, s: Any) -> bytes:
+        if _yaml is None:
+            raise ImproperlyConfigured('Missing yaml: pip install PyYAML')
+        return want_bytes(_yaml.safe_dump(s))
+
+
 class raw_pickle(Codec):
     """:mod:`pickle` serializer with no encoding."""
 
@@ -293,6 +315,7 @@ codecs: MutableMapping[str, CodecT] = {
     'pickle': pickle(),
     'binary': binary(),
     'raw': raw(),
+    'yaml': yaml(),
 }
 
 #: Cached extension classes.
