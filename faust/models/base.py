@@ -31,6 +31,7 @@ import abc
 import warnings
 
 from datetime import datetime
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -240,6 +241,7 @@ class Model(ModelT):
                           polymorphic_fields: bool = None,
                           validation: bool = None,
                           date_parser: Callable[[Any], datetime] = None,
+                          lazy_creation: bool = False,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -250,7 +252,8 @@ class Model(ModelT):
         # and thinks we're mutating a ClassVar when setting:
         #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
-        cls._init_subclass(
+        finalizer = partial(
+            cls._init_subclass,
             serializer,
             namespace,
             include_metadata,
@@ -264,6 +267,17 @@ class Model(ModelT):
             validation,
             date_parser,
         )
+        if lazy_creation:
+            cls._pending_finalizers = [finalizer]
+        else:
+            cls._pending_finalizers = None
+            finalizer()
+
+    @classmethod
+    def make_final(cls):
+        pending, cls._pending_finalizers = cls._pending_finalizers, None
+        for finalizer in pending:
+            finalizer()
 
     @classmethod
     def _init_subclass(cls,
