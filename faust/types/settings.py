@@ -42,7 +42,7 @@ from .sensors import SensorT
 from .serializers import RegistryT, SchemaT
 from .streams import StreamT
 from .transports import PartitionerT, SchedulingStrategyT
-from .tables import TableManagerT, TableT
+from .tables import TableManagerT, TableT, GlobalTableT
 from .topics import TopicT
 from .web import HttpClientT, ResourceOptions
 
@@ -137,6 +137,12 @@ TABLE_KEY_INDEX_SIZE = 1000
 
 #: Path to "table of sets" class, used as default for :setting:`SetTable`.
 SET_TABLE_TYPE = 'faust.SetTable'
+
+#: Path to global table class, used as default for :setting:`GlobalTable`.
+GLOBAL_TABLE_TYPE = 'faust.GlobalTable'
+
+#: Path to "global table of sets" class, used as default for :setting:`SetGlobalTable`.
+SET_GLOBAL_TABLE_TYPE = 'faust.SetGlobalTable'
 
 #: Path to serializer registry class, used as the default for
 #: :setting:`Serializers`.
@@ -381,6 +387,8 @@ class Settings(abc.ABC):
     _Stream: Type[StreamT]
     _Table: Type[TableT]
     _SetTable: Type[TableT]
+    _GlobalTable: Type[GlobalTableT]
+    _SetGlobalTable: Type[GlobalTableT]
     _TableManager: Type[TableManagerT]
     _Serializers: Type[RegistryT]
     _Worker: Type[_WorkerT]
@@ -500,6 +508,8 @@ class Settings(abc.ABC):
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             SetTable: SymbolArg[Type[TableT]] = None,
+            GlobalTable: SymbolArg[Type[GlobalTableT]] = None,
+            SetGlobalTable: SymbolArg[Type[GlobalTableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
             Serializers: SymbolArg[Type[RegistryT]] = None,
             Worker: SymbolArg[Type[_WorkerT]] = None,
@@ -661,6 +671,8 @@ class Settings(abc.ABC):
         if reply_expires is not None:
             self.reply_expires = reply_expires
 
+        self.GlobalTable = GlobalTable or GLOBAL_TABLE_TYPE
+        self.SetGlobalTable = SetGlobalTable or SET_GLOBAL_TABLE_TYPE
         self.agent_supervisor = (  # type: ignore
             agent_supervisor or AGENT_SUPERVISOR_TYPE)
 
@@ -1033,6 +1045,22 @@ class Settings(abc.ABC):
     @SetTable.setter
     def SetTable(self, SetTable: SymbolArg[Type[TableT]]) -> None:
         self._SetTable = symbol_by_name(SetTable)
+
+    @property
+    def GlobalTable(self) -> Type[GlobalTableT]:
+        return self._GlobalTable
+
+    @GlobalTable.setter
+    def GlobalTable(self, GlobalTable: SymbolArg[Type[GlobalTableT]]) -> None:
+        self._GlobalTable = symbol_by_name(GlobalTable)
+
+    @property
+    def SetGlobalTable(self) -> Type[GlobalTableT]:
+        return self._SetGlobalTable
+
+    @SetGlobalTable.setter
+    def SetGlobalTable(self, SetGlobalTable: SymbolArg[Type[GlobalTableT]]) -> None:
+        self._SetGlobalTable = symbol_by_name(SetGlobalTable)
 
     @property
     def TableManager(self) -> Type[TableManagerT]:

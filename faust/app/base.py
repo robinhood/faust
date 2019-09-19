@@ -88,7 +88,7 @@ from faust.types.router import RouterT
 from faust.types.serializers import RegistryT, SchemaT
 from faust.types.settings import Settings as _Settings
 from faust.types.streams import StreamT
-from faust.types.tables import CollectionT, TableManagerT, TableT
+from faust.types.tables import CollectionT, TableManagerT, TableT, GlobalTableT
 from faust.types.topics import TopicT
 from faust.types.transports import (
     ConductorT,
@@ -1109,6 +1109,44 @@ class App(AppT, Service):
                 help=help,
                 **kwargs))
         return table.using_window(window) if window else table
+
+    def GlobalTable(self,
+              name: str,
+              *,
+              default: Callable[[], Any] = None,
+              window: WindowT = None,
+              partitions: int = None,
+              help: str = None,
+              **kwargs: Any) -> GlobalTableT:
+        """Define new global table.
+
+        Arguments:
+            name: Name used for global table, note that two global tables living in
+                the same application cannot have the same name.
+
+            default: A callable, or type that will return a default value
+               for keys missing in this global table.
+            window: A windowing strategy to wrap this window in.
+
+        Examples:
+            >>> gtable = app.GlobalTable('user_to_amount', default=int)
+            >>> gtable['George']
+            0
+            >>> gtable['Elaine'] += 1
+            >>> gtable['Elaine'] += 1
+            >>> gtable['Elaine']
+            2
+        """
+        gtable = self.tables.add(
+            self.conf.GlobalTable(
+                self,
+                name=name,
+                default=default,
+                beacon=self.beacon,
+                partitions=partitions,
+                help=help,
+                **kwargs))
+        return gtable.using_window(window) if window else gtable
 
     def SetTable(self,
                  name: str,

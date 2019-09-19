@@ -28,7 +28,7 @@ from . import wrappers
 from .objects import ChangeloggedObject, ChangeloggedObjectManager
 from .table import Table
 
-__all__ = ['SetTable']
+__all__ = ['SetTable', 'SetGlobalTable']
 
 OPERATION_ADD: int = 0x1
 OPERATION_DISCARD: int = 0x2
@@ -307,3 +307,7 @@ class SetTable(Table[KT, VT]):
         # FastUserDict looks up using `key in self.data`
         # but we are a defaultdict.
         return self.data[key]
+
+
+class SetGlobalTable(SetTable):
+    pass
