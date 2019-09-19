@@ -125,6 +125,7 @@ Tables
 
     faust.tables
     faust.tables.base
+    faust.tables.globaltable
     faust.tables.manager
     faust.tables.objects
     faust.tables.recovery

@@ -163,7 +163,10 @@ class Recovery(Service):
         self.standbys_for_table[table].add(tp)
         self._add(table, tp, self.standby_offsets)
 
-    def add_standbys_for_global_table(self, gtable, active_topic, topics):
+    def add_standbys_for_global_table(self,
+                                      gtable: CollectionT,
+                                      active_topic: TP,
+                                      topics: Set[TP]) -> None:
         """Add standby topics for global table."""
         for tp in topics:
             # No need to add table's own topic.
@@ -216,7 +219,8 @@ class Recovery(Service):
             if table is not None:
                 self.add_active(table, tp)
                 if isinstance(table, GlobalTable):
-                    self.add_standbys_for_global_table(table, tp, assigned_actives)
+                    self.add_standbys_for_global_table(
+                        table, tp, assigned_actives)
 
         active_offsets = {
             tp: offset

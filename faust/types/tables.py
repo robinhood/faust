@@ -200,7 +200,8 @@ class TableT(CollectionT, ManagedUserDict[KT, VT]):
 
 
 class GlobalTableT(TableT):
-    pass
+    ...
+
 
 class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
     app: _AppT

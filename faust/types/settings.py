@@ -42,7 +42,7 @@ from .sensors import SensorT
 from .serializers import RegistryT, SchemaT
 from .streams import StreamT
 from .transports import PartitionerT, SchedulingStrategyT
-from .tables import TableManagerT, TableT, GlobalTableT
+from .tables import GlobalTableT, TableManagerT, TableT
 from .topics import TopicT
 from .web import HttpClientT, ResourceOptions
 
@@ -141,7 +141,8 @@ SET_TABLE_TYPE = 'faust.SetTable'
 #: Path to global table class, used as default for :setting:`GlobalTable`.
 GLOBAL_TABLE_TYPE = 'faust.GlobalTable'
 
-#: Path to "global table of sets" class, used as default for :setting:`SetGlobalTable`.
+#: Path to "global table of sets" class,
+#: used as default for :setting:`SetGlobalTable`.
 SET_GLOBAL_TABLE_TYPE = 'faust.SetGlobalTable'
 
 #: Path to serializer registry class, used as the default for
@@ -671,8 +672,10 @@ class Settings(abc.ABC):
         if reply_expires is not None:
             self.reply_expires = reply_expires
 
-        self.GlobalTable = GlobalTable or GLOBAL_TABLE_TYPE
-        self.SetGlobalTable = SetGlobalTable or SET_GLOBAL_TABLE_TYPE
+        self.GlobalTable = cast(
+            GlobalTableT, GlobalTable or GLOBAL_TABLE_TYPE)
+        self.SetGlobalTable = cast(
+            GlobalTableT, SetGlobalTable or SET_GLOBAL_TABLE_TYPE)
         self.agent_supervisor = (  # type: ignore
             agent_supervisor or AGENT_SUPERVISOR_TYPE)
 
@@ -1059,7 +1062,8 @@ class Settings(abc.ABC):
         return self._SetGlobalTable
 
     @SetGlobalTable.setter
-    def SetGlobalTable(self, SetGlobalTable: SymbolArg[Type[GlobalTableT]]) -> None:
+    def SetGlobalTable(
+            self, SetGlobalTable: SymbolArg[Type[GlobalTableT]]) -> None:
         self._SetGlobalTable = symbol_by_name(SetGlobalTable)
 
     @property
