@@ -149,6 +149,8 @@ class Model(ModelT):
 
     __validation_errors__ = None
 
+    _pending_finalizers: ClassVar[Optional[List[Callable]]] = None
+
     #: Serialized data may contain a "blessed key" that mandates
     #: how the data should be deserialized.  This probably only
     #: applies to records, but we need to support it at Model level.
@@ -274,10 +276,11 @@ class Model(ModelT):
             finalizer()
 
     @classmethod
-    def make_final(cls):
+    def make_final(cls) -> None:
         pending, cls._pending_finalizers = cls._pending_finalizers, None
-        for finalizer in pending:
-            finalizer()
+        if pending:
+            for finalizer in pending:
+                finalizer()
 
     @classmethod
     def _init_subclass(cls,

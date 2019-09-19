@@ -162,6 +162,7 @@ the extension with other Faust users.
 import pickle as _pickle
 
 from base64 import b64decode, b64encode
+from types import ModuleType
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 
 from mode.utils.compat import want_bytes, want_str
@@ -174,7 +175,7 @@ from faust.utils import json as _json
 try:
     import yaml as _yaml
 except ImportError:  # pragma: no cover
-    _yaml = None  # noqa
+    _yaml = cast(ModuleType, None)  # noqa
 
 
 __all__ = [
