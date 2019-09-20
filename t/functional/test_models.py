@@ -1295,8 +1295,8 @@ def test_field_descriptors_may_mix_with_non_defaults():
 
     with pytest.raises(ValidationError):
         Person(age=203, name='Abraham Lincoln')
-      
-    
+
+
 def test_field_descriptors_throws_type_error():
 
     class Person(faust.Record, validation=True):
