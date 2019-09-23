@@ -1567,6 +1567,51 @@ Example using the string path to a class::
 
     app = App(..., Table='myproj.tables.MySetTable')
 
+.. setting:: GlobalTable
+
+``GlobalTable``
+---------------
+
+:type: ``Union[str, Type[GlobalTableT]]``
+:default: :class:`faust.GlobalTable`
+
+The :class:`~faust.GlobalTable` class to use for tables, or the fully-qualified
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyBaseGlobalTable(faust.GlobalTable):
+        ...
+
+    app = App(..., GlobalTable=MyBaseGlobalTable)
+
+Example using the string path to a class::
+
+    app = App(..., GlobalTable='myproj.tables.GlobalTable')
+
+.. setting:: SetGlobalTable
+
+``SetGlobalTable``
+------------------
+
+:type: ``Union[str, Type[GlobalTableT]]``
+:default: :class:`faust.SetGlobalTable`
+
+The :class:`~faust.SetGlobalTable` class to use for tables, or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyBaseSetGlobalTable(faust.SetGlobalTable):
+        ...
+
+    app = App(..., SetGlobalTable=MyBaseGlobalSetTable)
+
+Example using the string path to a class::
+
+    app = App(..., SetGlobalTable='myproj.tables.SetGlobalTable')
+
 .. setting:: TableManager
 
 ``TableManager``
