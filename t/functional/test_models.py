@@ -1303,8 +1303,8 @@ def test_field_descriptors_throws_type_error():
         age: int
         name: str
 
-    with pytest.raises(ValidationError):
-        Person(age='Batman', name='Robin')
+    person = Person(age='Batman', name='Robin')
+    assert person.validation_errors
 
 
 def test_implicit_descritor_types():
