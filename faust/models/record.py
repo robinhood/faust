@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     Optional,
     Set,
     Tuple,
@@ -311,6 +312,9 @@ class Record(Model, abstract=True):
         cls.asdict = cls._BUILD_asdict()  # type: ignore
         cls.asdict.faust_generated = True  # type: ignore
 
+        cls._input_translate_fields = \
+            cls._BUILD_input_translate_fields()
+
     @staticmethod
     def _init_maybe_coerce(coerce: CoercionHandler,
                            typ: Type,
@@ -379,6 +383,7 @@ class Record(Model, abstract=True):
         else:
             self_cls = cls._maybe_namespace(
                 data, preferred_type=preferred_type)
+        cls._input_translate_fields(data)
         return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self, *args: Any,
@@ -386,6 +391,22 @@ class Record(Model, abstract=True):
                  __faust: Any = None,
                  **kwargs: Any) -> None:  # pragma: no cover
         ...  # overridden by _BUILD_init
+
+    @classmethod
+    def _BUILD_input_translate_fields(cls) -> Callable[[MutableMapping], None]:
+        translate = [
+            f'data[{field!r}] = data.pop({d.input_name!r}, None)'
+            for field, d in cls._options.descriptors.items()
+            if d.field != d.input_name
+        ]
+
+        return cast(Callable, classmethod(codegen.Function(
+            '_input_translate_fields',
+            ['cls', 'data'],
+            translate if translate else ['pass'],
+            globals=globals(),
+            locals=locals(),
+        )))
 
     @classmethod
     def _BUILD_init(cls) -> Callable[[], None]:
@@ -523,9 +544,9 @@ class Record(Model, abstract=True):
         ]
 
         fields = [
-            f'  {name!r}: {cls._BUILD_asdict_field(name, field)},'
-            for name, field in cls._options.descriptors.items()
-            if not field.exclude
+            f'  {d.output_name!r}: {cls._BUILD_asdict_field(name, d)},'
+            for name, d in cls._options.descriptors.items()
+            if not d.exclude
         ]
 
         postamble = [
