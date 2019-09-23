@@ -1299,7 +1299,7 @@ def test_field_descriptors_may_mix_with_non_defaults():
 
 def test_field_descriptors_throws_type_error():
 
-    class Person(faust.Record, validation=True):
+    class Person(faust.Record):
         age: int
         name: str
 
