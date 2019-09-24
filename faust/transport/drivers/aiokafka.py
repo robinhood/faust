@@ -677,7 +677,7 @@ class Producer(base.Producer):
         )
         if headers is not None and not self.allow_headers:
             headers = None
-        timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
+        timestamp_ms = int(timestamp * 1000.0) if timestamp else timestamp
         try:
             return cast(Awaitable[RecordMetadata], await producer.send(
                 topic, value,
