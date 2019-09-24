@@ -41,7 +41,7 @@ to ``.dumps``:
 
 .. sourcecode:: pycon
 
-    >>> Point(x=10, y=100).dumps('pickle')  # pickle + Base64
+    >>> Point(x=10, y=100).dumps(serializer='pickle')  # pickle + Base64
     b'gAN9cQAoWAEAAAB4cQFLClgBAAAAeXECS2RYBwAAAF9fZmF1c3RxA31xBFg
     CAAAAbnNxBVgOAAAAX19tYWluX18uUG9pbnRxBnN1Lg=='
 
