@@ -1,4 +1,5 @@
 """Record - Dictionary Model."""
+from collections import deque
 from datetime import datetime
 from decimal import Decimal
 from functools import partial
@@ -18,7 +19,6 @@ from typing import (
     cast,
 )
 
-import typing_inspect
 from mode.utils.objects import (
     annotations,
     guess_polymorphic_type,
@@ -179,12 +179,27 @@ def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
     return val.to_representation() if val is not None else None
 
 
-def _is_of_type(value, typ):
-    if typing_inspect.is_union_type(typ):
-        return any(
-            _is_of_type(value, subtype)
-            for subtype in typing_inspect.get_args(typ)
-        )
+def _is_of_type(value: Any, typ: Type) -> bool:
+    if is_optional(typ):
+        # Optional/Union can contain nested types, e.g:
+        #    Optional[Union[str, int, Optional[Foo]]]
+        #
+        # to avoid recursion we add new Union types to a stack
+        # and return False only when that stack is exhausted.
+        #
+        # NOTE: Optional[str] actually returns Union[str, type(None)]
+        stack = deque([typ])
+        while stack:
+            node = stack.popleft()
+            concrete_types = []
+            for subtype in node.__args__:
+                if is_optional(subtype):
+                    stack.append(subtype)
+                else:
+                    concrete_types.append(subtype)
+            if isinstance(value, tuple(concrete_types)):
+                return True
+        return False
     else:
         return isinstance(value, typ)
 
