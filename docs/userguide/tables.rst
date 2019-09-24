@@ -41,7 +41,7 @@ Modifying a table outside of a stream will raise an error:
 
 .. sourcecode:: python
 
-    totals = app.Table('totals', default=int)
+    table = app.Table('totals', default=int)
 
     # cannot modify table, as we are not iterating over stream
     table['foo'] += 30
