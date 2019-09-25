@@ -359,7 +359,7 @@ to upstream changes:
 .. sourcecode:: console
 
     $ cd faust
-    $ git remote add upstream git://github.com/robinhood/faust.git
+    $ git remote add upstream https://github.com/robinhood/faust.git
     $ git fetch upstream
 
 If you need to pull in new changes from upstream you should
