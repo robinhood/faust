@@ -197,7 +197,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
                 f'{self.field} got internal error for value {value!r} '
                 f'{exc!r}')
         else:
-            yield from self.validate(cast(T, v))
+            if v is not None or self.required:
+                yield from self.validate(cast(T, v))
 
     def validate(self, value: T) -> Iterable[ValidationError]:
         return iter([])

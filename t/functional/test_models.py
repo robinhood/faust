@@ -1226,6 +1226,31 @@ def test_StringField():
     assert 'blank' in str(Moo('').validation_errors[0])
 
 
+def test_StringField_optional__explicit():
+
+    class Moo(Record):
+        foo: str = StringField(max_length=10,
+                               min_length=3,
+                               required=False,
+                               allow_blank=False)
+
+    moo = Moo()
+    assert moo.foo is None
+    assert moo.is_valid()
+
+
+def test_StringField_optional__Optional():
+
+    class Moo(Record):
+        foo: Optional[str] = StringField(max_length=10,
+                                         min_length=3,
+                                         allow_blank=False)
+
+    moo = Moo()
+    assert moo.foo is None
+    assert moo.is_valid()
+
+
 def test_validation_ensures_types_match():
 
     class Order(Record, validation=True):
@@ -1375,6 +1400,11 @@ def test_custom_field_validation():
 
     with pytest.raises(ValidationError):
         Order(side='LEFT')
+
+    class Order2(faust.Record, validation=True):
+        side: str = ChoiceField(['SELL', 'BUY'], required=False)
+
+    assert Order2()
 
 
 def test_datetime_does_not_coerce():

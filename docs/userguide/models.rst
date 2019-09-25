@@ -873,8 +873,9 @@ to perform your own validation:
 
 .. sourcecode:: python
 
+    from typing import Any, Iterable, List
     from faust.exceptions import ValidationError
-    from faust.models import field_type
+    from faust.models import FieldDescriptor
 
     class ChoiceField(FieldDescriptor[str]):
 
