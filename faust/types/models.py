@@ -255,6 +255,10 @@ class FieldDescriptorT(Generic[T]):
         ...
 
     @abc.abstractmethod
+    def validate_all(self, value: Any) -> Iterable[ValidationError]:
+        ...
+
+    @abc.abstractmethod
     def validate(self, value: T) -> Iterable[ValidationError]:
         ...
 

@@ -445,7 +445,7 @@ class Model(ModelT):
 
     def _itervalidate(self) -> Iterable[ValidationError]:
         for name, descr in self._options.descriptors.items():
-            yield from descr.validate(getattr(self, name))
+            yield from descr.validate_all(getattr(self, name))
 
     @property
     def validation_errors(self) -> List[ValidationError]:

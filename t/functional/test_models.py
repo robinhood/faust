@@ -1306,6 +1306,16 @@ def test_field_descriptors_may_mix_with_non_defaults():
         Person(age=203, name='Abraham Lincoln')
 
 
+def test_field_descriptors_throws_type_error():
+
+    class Person(faust.Record):
+        age: int
+        name: str
+
+    person = Person(age='Batman', name='Robin')
+    assert person.validation_errors
+
+
 def test_implicit_descritor_types():
 
     class X(Record):
