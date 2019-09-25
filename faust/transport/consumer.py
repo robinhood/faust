@@ -355,6 +355,9 @@ class Consumer(Service, ConsumerT):
     #: underlying consumer driver is stopped.
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = ()
 
+    # Mapping of TP to list of gap in offsets.
+    _gap: MutableMapping[TP, List[int]]
+
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TP, List[int]]
 
@@ -427,6 +430,7 @@ class Consumer(Service, ConsumerT):
         self.commit_livelock_soft_timeout = (
             commit_livelock_soft_timeout or
             self.app.conf.broker_commit_livelock_soft_timeout)
+        self._gap = defaultdict(list)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
@@ -956,6 +960,14 @@ class Consumer(Service, ConsumerT):
         #          ^--- gap
         # the return value will be: 36
         if acked:
+            max_offset = max(acked)
+            gap_for_tp = self._gap[tp]
+            if gap_for_tp:
+                gap_index = next((i for i, x in enumerate(gap_for_tp)
+                                  if x > max_offset), len(gap_for_tp))
+                gaps = gap_for_tp[:gap_index]
+                acked.extend(gaps)
+                gap_for_tp[:gap_index] = []
             acked.sort()
             # Note: acked is always kept sorted.
             # find first list of consecutive numbers
@@ -970,6 +982,13 @@ class Consumer(Service, ConsumerT):
     async def on_task_error(self, exc: BaseException) -> None:
         """Call when processing a message failed."""
         await self.commit()
+
+    def _add_gap(self, tp: TP, offset_from: int, offset_to: int) -> None:
+        committed = self._committed_offset[tp]
+        gap_for_tp = self._gap[tp]
+        for offset in range(offset_from, offset_to):
+            if committed is None or offset > committed:
+                gap_for_tp.append(offset)
 
     async def _drain_messages(
             self, fetcher: ServiceT) -> None:  # pragma: no cover
@@ -1002,6 +1021,12 @@ class Consumer(Service, ConsumerT):
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         if r_offset is None or offset > r_offset:
+                            acks_enabled = self.app.topics \
+                                .acks_enabled_for(message.topic)
+                            gap = offset - (r_offset or 0)
+                            # We have a gap in income messages
+                            if acks_enabled and gap > 1:
+                                self._add_gap(tp, (r_offset or 0) + 1, offset)
                             if commit_every is not None:
                                 if self._n_acked >= commit_every:
                                     self._n_acked = 0
