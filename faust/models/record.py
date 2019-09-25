@@ -1,4 +1,5 @@
 """Record - Dictionary Model."""
+from collections import deque
 from datetime import datetime
 from decimal import Decimal
 from functools import partial
@@ -10,6 +11,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     Optional,
     Set,
     Tuple,
@@ -177,6 +179,31 @@ def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
     return val.to_representation() if val is not None else None
 
 
+def _is_of_type(value: Any, typ: Type) -> bool:
+    if is_optional(typ):
+        # Optional/Union can contain nested types, e.g:
+        #    Optional[Union[str, int, Optional[Foo]]]
+        #
+        # to avoid recursion we add new Union types to a stack
+        # and return False only when that stack is exhausted.
+        #
+        # NOTE: Optional[str] actually returns Union[str, type(None)]
+        stack = deque([typ])
+        while stack:
+            node = stack.popleft()
+            concrete_types = []
+            for subtype in node.__args__:
+                if is_optional(subtype):
+                    stack.append(subtype)
+                else:
+                    concrete_types.append(subtype)
+            if isinstance(value, tuple(concrete_types)):
+                return True
+        return False
+    else:
+        return isinstance(value, typ)
+
+
 class Record(Model, abstract=True):
     """Describes a model type that is a record (Mapping).
 
@@ -311,13 +338,16 @@ class Record(Model, abstract=True):
         cls.asdict = cls._BUILD_asdict()  # type: ignore
         cls.asdict.faust_generated = True  # type: ignore
 
+        cls._input_translate_fields = \
+            cls._BUILD_input_translate_fields()
+
     @staticmethod
     def _init_maybe_coerce(coerce: CoercionHandler,
                            typ: Type,
                            value: Any) -> Any:
         if value is None:
             return None
-        if isinstance(value, typ):
+        if _is_of_type(value, typ):
             return value
         return coerce(value)
 
@@ -379,6 +409,7 @@ class Record(Model, abstract=True):
         else:
             self_cls = cls._maybe_namespace(
                 data, preferred_type=preferred_type)
+        cls._input_translate_fields(data)
         return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self, *args: Any,
@@ -386,6 +417,22 @@ class Record(Model, abstract=True):
                  __faust: Any = None,
                  **kwargs: Any) -> None:  # pragma: no cover
         ...  # overridden by _BUILD_init
+
+    @classmethod
+    def _BUILD_input_translate_fields(cls) -> Callable[[MutableMapping], None]:
+        translate = [
+            f'data[{field!r}] = data.pop({d.input_name!r}, None)'
+            for field, d in cls._options.descriptors.items()
+            if d.field != d.input_name
+        ]
+
+        return cast(Callable, classmethod(codegen.Function(
+            '_input_translate_fields',
+            ['cls', 'data'],
+            translate if translate else ['pass'],
+            globals=globals(),
+            locals=locals(),
+        )))
 
     @classmethod
     def _BUILD_init(cls) -> Callable[[], None]:
@@ -523,9 +570,9 @@ class Record(Model, abstract=True):
         ]
 
         fields = [
-            f'  {name!r}: {cls._BUILD_asdict_field(name, field)},'
-            for name, field in cls._options.descriptors.items()
-            if not field.exclude
+            f'  {d.output_name!r}: {cls._BUILD_asdict_field(name, d)},'
+            for name, d in cls._options.descriptors.items()
+            if not d.exclude
         ]
 
         postamble = [

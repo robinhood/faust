@@ -41,7 +41,7 @@ to ``.dumps``:
 
 .. sourcecode:: pycon
 
-    >>> Point(x=10, y=100).dumps('pickle')  # pickle + Base64
+    >>> Point(x=10, y=100).dumps(serializer='pickle')  # pickle + Base64
     b'gAN9cQAoWAEAAAB4cQFLClgBAAAAeXECS2RYBwAAAF9fZmF1c3RxA31xBFg
     CAAAAbnNxBVgOAAAAX19tYWluX18uUG9pbnRxBnN1Lg=='
 
@@ -656,6 +656,38 @@ inheritance into the mix:
 We suggest using positional arguments only for simple classes
 such as the Point example, where inheritance of additional fields
 is not used.
+
+Fields with the same name as a reserved keyword
+-----------------------------------------------
+
+Sometimes data you want to describe data will contan
+field names that collide with a reserved Python keyword.
+
+One such example is a field named ``in``. You cannot define
+a model like this:
+
+.. sourcecode:: python
+
+    class OpenAPIParameter(Record):
+        in: str = 'query'
+
+doing so will result in a :exc:`NameError` exception being raised.
+
+To properly support this, you need to rename the field
+but specify an alternative ``input_name``:
+
+
+.. sourcecode:: python
+
+    from faust.models.fields import StringField
+
+    class OpenAPIParameter(Record):
+        location: str = StringField(default='query', input_name='in')
+
+The ``input_name`` here describes the name of the field
+in serialized payloads. There's also a corresponding ``output_name``
+that can be used to specify what field name this field deserializes to.
+The default output name is the same as the input name.
 
 Polymorphic Fields
 ------------------

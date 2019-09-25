@@ -1057,6 +1057,15 @@ def test_optional_modelfield():
     assert isinstance(loads.x, X)
 
 
+def test_optional_modelfield_with_coercion():
+    class X(Record, coercions={str: str}):
+        y: Optional[str]
+
+    x = X(y='test')
+
+    assert x.y == 'test'
+
+
 @pytest.mark.parametrize('flag,expected_default', [
     ('isodates', False),
     ('include_metadata', True),
@@ -1404,3 +1413,26 @@ def test_model_init_field():
 
     # init field missing (coverage)
     assert user._init_field('foo', 123) == 123
+
+
+def test_payload_with_reserved_keyword():
+
+    class X(Record):
+        location: str = StringField(input_name='in')
+        foo: str = StringField(required=False, default='BAR',
+                               input_name='bar', output_name='foobar')
+
+    with pytest.raises(TypeError):
+        X()
+
+    assert X('foo').location == 'foo'
+    assert X(location='FOO').location == 'FOO'
+
+    d = X.from_data({'in': 'foo', 'bar': 'bar'})
+    assert d.location == 'foo'
+    assert d.foo == 'bar'
+
+    assert d.asdict() == {
+        'in': 'foo',
+        'foobar': 'bar',
+    }

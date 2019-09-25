@@ -215,6 +215,8 @@ class ModelT(base):  # type: ignore
 class FieldDescriptorT(Generic[T]):
 
     field: str
+    input_name: str
+    output_name: str
     type: Type[T]
     model: Type[ModelT]
     required: bool = True
@@ -227,6 +229,8 @@ class FieldDescriptorT(Generic[T]):
     @abc.abstractmethod
     def __init__(self, *,
                  field: str = None,
+                 input_name: str = None,
+                 output_name: str = None,
                  type: Type[T] = None,
                  model: Type[ModelT] = None,
                  required: bool = True,

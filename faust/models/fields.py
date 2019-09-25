@@ -79,6 +79,14 @@ class FieldDescriptor(FieldDescriptorT[T]):
     #: Name of attribute on Model.
     field: str
 
+    #: Name of field in serialized data (if differs from :attr:`field`).
+    #: Defaults to :attr:`field`.
+    input_name: str
+
+    #: Name of field when serializing data (if differs from :attr:`field`).
+    #: Defaults to :attr:`input_name`.
+    output_name: str
+
     #: Type of value (e.g. ``int``, or ``Optional[int]``)).
     type: Type[T]
 
@@ -117,6 +125,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
 
     def __init__(self, *,
                  field: str = None,
+                 input_name: str = None,
+                 output_name: str = None,
                  type: Type[T] = None,
                  model: Type[ModelT] = None,
                  required: bool = True,
@@ -129,6 +139,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  date_parser: Callable[[Any], datetime] = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
+        self.input_name = cast(str, input_name or field)
+        self.output_name = output_name or self.input_name
         self.type = cast(Type[T], type)
         self.model = cast(Type[ModelT], model)
         self.required = required
@@ -156,6 +168,8 @@ class FieldDescriptor(FieldDescriptorT[T]):
     def as_dict(self) -> Mapping[str, Any]:
         return {
             'field': self.field,
+            'input_name': self.input_name,
+            'output_name': self.output_name,
             'type': self.type,
             'model': self.model,
             'required': self.required,
