@@ -512,7 +512,7 @@ it for individual fields by writing explicit field descriptors:
 .. sourcecode:: python
 
     import faust
-    from faust.mdoels.fields import DatetimeField, StringField
+    from faust.models.fields import DatetimeField, StringField
 
     class Account(faust.Record):
         user_id: str = StringField(coerce=True)

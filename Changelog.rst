@@ -5,342 +5,227 @@
 ==============================
 
 This document contain change notes for bugfix releases in
-the Faust 1.7 series. If you're looking for previous releases,
+the Faust 1.8 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-.. _version-1.7.3:
+.. _version-1.8.0:
 
-1.7.3
+1.8.0
 =====
-:release-date: 2019-07-12 1:13 P.M PST
+:release-date: TBA
 :release-by: Ask Solem (:github_user:`ask`)
 
-- **Tables**: Fix for Issue #383 when using the Cython extension.
+- **Tables**: New "global table" support (Issue #366).
 
-.. _version-1.7.2:
+  A global table is a table where all worker instances
+  maintain a copy of the full table.
 
-1.7.2
-=====
-:release-date: 2019-07-12 12:00 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
+  This is useful for smaller tables that need to be
+  shared across all instances.
 
-- **Tables**: Fixed memory leak/back pressure in changelog producer buffer
-  (Issue #383)
+  To define a new global table use ``app.GlobalTable``:
 
-- **Models**: Do not attempt to parse datetime when coerce/isodates disabled.
+  .. sourcecode:: python
 
-    Version 1.7 introduced a regression where datetimes were attempted
-    to be parsed as ISO-8601 even with the ``isodates`` setting disabled.
+    global_table = app.GlobalTable('global_table_name')
 
-    A regression test was added for this bug.
+  Contributed by Artak Papikyan (:github_user:`apapikyan`).
 
-- **Models**: New ``date_parser`` option to change datetime parsing function.
+- **Transports**: Fixed hanging when Kafka topics have gaps
+  in source topic offset (Issue #401).
 
-    The default date parser supports ISO-8601 only.  To support
-    this format and many other formats (such as
-    ``'Sat Jan 12 00:44:36 +0000 2019'``) you can select to
-    use :pypi:`python-dateutil` as the parser.
+    This can happen when topics are compacted or similar,
+    and Faust would previously hang when encountering
+    offset gaps.
 
-    To change the date parsing function for a model globally:
+    Contributed by Andrei Tuppitcyn (:github_user:`andr83`).
 
-    .. sourcecode:: python
+- **Streams**: Now properly handles exceptions in ``group_by``.
 
-        from dateutil.parser import parse as parse_date
+    Contributed by Vikram Patki (:github_user:`patkivikram`).
 
-        class Account(faust.Record, coerce=True, date_parser=parse_date):
-            date_joined: datetime
+- **Web**: Fixed typo in ``NotFound`` error.
 
-    To change the date parsing function for a specific field:
+    Fix contributed by Sanyam Satia (:github_user:`ssatia`).
 
-    .. sourcecode:: python
+- **Tables**: Added ``use_partitioner`` option for the ability
+  to modify tables outside of streams (for example HTTP views).
 
-        from dateutil.parser import parse as parse_date
-        from faust.models.fields import DatetimeField
+    By default tables will use the partition number of a "source event"
+    to write an entry to the changelog topic.
 
-        class Account(faust.Record, coerce=True):
-            # date_joined: supports ISO-8601 only (default)
-            date_joined: datetime
-
-            #: date_last_login: comes from weird system with more human
-            #: readable dates ('Sat Jan 12 00:44:36 +0000 2019').
-            #: The dateutil parser can handle many different date and time
-            #: formats.
-            date_last_login: datetime = DatetimeField(date_parser=parse_date)
-
-- **Models**: Adds ``FieldDescriptor.exclude`` to exclude field when serialized
-
-    See :ref:`model-field-exclude` for more information.
-
-- **Documentation**: improvements by...
-
-  + Witek Bedyk (:github_user:`witekest`).
-  + Josh Woodward (:github_user:`jdw6359`).
-
-.. _version-1.7.1:
-
-1.7.1
-=====
-:release-date: 2019-07-09 2:36 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
-
-- **Stream**: Exactly once processing now include the app id
-  in transactional ids.
-
-    This was done to support running multiple apps on the same
-    Kafka broker.
-
-    Contributed by Cesar Pantoja (:github_user:`CesarPantoja`).
-
-- **Web**: Fixed bug where sensor index should display when :setting:`debug` is enabled
-
-    .. tip::
-
-        If you want to enable the sensor statistics endpoint in production,
-        without enabling the :setting:`debug` setting, you can do so
-        by adding the following code:
-
-        .. sourcecode:: python
-
-            app.web.blueprints.add('/stats/', 'faust.web.apps.stats:blueprint')
-
-    Contributed by :github_user:`tyong920`
-
-- **Transport**: The default value for :setting:`broker_request_timeout` is now
-  90 seconds (Issue #259)
-
-- **Transport**: Raise error if :setting:`broker_session_timeout` is greater
-  than :setting:`broker_request_timeout` (Closes #259)
-
-- **Dependencies**: Now supports :pypi:`click` 7.0 and later.
-
-- **Dependencies**: ``faust[debug]`` now depends on :pypi:`aiomonitor` 0.4.4
-  or later.
-
-- **Models**: Field defined as ``Optional[datetime]`` now works with
-  ``coerce`` and ``isodates`` settings.
-
-    Previously a model would not recognize:
+    This means you can safely modify tables in streams:
 
     .. sourcecode:: python
 
-        class X(faust.Record, coerce=True):
-            date: Optional[datetime]
+        async for key, value in stream.items():
+           table[key] = value
 
-        as a :class:`~faust.models.fields.DatetimeField` and when
-        deserializing the field would end up as a string.
+   when the table is modified it will know what topic the source
+   event comes from and use the same partition number.
 
-        It's now properly converted to :class:`~datetime.datetime`.
+   An alternative to this form of partitioning is to use
+   the Kafka default partitioner on the key, and now you can
+   use that strategy by enabling the ``use_partitioner`` option:
 
-- **RocksDB**: Adds :setting:`table_key_index_size` setting (Closes #372)
+   .. sourcecode:: python
 
-- **RocksDB**: Reraise original error if :pypi:`python-rocksdb` cannot
-  be imported.
+        table = app.Table('name', use_partitioner=True)
 
-    Thanks to Sohaib Farooqi.
-
-- **Django**: Autodiscovery support now waits for Django to be fully setup.
-
-    Contributed by Tomasz Nguyen (:github_user:`swist`).
-
-- **Documentation** improvements by:
-
-  + Witek Bedyk (:github_user:`witekest`).
-
-.. _version-1.7.0:
-
-1.7.0
-=====
-:release-date: 2019-06-06 6:00 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
-
-.. _v170-backward-incompatible-changes:
-
-Backward Incompatible Changes
------------------------------
-
-- **Transports**: The in-memory transport has been removed (Issue #295).
-
-    This transport was experimental and not working properly, so to avoid
-    confusion we have removed it completely.
-
-- **Stream**: The ``Message.stream_meta`` attribute has been removed.
-
-    This was used to keep arbitrary state for sensors during processing
-    of a message.
-
-    If you by rare chance are relying on this attribute to exist, you must
-    now initialize it before using it:
+    You may also temporarily enable this option in any location
+    by using ``table.clone(...)``:
 
     .. sourcecode:: python
 
-        stream_meta = getattr(event.message, 'stream_meta', None)
-        if stream_meta is None:
-            stream_meta = event.message.stream_meta = {}
+        @app.page('/foo/{key}/')
+        async def foo(web, request, key: str):
+            table.clone(use_partitoner)[key] = 'bar'
 
-.. _v170-news:
+- **Models**: Support for "schemas" that group key/value related
+  settings together (Issue #315).
 
-News
-----
+   This implements a single structure (Schema) that configures
+   the ``key_type``/``value_type``/``key_serializer``/``value_serializer``
+   for a topic or agent:
 
-- **Requirements**
+   .. sourcecode:: python
 
-    + Now depends on :ref:`Mode 4.0.0 <mode:version-4.0.0>`.
-
-    + Now depends on :pypi:`aiohttp` 3.5.2 or later.
-
-        Thanks to :github_user:`CharAct3`.
-
-- **Documentation**: Documented a new deployment strategy to minimize
-  rebalancing issues.
-
-    See :ref:`worker-cluster` for more information.
-
-- **Models**: Implements model validation.
-
-    Validation of fields can be enabled by using the ``validation=True`` class
-    option:
-
-    .. sourcecode:: python
-
-        import faust
-        from decimal import Decimal
-
-        class X(faust.Record, validation=True):
-            name: str
-            amount: Decimal
-
-    When validation is enabled, the model will validate that the
-    fields values are of the correct type.
-
-    Fields can now also have advanced validation options,
-    and you enable these by writing explicit field descriptors:
-
-    .. sourcecode:: python
-
-        import faust
-        from decimal import Decimal
-        from faust.models.fields import DecimalField, StringField
-
-        class X(faust.Record, validation=True):
-            name: str = StringField(max_length=30)
-            amount: Decimal = DecimalField(min_value=10.0, max_value=1000.0)
-
-    If you want to run validation manually, you can do so by
-    keeping ``validation=False`` on the class, but calling
-    ``model.is_valid()``:
-
-    .. sourcecode:: python
-
-        if not model.is_valid():
-            print(model.validation_errors)
-
-- **Models**: Implements generic coercion support.
-
-    This new feature replaces the ``isodates=True``/``decimals=True`` options
-    and can be enabled by passing ``coerce=True``:
-
-    .. sourcecode:: python
-
-        class Account(faust.Record, coerce=True):
-            name: str
-            login_times: List[datetime]
-
-- **Testing**: New experimental ``livecheck`` production testing API.
-
-    There is no documentation yet, but an example in
-    ``examples//livecheck.py``.
-
-    This is a new API to do end-to-end testing directly in production.
-
-- **Topic**: Adds new ``topic.send_soon()`` non-async method to buffer
-  messages.
-
-    This method can be used by any non-`async def` function
-    to buffer up messages to be produced.
-
-    It returns `Awaitable[RecordMetadata]`: a promise evaluated once
-    the message is actually sent.
-
-- **Stream**: New ``Stream.filter`` method added useful for filtering
-  events before repartitioning a stream.
-
-    See :ref:`stream-filter` for more information.
-
-- **App**: New :setting:`broker_consumer`/:setting:`broker_producer` settings.
-
-    These can now be used to configure individual transports
-    for consuming and producing.
-
-    The default value for both settings are taken from the
-    :setting:`broker` setting.
-
-    For example you can use :pypi:`aiokafka` for the consumer, and
-    :pypi:`confluent_kafka` for the producer:
-
-    .. sourcecode:: python
-
-        app = faust.App(
-            'id',
-            broker_consumer='kafka://localhost:9092',
-            broker_producer='confluent://localhost:9092',
+        schema = faust.Schema(
+            key_type=Point,
+            value_type=Point,
+            key_serializer='json',
+            value_serializer='json',
         )
 
-- **App**: New :setting:`broker_max_poll_interval` setting.
+        topic = app.topic('mytopic', schema=schema)
 
-  Contributed by Miha Troha (:github_user:`mihatroha`).
+    The benefit of having an abstraction a level above codecs
+    is that schemas can implement support for serialization formats
+    such as ProtocolBuffers, Apache Thrift and Avro.
 
-- **App**: New :setting:`topic_disable_leader` setting disables
-  the leader topic.
+    The schema will also have access to the Kafka message headers,
+    necessary in some cases where serialization schema is specified
+    in headers.
 
-- **Table**: Table constructor now accepts ``options`` argument
-  passed on to underlying RocksDB storage.
+    .. seealso::
 
-    This can be used to configure advanced RocksDB options,
-    such as block size, cache size, etc.
+        :ref:`model-schemas` for more information.
 
-    Contributed by Miha Troha (:github_user:`mihatroha`).
+- **Models**: Validation now supports optional fields (Issue #430).
 
-.. _v170-fixes:
+- **Models**: Fixed support for ``Optional`` and field coercion
+  (Issue #393).
 
-Fixes
------
+    Fix contributed by Martin Maillard (:github_user:`martinmaillard`).
 
-- **Stream**: Fixes bug where non-finished event is acked (Issue #355).
+- **Models**: Manually calling ``model.validate()`` now also
+  validates that the value is of the correct type (Issue #425).
 
-- **Producer**: Exactly once: Support producing to non-transactional
-  topics (Issue #339)
+- **Models**: Fields can now specify ``input_name`` and ``output_name``
+  to support fields named after Python reserved keywords.
 
-- **Agent**: Test: Fixed :exc:`asyncio.CancelledError` (Issue #322).
+    For example if the data you want to parse contains a field
+    named ``in``, this will not work since :keyword:`in` is
+    a reserved keyword.
 
-- **Cython**: Fixed issue with sensor state not being passed to ``after``.
+    Using the new ``input_name`` feature you can rename the field
+    to something else in Python, while still serializing/deserializing
+    to the existing field:
 
-- **Tables**: Key index: now inherits configuration from source table
-  (Issue #325)
+    .. sourcecode:: python
 
-- **App**: Fix list of strings for :setting:`broker` param in URL
-  (Issue #330).
+        from faust.models import Record
+        from faust.models.fields import StringField
 
-    Contributed by Nimish Telang (:github_user:`nimish`).
+        class OpenAPIParameter(Record):
+            location: str = StringField(default='query', input_name='in')
 
-- **Table**: Fixed blocking behavior when populating tables.
+    ``input_name`` is the name of the field in serialized data,
+    while ``output_name`` is what the field will be named when you
+    serialize this model object:
 
-    Symptom was warnings about timers waking up too late.
+    .. sourcecode:: pycon
 
-- **Documentation** Fixes by:
+        >>> import json
 
-    + :github_user:`evanderiel`
+        >>> data = {'in': 'header'}
+        >>> parameter = OpenAPIParameter.loads(json.dumps(data))
+        >>> assert parameter.location == 'header'
+        >>> parameter.dumps(serialier='json')
+        '{"in": "header"}'
 
-.. _v170-improvements:
+    .. note::
 
-Improvements
-------------
+        - The default value for ``input_name`` is the name of the field.
+        - The default value for ``output_name`` is the value of
+          ``input_name``.
 
-- **Documentation**: Rewrote fragmented documentation to be more concise.
+- **Models**: now have a ``lazy_creation`` class option to delay
+  class initialization to a later time.
 
-- **Documentation improvements by**
+    Field types are described using Python type annotations,
+    and model fields can refer to other models, but not always
+    are those models defined at the time when the class is defined.
 
-    + Igor Mozharovsky (:github_user:`seedofjoy`)
+    Such as in this example:
 
-    + Stephen Sorriaux (:github_user:`StephenSorriaux`)
+    .. sourcecode:: python
 
-    + Lifei Chen (:github_user:`hustclf`)
+        class Foo(Record):
+           bar: 'Bar'
+
+        class Bar(Record):
+           foo: Foo
+
+    This example will result in an error, since trying to resolve
+   the name ``Bar`` when the class ``Foo`` is created is impossible
+   as that class does not exist yet.
+
+   In this case we can enable the ``lazy_creation`` option:
+
+   .. sourcecode:: python
+
+        class Foo(Record, lazy_creation=True):
+            bar: 'Bar'
+
+        class Bar(Record):
+            foo: Foo
+
+        Foo.make_final()  # <-- 'Bar' is now defined so safe to create.
+
+- **Transports**: Fixed type mismatch in :pypi:`aiokafka` ``timestamp_ms``
+
+    Contributed by :github_user:`ekerstens`.
+
+- **Models**: Added YAML serialization support.
+
+    This requires the :pypi:`PyYAML` library.
+
+- **Sensors**: Added HTTP monitoring of status codes and latency.
+
+- **App**: Added new :setting:`Schema` setting.
+
+- **App**: Added new :setting:`Event` setting.
+
+- **Channel**: A new :class:`~faust.channels.SerializedChannel`
+  subclass can now be used to define new channel types that need
+  to deserialize incoming messages.
+
+- **Cython**: Added missing field declaration.
+
+  Contributed by Victor Miroshnikov (:github_user:`superduper`)
+
+- Documentation fixes by:
+
+  + Adam Bannister (:github_user:`AtomsForPeace`).
+
+  + Roman Imankulov (:github_user:`imankulov`).
+
+  + Espen Albert (:github_user:`EspenAlbert`).
+
+  + Alex Zeecka (:github_user:`Zeecka`).
+
+  + (:github_user:`imankulov`).
+
+  + (:github_user:`Zeecka`).
+
