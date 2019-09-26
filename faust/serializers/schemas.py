@@ -167,3 +167,4 @@ class Schema(SchemaT):
 def _model_serializer(typ: Any) -> Optional[CodecArg]:
     with suppress(AttributeError):
         return typ._options.serializer
+    return None

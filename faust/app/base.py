@@ -968,7 +968,7 @@ class App(AppT, Service):
                     if should_run:
                         with self.trace(shortlabel(fun),
                                         trace_enabled=traced):
-                            await fun(*args)  # type: ignore
+                            await fun(*args)
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]
@@ -1025,7 +1025,7 @@ class App(AppT, Service):
                         if should_run:
                             with self.trace(shortlabel(fun),
                                             trace_enabled=traced):
-                                await fun(*args)  # type: ignore
+                                await fun(*args)
 
             return cast(TaskArg, self.task(cron_starter, traced=False))
 

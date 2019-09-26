@@ -42,13 +42,14 @@ T = TypeVar('T')
 try:
     @typing.no_type_check  # type: ignore
     class _InitSubclassCheck(metaclass=abc.ABCMeta):
+        ident: int
 
         def __init_subclass__(self,
                               *args: Any,
                               ident: int = 808,
                               **kwargs: Any) -> None:
             self.ident = ident
-            super().__init__(*args, **kwargs)  # type: ignore
+            super().__init__(*args, **kwargs)
 
     @typing.no_type_check  # type: ignore
     class _UsingKwargsInNew(_InitSubclassCheck, ident=909):

@@ -39,6 +39,7 @@ class CacheStorage(Generic[KT, VT]):
 
         with suppress(KeyError):
             return self._data[key]
+        return None
 
     def last_set_ttl(self, key: KT) -> Optional[float]:
         """Return the last set TTL for key, or :const:`None` if missing."""

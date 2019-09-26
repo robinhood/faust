@@ -249,7 +249,7 @@ class _module(ModuleType):
 
     def __getattr__(self, name: str) -> Any:
         if name in object_origins:
-            module = __import__(  # type: ignore
+            module = __import__(
                 object_origins[name], None, None, [name])
             for extra_name in all_by_module[module.__name__]:
                 setattr(self, extra_name, getattr(module, extra_name))
