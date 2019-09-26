@@ -44,6 +44,10 @@ please visit the :ref:`history` section.
 
     Contributed by Vikram Patki (:github_user:`patkivikram`).
 
+- **Streams**: Fixed bug with ``filter`` not acking messages (Issue #391).
+
+    Fix contributed by Martin Maillard (:github_user:`martinmaillard`).
+
 - **Web**: Fixed typo in ``NotFound`` error.
 
     Fix contributed by Sanyam Satia (:github_user:`ssatia`).
