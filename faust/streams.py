@@ -758,6 +758,7 @@ class Stream(StreamT[T_co], Service):
 
     async def _c_aiter(self) -> AsyncIterator:  # pragma: no cover
         self.log.dev('Using Cython optimized __aiter__')
+        skipped_value = self._skipped_value
         self._finalized = True
         await self.maybe_start()
         it = _CStreamIterator(self)
@@ -766,7 +767,7 @@ class Stream(StreamT[T_co], Service):
                 do_ack = self.enable_acks
                 value, sensor_state = await it.next()  # noqa: B305
                 try:
-                    if value is not self._skipped_value:
+                    if value is not skipped_value:
                         yield value
                 finally:
                     event, self.current_event = self.current_event, None
@@ -834,6 +835,7 @@ class Stream(StreamT[T_co], Service):
         trace = self.app.trace
         _shortlabel = shortlabel
         sensor_state: Optional[Dict] = None
+        skipped_value = self._skipped_value
 
         try:
             while not self.should_stop:
@@ -904,9 +906,9 @@ class Stream(StreamT[T_co], Service):
                                 value = await _maybe_async(processor(value))
                         value = await on_merge(value)
                     except Skip:
-                        value = self._skipped_value
+                        value = skipped_value
                 try:
-                    if value is not self._skipped_value:
+                    if value is not skipped_value:
                         yield value
                 finally:
                     self.current_event = None
