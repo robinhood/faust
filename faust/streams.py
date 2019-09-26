@@ -156,6 +156,8 @@ class Stream(StreamT[T_co], Service):
         self._on_message_in = self.app.sensors.on_message_in
         self._on_message_out = self.app.sensors.on_message_out
 
+        self._skipped_value = object()
+
     def get_active_stream(self) -> StreamT:
         """Return the currently active stream.
 
@@ -764,7 +766,8 @@ class Stream(StreamT[T_co], Service):
                 do_ack = self.enable_acks
                 value, sensor_state = await it.next()  # noqa: B305
                 try:
-                    yield value
+                    if value is not self._skipped_value:
+                        yield value
                 finally:
                     event, self.current_event = self.current_event, None
                     it.after(event, do_ack, sensor_state)
@@ -901,9 +904,10 @@ class Stream(StreamT[T_co], Service):
                                 value = await _maybe_async(processor(value))
                         value = await on_merge(value)
                     except Skip:
-                        value = None
+                        value = self._skipped_value
                 try:
-                    yield value
+                    if value is not self._skipped_value:
+                        yield value
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:
