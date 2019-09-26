@@ -48,6 +48,7 @@ cdef class StreamIterator:
         self.consumer = self.stream.app.consumer
         self.unacked = self.consumer._unacked_messages
         self.add_unacked = self.unacked.add
+        self._skipped_value = self.stream._skipped_value
 
         if isinstance(self.channel, ChannelT):
             self.chan_is_channel = True
@@ -90,7 +91,7 @@ cdef class StreamIterator:
                     value = await maybe_async(processor(value))
                 value = await self.on_merge(value)
             except Skip:
-                value = None
+                value = self._skipped_value
         return value, sensor_state
 
     cpdef object after(self, object event, object do_ack, object sensor_state):
