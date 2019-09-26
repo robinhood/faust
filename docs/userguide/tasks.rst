@@ -67,7 +67,7 @@ usually at fixed times:
 .. sourcecode:: python
 
     @app.crontab('0 20 * * *')
-    async def every_dat_at_8_pm():
+    async def every_day_at_8_pm():
         print('WAKE UP ONCE A DAY')
 
 
@@ -82,7 +82,7 @@ something every day at 8pm.
 .. sourcecode:: python
 
     @app.crontab('0 20 * * *', tz=pytz.timezone('US/Pacific'), on_leader=True)
-    async def every_dat_at_8_pm_pacific():
+    async def every_day_at_8_pm_pacific():
         print('WAKE UP AT 8:00pm PACIFIC TIME ONLY ON THE LEADER WORKER')
 
 
