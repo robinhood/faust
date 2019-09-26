@@ -225,6 +225,8 @@ please visit the :ref:`history` section.
 
   + Alex Zeecka (:github_user:`Zeecka`).
 
+  + Victor Noagbodji (:github_user:`nvictor`).
+
   + (:github_user:`imankulov`).
 
   + (:github_user:`Zeecka`).
