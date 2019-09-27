@@ -346,6 +346,7 @@ class WindowWrapper(WindowWrapperT):
                 name=f'{self.table.name}-key_index',
                 value_type=int,
                 key_type=self.table.key_type,
+                window=None,
             )
         self._get_relative_timestamp = self._relative_handler(relative_to)
 
