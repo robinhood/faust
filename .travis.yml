@@ -93,6 +93,11 @@ matrix:
     os: linux
     dist: xenial
     stage: test
+  - python: 3.6.9
+    env: TOXENV=3.6 IDENT="3.6.9" RUN_SUITE=y NO_CYTHON=y
+    os: linux
+    dist: xenial
+    stage: test
   - python: 3.7.0
     env: TOXENV=3.7 IDENT="3.7.0" RUN_SUITE=y NO_CYTHON=y
     os: linux
