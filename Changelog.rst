@@ -189,12 +189,12 @@ please visit the :ref:`history` section.
            foo: Foo
 
     This example will result in an error, since trying to resolve
-   the name ``Bar`` when the class ``Foo`` is created is impossible
-   as that class does not exist yet.
+    the name ``Bar`` when the class ``Foo`` is created is impossible
+    as that class does not exist yet.
 
-   In this case we can enable the ``lazy_creation`` option:
+    In this case we can enable the ``lazy_creation`` option:
 
-   .. sourcecode:: python
+    .. sourcecode:: python
 
         class Foo(Record, lazy_creation=True):
             bar: 'Bar'
