@@ -12,8 +12,13 @@ please visit the :ref:`history` section.
 
 1.8.0
 =====
-:release-date: TBA
+:release-date: 2019-09-27 4:05 P.M PST
 :release-by: Ask Solem (:github_user:`ask`)
+
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 4.1.0 <mode:version-4.1.0>`.
 
 - **Tables**: New "global table" support (Issue #366).
 
@@ -39,6 +44,8 @@ please visit the :ref:`history` section.
     offset gaps.
 
     Contributed by Andrei Tuppitcyn (:github_user:`andr83`).
+
+- **Tables**: Fixed bug with crashing when key index enabled (Issue #414).
 
 - **Streams**: Now properly handles exceptions in ``group_by``.
 
