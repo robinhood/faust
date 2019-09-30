@@ -1,7 +1,7 @@
 import abc
 from datetime import datetime
 from decimal import Decimal
-from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
+from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple, Union
 from dateutil.parser import parse as parse_date
 import faust
 from faust.exceptions import ValidationError
@@ -14,6 +14,7 @@ from faust.models.fields import (
     IntegerField,
     StringField,
 )
+from faust.models.record import _is_of_type
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -1407,6 +1408,23 @@ def test_custom_field_validation():
     assert Order2()
 
 
+def test_custom_field__internal_errot():
+
+    class XField(FieldDescriptor[str]):
+
+        def prepare_value(self, value, coerce=None):
+            if coerce:
+                raise RuntimeError()
+            return value
+
+    class Foo(Record, coerce=False):
+        foo: str = XField()
+
+    f = Foo('foo')
+    assert f.validation_errors
+    assert 'RuntimeError' in str(f.validation_errors[0])
+
+
 def test_datetime_does_not_coerce():
 
     class X(Record, coerce=False):
@@ -1425,10 +1443,11 @@ def test_datetime_custom_date_parser():
     assert X(date_string).d == parse_date(date_string)
 
 
-class test_float_does_not_coerce():
+def test_float_does_not_coerce():
 
     class X(Record, coerce=False):
         f: float
+    X.make_final()  # <-- just to test it still works for non-lazy creation
 
     assert X('3.14').f == '3.14'
 
@@ -1466,3 +1485,28 @@ def test_payload_with_reserved_keyword():
         'in': 'foo',
         'foobar': 'bar',
     }
+
+
+class LazyX(Record, lazy_creation=True):
+    y: 'EagerY'
+
+
+class EagerY(Record):
+    x: LazyX
+
+
+def test_lazy_creation():
+    assert LazyX._pending_finalizers
+    LazyX.make_final()
+    assert LazyX._pending_finalizers is None
+
+
+@pytest.mark.parametrize('typ,input,expected', [
+    ('foo', int, False),
+    ('foo', str, True),
+    ('foo', Optional[str], True),
+    ('foo', Optional[Union[str, int]], True),
+    ('foo', Optional[Union[Union[float, str], int]], True),
+])
+def test__is_of_type(typ, input, expected):
+    assert _is_of_type(typ, input) == expected
