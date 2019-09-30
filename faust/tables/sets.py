@@ -21,7 +21,7 @@ from yarl import URL
 
 from faust.models import Record, maybe_model
 from faust.types import AgentT, AppT, EventT, StreamT, TopicT
-from faust.types.tables import KT, VT
+from faust.types.tables import GlobalTableT, KT, VT
 from faust.types.stores import StoreT
 
 from . import wrappers
@@ -309,5 +309,5 @@ class SetTable(Table[KT, VT]):
         return self.data[key]
 
 
-class SetGlobalTable(SetTable):
+class SetGlobalTable(SetTable, GlobalTableT):
     pass

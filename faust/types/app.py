@@ -285,6 +285,17 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def GlobalTable(self,
+                    name: str,
+                    *,
+                    default: Callable[[], Any] = None,
+                    window: WindowT = None,
+                    partitions: int = None,
+                    help: str = None,
+                    **kwargs: Any) -> TableT:
+        ...
+
+    @abc.abstractmethod
     def SetTable(self,
                  name: str,
                  *,
@@ -293,6 +304,17 @@ class AppT(ServiceT):
                  start_manager: bool = False,
                  help: str = None,
                  **kwargs: Any) -> TableT:
+        ...
+
+    @abc.abstractmethod
+    def SetGlobalTable(self,
+                       name: str,
+                       *,
+                       window: WindowT = None,
+                       partitions: int = None,
+                       start_manager: bool = False,
+                       help: str = None,
+                       **kwargs: Any) -> TableT:
         ...
 
     @abc.abstractmethod

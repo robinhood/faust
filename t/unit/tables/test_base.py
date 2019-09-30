@@ -480,3 +480,13 @@ class test_Collection:
 
     def test_repr_info(self, *, table):
         assert table._repr_info() == table.name
+
+    def test_partition_for_key__partitioner(self, *, table, app):
+        consumer = app.consumer = Mock(name='consumer')
+        table.use_partitioner = True
+
+        partition = consumer.key_partition.return_value
+        assert table.partition_for_key('k') is partition
+
+        consumer.key_partition.assert_called_once_with(
+            table.changelog_topic_name, 'k', None)

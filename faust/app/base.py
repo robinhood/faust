@@ -1168,6 +1168,26 @@ class App(AppT, Service):
                 **kwargs))
         return table.using_window(window) if window else table
 
+    def SetGlobalTable(self,
+                       name: str,
+                       *,
+                       window: WindowT = None,
+                       partitions: int = None,
+                       start_manager: bool = False,
+                       help: str = None,
+                       **kwargs: Any) -> TableT:
+        """Table of sets (global)."""
+        table = self.tables.add(
+            self.conf.SetGlobalTable(
+                self,
+                name=name,
+                beacon=self.beacon,
+                partitions=partitions,
+                start_manager=start_manager,
+                help=help,
+                **kwargs))
+        return table.using_window(window) if window else table
+
     def page(self, path: str, *,
              base: Type[View] = View,
              cors_options: Mapping[str, ResourceOptions] = None,

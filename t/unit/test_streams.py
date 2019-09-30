@@ -4,6 +4,7 @@ from time import monotonic
 import faust
 import pytest
 from faust import joins
+from faust.exceptions import Skip
 from mode.utils.contexts import ExitStack
 from mode.utils.mocks import AsyncMock, Mock, patch
 from t.helpers import new_event
@@ -236,3 +237,11 @@ class test_Stream:
             event.message.offset,
             event.message,
         )
+
+    @pytest.mark.asyncio
+    async def test__format_key__callable_raises(self, *, stream):
+        keyfun = Mock(name='keyfun')
+        keyfun.side_effect = KeyboardInterrupt()
+
+        with pytest.raises(Skip):
+            await stream._format_key(keyfun, 300)

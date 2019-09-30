@@ -978,6 +978,20 @@ class test_Consumer:
         await consumer.on_task_error(KeyError())
         consumer.commit.assert_called_once_with()
 
+    def test__add_gap(self, *, consumer):
+        tp = TP1
+        consumer._committed_offset[tp] = 299
+        consumer._add_gap(TP1, 300, 343)
+
+        assert consumer._gap[tp] == list(range(300, 343))
+
+    def test__add_gap__previous_to_committed(self, *, consumer):
+        tp = TP1
+        consumer._committed_offset[tp] = 400
+        consumer._add_gap(TP1, 300, 343)
+
+        assert tp not in consumer._gap[tp]
+
     @pytest.mark.asyncio
     async def test_commit_handler(self, *, consumer):
         i = 0
