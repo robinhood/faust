@@ -1507,6 +1507,7 @@ def test_lazy_creation():
     ('foo', Optional[str], True),
     ('foo', Optional[Union[str, int]], True),
     ('foo', Optional[Union[Union[float, str], int]], True),
+    ('foo', Optional[Union[Union[float, bytes], int]], False),
 ])
 def test__is_of_type(typ, input, expected):
     assert _is_of_type(typ, input) == expected
