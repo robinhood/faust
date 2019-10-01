@@ -7,7 +7,6 @@ import weakref
 
 from asyncio import CancelledError
 from contextvars import ContextVar
-from time import monotonic
 from typing import (
     Any,
     AsyncIterable,
@@ -875,13 +874,6 @@ class Stream(StreamT[T_co], Service):
                             add_unacked(message)
                             on_message_in(message.tp, message.offset, message)
                             # XXX ugh this should be in the consumer somehow
-                            if consumer._last_batch is None:
-                                # set last_batch received timestamp if not
-                                # already set. The commit livelock monitor
-                                # uses this to check how long between
-                                # receiving a message to we commit it
-                                # (we reset _last_batch to None in .commit()).
-                                consumer._last_batch = monotonic()
 
                         # call Sensors
                         sensor_state = on_stream_event_in(

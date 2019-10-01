@@ -1,6 +1,5 @@
 import asyncio
 from collections import defaultdict
-from time import monotonic
 import faust
 import pytest
 from faust import joins
@@ -139,21 +138,6 @@ class test_Stream:
 
     @pytest.mark.asyncio
     @pytest.mark.allow_lingering_tasks(count=1)
-    async def test_aiter_tracked__last_batch_set(self, *, stream, app):
-        event = await self._assert_stream_aiter(
-            stream,
-            side_effect=None,
-            raises=None,
-            last_batch=monotonic(),
-        )
-        if not event.ack.called:
-            assert event.message.refcount == 0
-            assert event.message.acked
-        else:
-            event.ack.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    @pytest.mark.allow_lingering_tasks(count=1)
     async def test_aiter_tracked__CancelledError(self, *, stream, app):
         event = await self._assert_stream_aiter(
             stream,
@@ -168,12 +152,10 @@ class test_Stream:
 
     async def _assert_stream_aiter(self, stream,
                                    side_effect=None,
-                                   raises=None,
-                                   last_batch=None):
+                                   raises=None):
         sentinel = object()
         app = stream.app
         app.consumer = Mock(name='app.consumer')
-        app.consumer._last_batch = last_batch
         app.consumer._committed_offset = defaultdict(lambda: -1)
         app.consumer._acked_index = defaultdict(set)
         app.consumer._acked = defaultdict(list)
@@ -216,7 +198,6 @@ class test_Stream:
             event.message.offset,
             event.message,
         )
-        assert app.consumer._last_batch
         return event
 
     @pytest.mark.asyncio
