@@ -46,6 +46,12 @@ Caching
 :``faust[redis]``:
     for using `Redis_` as a simple caching backend (Memcached-style).
 
+Codecs
+~~~~~~
+
+:``faust[yaml]``:
+    for using YAML and the :pypi:`PyYAML` library in streams.
+
 Optimization
 ~~~~~~~~~~~~
 
