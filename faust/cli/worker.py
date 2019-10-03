@@ -98,8 +98,6 @@ class worker(AppCommand):
         # and also there's no uvloop.__version__ attribute.
         if loop.__class__.__module__ == 'uvloop':
             transport_extra = '+uvloop'
-        if 'gevent' in loop.__class__.__module__:
-            transport_extra = '+gevent'
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
         compiler = platform.python_compiler()

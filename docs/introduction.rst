@@ -82,7 +82,7 @@ What can it do?
     services.
 
     Thanks to Faust and :mod:`asyncio` you can now embed your stream processing
-    topology into your existing :mod:`asyncio`/:pypi:`gevent`/
+    topology into your existing :mod:`asyncio`/
     :pypi:`eventlet`/:pypi:`Twisted`/:pypi:`Tornado` applications.
 
 **Faust is...**
@@ -174,8 +174,6 @@ Extensions
 | ``statsd``   | 3.2.1       | ``pip install faust[statsd]``                    |
 +--------------+-------------+--------------------------------------------------+
 | ``uvloop``   | 0.8.1       | ``pip install faust[uvloop]``                    |
-+--------------+-------------+--------------------------------------------------+
-| ``gevent``   | 1.4.0       | ``pip install faust[gevent]``                    |
 +--------------+-------------+--------------------------------------------------+
 | ``eventlet`` | 1.16.0      | ``pip install faust[eventlet]``                  |
 +--------------+-------------+--------------------------------------------------+

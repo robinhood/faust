@@ -1,1 +1,0 @@
-aiogevent~=0.2

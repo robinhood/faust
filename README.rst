@@ -306,9 +306,6 @@ Event Loops
 :``faust[uvloop]``:
     for using Faust with ``uvloop``.
 
-:``faust[gevent]``:
-    for using Faust with ``gevent``.
-
 :``faust[eventlet]``:
     for using Faust with ``eventlet``
 
@@ -366,38 +363,8 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use ``gevent`` or ``eventlet`` as a bridge to integrate with
+Yes! Use ``eventlet`` as a bridge to integrate with
 ``asyncio``.
-
-Using ``gevent``
-~~~~~~~~~~~~~~~~~~~~
-
-This approach works with any blocking Python library that can work
-with ``gevent``.
-
-Using ``gevent`` requires you to install the ``aiogevent`` module,
-and you can install this as a bundle with Faust:
-
-.. sourcecode:: console
-
-    $ pip install -U faust[gevent]
-
-Then to actually use ``gevent`` as the event loop you have to either
-use the ``-L <faust --loop>`` option to the ``faust`` program:
-
-.. sourcecode:: console
-
-    $ faust -L gevent -A myproj worker -l info
-
-or add ``import mode.loop.gevent`` at the top of your entry point script:
-
-.. sourcecode:: python
-
-    #!/usr/bin/env python3
-    import mode.loop.gevent
-
-REMEMBER: It's very important that this is at the very top of the module,
-and that it executes before you import libraries.
 
 
 Using ``eventlet``
