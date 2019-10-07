@@ -430,8 +430,6 @@ class App(AppT, Service):
     # See faust/app/_attached.py
     _attachments: Attachments
 
-    _on_revoked_timeout = None
-
     #: Current assignment
     _assignment: Optional[Set[TP]] = None
 
@@ -1525,7 +1523,6 @@ class App(AppT, Service):
         session_timeout = self.conf.broker_session_timeout * 0.95
         T = traced_from_parent_span()
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
-            self._on_revoked_timeout = on_timeout
             consumer = self.consumer
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
@@ -1563,8 +1560,6 @@ class App(AppT, Service):
             except Exception as exc:
                 on_timeout.info('on partitions revoked crashed: %r', exc)
                 await self.crash(exc)
-            finally:
-                self._on_revoked_timeout = None
 
     async def _stop_fetcher(self) -> None:
         await self._fetcher.stop()
@@ -1595,7 +1590,6 @@ class App(AppT, Service):
         revoked, newly_assigned = self._update_assignment(assigned)
 
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
-            self._on_revoked_timeout = on_timeout
             consumer = self.consumer
             try:
                 on_timeout.info('agents.on_rebalance()')
