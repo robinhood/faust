@@ -23,6 +23,7 @@ class test_Router:
 
     def test_key_store(self, *, router, app, assignor):
         table = app.tables['foo'] = Mock(name='table')
+        router._get_serialized_key = Mock(return_value=table.changelog_topic.prepare_key.return_value)
         assert router.key_store('foo', 'k') is assignor.key_store.return_value
         assignor.key_store.assert_called_once_with(
             table.changelog_topic.get_topic_name(),
