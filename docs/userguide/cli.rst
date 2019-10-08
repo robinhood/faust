@@ -50,7 +50,7 @@ decorator (see :ref:`tasks-cli-commands`).
 
 .. cmdoption:: --loop, -L
 
-    Event loop implementation to use: ``aio`` (default), ``gevent``,
+    Event loop implementation to use: ``aio`` (default), ``eventlet``,
     ``uvloop``.
 
 .. admonition:: Why is ``examples/word_count.py`` used as the program?
@@ -117,7 +117,7 @@ Example:
     Faust command-line interface.
 
     Options:
-    -L, --loop [aio|gevent|eventlet|uvloop]
+    -L, --loop [aio|eventlet|uvloop]
                                     Event loop implementation to use.
     --json / --no-json              Prefer data to be emitted in json format.
     -D, --datadir DIRECTORY         Directory to keep application state.

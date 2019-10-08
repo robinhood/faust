@@ -73,9 +73,6 @@ Event Loops
 :``faust[uvloop]``:
     for using Faust with :pypi:`uvloop`.
 
-:``faust[gevent]``:
-    for using Faust with :pypi:`gevent`.
-
 :``faust[eventlet]``:
     for using Faust with :pypi:`eventlet`
 

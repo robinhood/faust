@@ -117,7 +117,7 @@ OptionDecorator = Callable[[Any], Any]
 OptionSequence = Sequence[OptionDecorator]
 OptionList = MutableSequence[OptionDecorator]
 
-LOOP_CHOICES: Sequence[str] = ('aio', 'gevent', 'eventlet', 'uvloop')
+LOOP_CHOICES: Sequence[str] = ('aio', 'eventlet', 'uvloop')
 DEFAULT_LOOP: str = 'aio'
 DEFAULT_LOGLEVEL: str = 'WARN'
 LOGLEVELS: Sequence[str] = (

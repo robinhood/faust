@@ -39,7 +39,6 @@ BUNDLES = {
     'setproctitle',
     'statsd',
     'uvloop',
-    'gevent',
     'eventlet',
     'yaml',
 }

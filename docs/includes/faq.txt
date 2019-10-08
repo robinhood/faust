@@ -4,38 +4,7 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use :pypi:`gevent` or :pypi:`eventlet` as a bridge to integrate with
-:mod:`asyncio`.
-
-Using :pypi:`gevent`
-~~~~~~~~~~~~~~~~~~~~
-
-This approach works with any blocking Python library that can work
-with :pypi:`gevent`.
-
-Using :pypi:`gevent` requires you to install the :pypi:`aiogevent` module,
-and you can install this as a bundle with Faust:
-
-.. sourcecode:: console
-
-    $ pip install -U faust[gevent]
-
-Then to actually use :pypi:`gevent` as the event loop you have to either
-use the :option:`-L <faust --loop>` option to the :program:`faust` program:
-
-.. sourcecode:: console
-
-    $ faust -L gevent -A myproj worker -l info
-
-or add ``import mode.loop.gevent`` at the top of your entry point script:
-
-.. sourcecode:: python
-
-    #!/usr/bin/env python3
-    import mode.loop.gevent
-
-REMEMBER: It's very important that this is at the very top of the module,
-and that it executes before you import libraries.
+Yes! Use :pypi:`eventlet` as a bridge to integrate with :mod:`asyncio`.
 
 
 Using :pypi:`eventlet`
