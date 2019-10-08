@@ -843,7 +843,7 @@ class Stream(StreamT[T_co], Service):
                 # wait for next message
                 value: Any = None
                 # we iterate until on_merge gives value.
-                while value is None:
+                while value is None and event is None:
                     await sleep(0, loop=loop)
                     # get message from channel
                     # This inlines ThrowableQueue.get for performance:
