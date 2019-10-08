@@ -31,6 +31,7 @@ cdef class StreamIterator:
         object app
         object topics
         object acks_enabled_for
+        object _skipped_value
 
     def __init__(self, object stream):
         self.stream = stream
