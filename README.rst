@@ -507,13 +507,6 @@ Bug tracker
 If you have any suggestions, bug reports, or annoyances please report them
 to our issue tracker at https://github.com/robinhood/faust/issues/
 
-.. _wiki:
-
-Wiki
-----
-
-https://wiki.github.com/robinhood/faust/
-
 .. _license:
 
 License
