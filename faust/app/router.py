@@ -45,7 +45,7 @@ class Router(RouterT):
 
     @classmethod
     def _get_serialized_key(cls, table: CollectionT, key: K) -> bytes:
-        return table.changelog_topic.prepare_key(key, None)
+        return table.changelog_topic.prepare_key(key, None)[0]
 
     def _get_table(self, name: str) -> CollectionT:
         return self.app.tables[name]
