@@ -278,7 +278,7 @@ class Collection(Service, CollectionT):
         if self.use_partitioner:
             partition = self.app.consumer.key_partition(
                 self.changelog_topic_name, key, None)
-            assert partition
+            assert partition is not None
             return partition
         else:
             event = current_event()
