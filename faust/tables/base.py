@@ -276,10 +276,7 @@ class Collection(Service, CollectionT):
 
     def partition_for_key(self, key: Any) -> int:
         if self.use_partitioner:
-            partition = self.app.consumer.key_partition(
-                self.changelog_topic_name, key, None)
-            assert partition is not None
-            return partition
+            return None
         else:
             event = current_event()
             if event is None:
