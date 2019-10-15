@@ -38,9 +38,12 @@ def window_processor(key, events):
     mean = sum(values) / count
 
     print(
-        'processing window: %i events, mean: %.2f, timestamp %i'
-        % (len(values), mean, timestamp)
+        f'processing window:'
+        f'{len(values)} events,'
+        f'mean: {mean:.2f},'
+        f'timestamp {timestamp}'
     )
+
     sink.send_soon(value=AggModel(date=timestamp, count=count, mean=mean))
 
 
