@@ -353,9 +353,14 @@ class Collection(Service, CollectionT):
                 if keys_to_remove:
                     for key in keys_to_remove:
                         value = self.data.pop(key, None)
-                        if self.on_window_close_callback and (key[1][0] > self.last_closed_window):
+                        if self.on_window_close_callback and (
+                            key[1][0] > self.last_closed_window
+                        ):
                             self.on_window_close_callback(key, value)
-                    self.last_closed_window = max(self.last_closed_window, max([key[1][0] for key in keys_to_remove]))
+                    self.last_closed_window = max(
+                        self.last_closed_window,
+                        max(key[1][0] for key in keys_to_remove),
+                    )
 
     def _should_expire_keys(self) -> bool:
         window = self.window
