@@ -259,7 +259,7 @@ class Collection(Service, CollectionT):
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=self._on_changelog_sent,
-            # Ensures final partition number is ready in ret.partition
+            # Ensures final partition number is ready in ret.message.partition
             eager_partitioning=True,
         )
 
