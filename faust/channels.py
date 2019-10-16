@@ -224,7 +224,8 @@ class Channel(ChannelT):
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
-                  force: bool = False) -> FutureMessage:
+                  force: bool = False,
+                  eager_partitioning: bool = False) -> FutureMessage:
         """Produce message by adding to buffer.
 
         This method is only supported by :class:`~faust.Topic`.
@@ -244,13 +245,18 @@ class Channel(ChannelT):
             schema: SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None,
+            eager_partitioning: bool = False) -> FutureMessage:
         """Create promise that message will be transmitted."""
         open_headers = self.prepare_headers(headers)
         final_key, open_headers = self.prepare_key(
             key, key_serializer, schema, open_headers)
         final_value, open_headers = self.prepare_value(
             value, value_serializer, schema, open_headers)
+        if partition is None and eager_partitioning:
+            # Note: raises NotImplementedError if used on unnamed channel.
+            partition = self.app.producer.key_partition(
+                self.get_topic_name(), final_key).partition
         return FutureMessage(
             PendingMessage(
                 self,

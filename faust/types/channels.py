@@ -98,7 +98,8 @@ class ChannelT(AsyncIterator):
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
-                  force: bool = False) -> FutureMessage:
+                  force: bool = False,
+                  eager_partitioning: bool = False) -> FutureMessage:
         ...
 
     @abc.abstractmethod
@@ -112,7 +113,8 @@ class ChannelT(AsyncIterator):
             schema: _SchemaT = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None,
+            eager_partitioning: bool = False) -> FutureMessage:
         ...
 
     @abc.abstractmethod
