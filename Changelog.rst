@@ -8,6 +8,49 @@ This document contain change notes for bugfix releases in
 the Faust 1.8 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.8.1:
+
+1.8.1
+=====
+:release-date: 2019-10-16 1:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 4.1.2 <mode:version-4.1.2>`.
+
+- **Tables**: Fixed bug in table route decorator introduced in 1.8
+  (Issue #434).
+
+    Fix contributed by Vikram Patki (:github_user:`patkivikram`).
+
+- **Stream**: Now properly acks :const:`None` values (tombstone messages).
+
+    Fix contributed by Vikram Patki (:github_user:`patkivikram`).
+
+- **Tables**: Fixed bug with ``use_partitioner`` when destination
+  partitin is ``0`` (Issue #447).
+
+    Fix contributed by Tobias Rauter (:github_user:`trauter`).
+
+- **Consumer**: Livelock warning is now per TopicPartition.
+
+- **Cython**: Add missing attribute in Cython class
+
+  Fix contributed by Martin Maillard (:github_user:`martinmaillard`).
+
+- **Distribution**: Removed broken gevent support
+  (Issue #182, Issue #272).
+
+  Removed all traces of gevent as the ``aiogevent`` project has been removed
+  from PyPI.
+
+  Contributed by Bryant Biggs (:github_user:`bryantbiggs`).
+
+- Documentation fixes by:
+
+  + Bryant Biggs (:github_user:`bryantbiggs`).
+
 .. _version-1.8.0:
 
 1.8.0
