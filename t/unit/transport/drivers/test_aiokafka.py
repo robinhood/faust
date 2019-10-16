@@ -384,7 +384,11 @@ class test_AIOKafkaConsumerThread:
             tracer = app.tracer.get_tracer.return_value
             tracer.start_span.assert_called_once_with(
                 operation_name='test')
-            span.set_tag.assert_called_once_with(tags.SAMPLING_PRIORITY, 1)
+            span.set_tag.assert_has_calls([
+                call(tags.SAMPLING_PRIORITY, 1),
+                call('faust_app', app.conf.name),
+                call('faust_id', app.conf.id),
+            ])
             s.assert_called_once_with(span)
             assert span is tracer.start_span.return_value
 

@@ -204,6 +204,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         )
         with span:
             assignment = self._assign(cluster, member_metadata)
+            self.app._span_add_default_tags(span)
             span.set_tag('assignment', assignment)
         return assignment
 

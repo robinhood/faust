@@ -287,6 +287,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                 operation_name=name,
             )
             span.set_tag(tags.SAMPLING_PRIORITY, 1)
+            self.app._span_add_default_tags(span)
             set_current_span(span)
             return span
         else:
