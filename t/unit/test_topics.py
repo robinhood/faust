@@ -276,6 +276,7 @@ class test_Topic:
             key_serializer='kser',
             value_serializer='vser',
             callback=callback,
+            eager_partitioning=False,
         )
         assert fut is topic.as_future_message.return_value
 

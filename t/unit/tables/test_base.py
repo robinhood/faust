@@ -126,6 +126,7 @@ class test_Collection:
             key_serializer='json',
             value_serializer='json',
             callback=table._on_changelog_sent,
+            eager_partitioning=True,
         )
 
     def test_send_changelog__custom_serializers(self, *, table):
@@ -143,6 +144,7 @@ class test_Collection:
             key_serializer='raw',
             value_serializer='raw',
             callback=table._on_changelog_sent,
+            eager_partitioning=True,
         )
 
     def test_send_changelog__no_current_event(self, *, table):
@@ -480,3 +482,9 @@ class test_Collection:
 
     def test_repr_info(self, *, table):
         assert table._repr_info() == table.name
+
+    def test_partition_for_key__partitioner(self, *, table, app):
+        table.use_partitioner = True
+
+        partition = None
+        assert table.partition_for_key('k') is partition

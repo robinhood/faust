@@ -31,6 +31,7 @@ cdef class StreamIterator:
         object app
         object topics
         object acks_enabled_for
+        object _skipped_value
 
     def __init__(self, object stream):
         self.stream = stream
@@ -158,8 +159,6 @@ cdef class StreamIterator:
                 message.tracked = True
                 self.add_unacked(message)
                 self.on_message_in(tp, offset, message)
-                if consumer._last_batch is None:
-                    consumer._last_batch = monotonic()
 
                 stream_state = self.on_stream_event_in(
                     tp, offset, self.stream, event)

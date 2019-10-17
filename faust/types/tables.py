@@ -28,7 +28,7 @@ from .events import EventT
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT
-from .tuples import TP
+from .tuples import FutureMessage, TP
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -138,15 +138,15 @@ class CollectionT(ServiceT, JoinableT):
 
     @abc.abstractmethod
     def send_changelog(self,
-                       partition: int,
+                       partition: Optional[int],
                        key: Any,
                        value: Any,
                        key_serializer: CodecArg = None,
-                       value_serializer: CodecArg = None) -> None:
+                       value_serializer: CodecArg = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod
-    def partition_for_key(self, key: Any) -> int:
+    def partition_for_key(self, key: Any) -> Optional[int]:
         ...
 
     @abc.abstractmethod

@@ -242,23 +242,25 @@ class Collection(Service, CollectionT):
         self.data.reset_state()
 
     def send_changelog(self,
-                       partition: int,
+                       partition: Optional[int],
                        key: Any,
                        value: Any,
                        key_serializer: CodecArg = None,
-                       value_serializer: CodecArg = None) -> None:
+                       value_serializer: CodecArg = None) -> FutureMessage:
         """Send modification event to changelog topic."""
         if key_serializer is None:
             key_serializer = self.key_serializer
         if value_serializer is None:
             value_serializer = self.value_serializer
-        self.changelog_topic.send_soon(
+        return self.changelog_topic.send_soon(
             key=key,
             value=value,
             partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=self._on_changelog_sent,
+            # Ensures final partition number is ready in ret.message.partition
+            eager_partitioning=True,
         )
 
     def _send_changelog(self,
@@ -270,16 +272,23 @@ class Collection(Service, CollectionT):
         # XXX compat version of send_changelog that needs event argument.
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
-        return self.send_changelog(
+        self.send_changelog(
             event.message.partition,
             key, value, key_serializer, value_serializer)
 
-    def partition_for_key(self, key: Any) -> int:
+    def partition_for_key(self, key: Any) -> Optional[int]:
+        """Return partition number for table key.
+c
+        Note:
+            If :attr:`use_partitioner` is enabled this always returns
+            :const:`None`.
+
+        Returns:
+            Optional[int]: specific partition or :const:`None` if
+                the producer should select partition using its partitioner.
+        """
         if self.use_partitioner:
-            partition = self.app.consumer.key_partition(
-                self.changelog_topic_name, key, None)
-            assert partition
-            return partition
+            return None
         else:
             event = current_event()
             if event is None:

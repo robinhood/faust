@@ -11,12 +11,26 @@ from faust.cli.base import (
     DEFAULT_LOGLEVEL,
     _Group,
     _prepare_cli,
+    argument,
     compat_option,
     find_app,
+    option,
 )
 from faust.types._env import BLOCKING_TIMEOUT, CONSOLE_PORT
 from mode import Worker
 from mode.utils.mocks import AsyncMock, Mock, call, patch
+
+
+class test_argument:
+
+    def test_repr(self):
+        assert repr(argument(default=1))
+
+
+class test_option:
+
+    def test_repr(self):
+        assert repr(option('--foo', '--bar', default=1))
 
 
 def test_call_command():

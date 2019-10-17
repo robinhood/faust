@@ -39,8 +39,8 @@ BUNDLES = {
     'setproctitle',
     'statsd',
     'uvloop',
-    'gevent',
     'eventlet',
+    'yaml',
 }
 CFLAGS = ['-O2']
 LDFLAGS = []

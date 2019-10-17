@@ -201,7 +201,8 @@ class Topic(SerializedChannel, TopicT):
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
-                  force: bool = False) -> FutureMessage:
+                  force: bool = False,
+                  eager_partitioning: bool = False) -> FutureMessage:
         """Produce message by adding to buffer.
 
         Notes:
@@ -218,6 +219,7 @@ class Topic(SerializedChannel, TopicT):
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
+            eager_partitioning=eager_partitioning,
         )
         self.app.producer.send_soon(fut)
         return fut

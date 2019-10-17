@@ -21,7 +21,7 @@ def test_interface():
     assert s.__or__(1) is NotImplemented
 
 
-@pytest.mark.parametrize('codec', ['json', 'pickle'])
+@pytest.mark.parametrize('codec', ['json', 'pickle', 'yaml'])
 def test_json_subset(codec: str) -> None:
     assert loads(codec, dumps(codec, DATA)) == DATA
 

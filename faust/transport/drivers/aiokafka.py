@@ -287,6 +287,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                 operation_name=name,
             )
             span.set_tag(tags.SAMPLING_PRIORITY, 1)
+            self.app._span_add_default_tags(span)
             set_current_span(span)
             return span
         else:
@@ -645,14 +646,12 @@ class Producer(base.Producer):
         await super().on_start()
         producer = self._producer = self._new_producer()
         self.beacon.add(producer)
-        self._last_batch = None
         await producer.start()
 
     async def on_stop(self) -> None:
         """Call when producer stops."""
         await super().on_stop()
         cast(Transport, self.transport)._topic_waiters.clear()
-        self._last_batch = None
         producer, self._producer = self._producer, None
         if producer is not None:
             await producer.stop()

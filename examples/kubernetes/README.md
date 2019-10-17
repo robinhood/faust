@@ -26,9 +26,9 @@ which we have named `test`
 1. Start the Kafka cluster locally.
 2. Start the Kubernetes cluster locally using Docker for Mac.
 3. Build the producer docker image `docker build producer/ -t producer`
-4. Run the producer as a [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) `kubectl apply -f producer/producer.yaml`
+4. Run the producer as a [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) `kubectl apply -f producer/producer.yml`
 5. Build the consumer docker image `docker build consumer/ -t consumer`
-6. Run the consumer as a [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) `kubectl apply -f consumer/consumer.yaml`
+6. Run the consumer as a [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) `kubectl apply -f consumer/consumer.yml`
 7. To re-run the producer:
 ```bash
 4. To send a second batch of 10,000 messages

@@ -21,6 +21,7 @@ from faust.transport.consumer import Consumer, Fetcher
 from faust.types import TP
 from faust.types.models import ModelT
 from faust.types.settings import Settings
+from faust.types.tables import GlobalTableT
 from faust.types.web import ResourceOptions
 from mode import Service
 from mode.utils.compat import want_bytes
@@ -782,9 +783,19 @@ class test_App:
         table = app.Table('name')
         assert app.tables.data['name'] is table
 
+    def test_GlobalTable(self, *, app):
+        table = app.GlobalTable('name')
+        assert app.tables.data['name'] is table
+        assert isinstance(app.tables.data['name'], GlobalTableT)
+
     def test_SetTable(self, *, app):
         table = app.SetTable('name')
         assert app.tables.data['name'] is table
+
+    def test_SetGlobalTable(self, *, app):
+        table = app.SetGlobalTable('name')
+        assert app.tables.data['name'] is table
+        assert isinstance(app.tables.data['name'], GlobalTableT)
 
     def test_page(self, *, app):
 

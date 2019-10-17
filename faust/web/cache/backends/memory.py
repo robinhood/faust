@@ -31,11 +31,11 @@ class CacheStorage(Generic[KT, VT]):
         """Get value for key, or :const:`None` if missing."""
         with suppress(KeyError):
             expires = self._expires[key]
+            time_set = self._time_index[key]
             now = TIME_MONOTONIC()
-            if now - self._time_index[key] > expires:
+            if time_set is None or now - time_set > expires:
                 self.delete(key)
                 return None
-            self._time_index[key] = now
 
         with suppress(KeyError):
             return self._data[key]
@@ -47,7 +47,7 @@ class CacheStorage(Generic[KT, VT]):
 
     def expire(self, key: KT) -> None:
         """Expire value for key immediately."""
-        self._time_index[key] -= self._expires[key]
+        self.delete(key)
 
     def set(self, key: KT, value: VT) -> None:
         """Set value for key."""

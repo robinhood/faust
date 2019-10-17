@@ -418,6 +418,7 @@ class test_Monitor:
         mon.events_runtime = deque(range(100))
         mon.rebalance_return_latency = deque(range(100))
         mon.rebalance_end_latency = deque(range(100))
+        mon.http_response_latency = deque(range(100))
         prev_event_total = 0
         prev_message_total = 0
         mon._sample(prev_event_total, prev_message_total)
@@ -427,3 +428,5 @@ class test_Monitor:
 
         assert mon.rebalance_return_avg == median(mon.rebalance_return_latency)
         assert mon.rebalance_end_avg == median(mon.rebalance_end_latency)
+        assert mon.http_response_latency_avg == median(
+            mon.http_response_latency)

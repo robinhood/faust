@@ -582,13 +582,13 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_seek(self, *, consumer):
-        consumer._last_batch = 123.3
+        consumer._last_batch[TP1] = 123.3
         consumer._read_offset[TP1] = 301
         consumer._seek = AsyncMock()
 
         await consumer.seek(TP1, 401)
 
-        assert consumer._last_batch is None
+        assert consumer._last_batch.get(TP1) is None
         assert consumer._read_offset[TP1] == 401
         consumer._seek.assert_called_once_with(TP1, 401)
 
@@ -724,9 +724,9 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_on_stop(self, *, consumer):
         consumer.app.conf.stream_wait_empty = False
-        consumer._last_batch = 30.3
+        consumer._last_batch[TP1] = 30.3
         await consumer.on_stop()
-        assert consumer._last_batch is None
+        assert consumer._last_batch == {}
 
         with pytest.warns(AlreadyConfiguredWarning):
             consumer.app.conf.stream_wait_empty = True
@@ -977,6 +977,20 @@ class test_Consumer:
         consumer.commit = AsyncMock(name='commit')
         await consumer.on_task_error(KeyError())
         consumer.commit.assert_called_once_with()
+
+    def test__add_gap(self, *, consumer):
+        tp = TP1
+        consumer._committed_offset[tp] = 299
+        consumer._add_gap(TP1, 300, 343)
+
+        assert consumer._gap[tp] == list(range(300, 343))
+
+    def test__add_gap__previous_to_committed(self, *, consumer):
+        tp = TP1
+        consumer._committed_offset[tp] = 400
+        consumer._add_gap(TP1, 300, 343)
+
+        assert consumer._gap[tp] == []
 
     @pytest.mark.asyncio
     async def test_commit_handler(self, *, consumer):

@@ -13,3 +13,4 @@ pytz>=2018.7
 -r extras/datadog.txt
 -r extras/redis.txt
 -r extras/statsd.txt
+-r extras/yaml.txt

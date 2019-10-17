@@ -1,5 +1,6 @@
 from faust.tables.table import Table
+from faust.types.tables import GlobalTableT
 
 
-class GlobalTable(Table):
+class GlobalTable(Table, GlobalTableT):
     pass

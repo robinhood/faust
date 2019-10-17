@@ -235,6 +235,7 @@ class Recovery(Service):
                 'recovery',
                 child_of=app._rebalancing_span,
             )
+            app._span_add_default_tags(self._recovery_span)
         self.signal_recovery_reset.clear()
         self.signal_recovery_start.set()
 
@@ -293,6 +294,7 @@ class Recovery(Service):
                 span = tracer.start_span(
                     'recovery-thread',
                     child_of=self._recovery_span)
+                self.app._span_add_default_tags(span)
                 spans.extend([span, self._recovery_span])
             T = traced_from_parent_span(span)
 
@@ -357,6 +359,7 @@ class Recovery(Service):
                             child_of=span,
                             tags={'Active-Stats': self.active_stats()},
                         )
+                        self.app._span_add_default_tags(span)
                     try:
                         self.signal_recovery_end.clear()
                         await self._wait(self.signal_recovery_end)
@@ -414,6 +417,7 @@ class Recovery(Service):
                             child_of=span,
                             tags={'Standby-Stats': self.standby_stats()},
                         )
+                        self.app._span_add_default_tags(span)
                     self.log.dev('Resume standby partitions')
                     T(consumer.resume_partitions)(standby_tps)
 
