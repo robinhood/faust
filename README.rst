@@ -12,7 +12,7 @@
 :Web: http://faust.readthedocs.io/
 :Download: http://pypi.org/project/faust
 :Source: http://github.com/robinhood/faust
-:Keywords: distributed, stream, async, processing, data, queue
+:Keywords: distributed, stream, async, processing, data, queue, state management
 
 
 .. sourcecode:: python
