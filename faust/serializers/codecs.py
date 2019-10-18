@@ -208,7 +208,7 @@ class Codec(CodecT):
     def __init__(self, children: Tuple[CodecT, ...] = None,
                  **kwargs: Any) -> None:
         self.children = children or ()
-        self.nodes = (self,) + self.children  # type: ignore
+        self.nodes = (self,) + self.children
         self.kwargs = kwargs
 
     def _loads(self, s: bytes) -> Any:

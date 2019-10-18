@@ -676,8 +676,8 @@ class Settings(abc.ABC):
             GlobalTableT, GlobalTable or GLOBAL_TABLE_TYPE)
         self.SetGlobalTable = cast(
             GlobalTableT, SetGlobalTable or SET_GLOBAL_TABLE_TYPE)
-        self.agent_supervisor = (  # type: ignore
-            agent_supervisor or AGENT_SUPERVISOR_TYPE)
+        self.agent_supervisor = cast(  # type: ignore
+            SupervisorStrategyT, agent_supervisor or AGENT_SUPERVISOR_TYPE)
 
         self.Agent = cast(AgentT, Agent or AGENT_TYPE)
         self.ConsumerScheduler = cast(
