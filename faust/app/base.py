@@ -1480,11 +1480,10 @@ class App(AppT, Service):
         self._rebalancing_sensor_state = self.sensors.on_rebalance_start(self)
         if self.tracer:
             tracer = self.tracer.get_tracer('_faust')
-            span = self._rebalancing_span = tracer.start_span(
+            self._rebalancing_span = tracer.start_span(
                 operation_name='rebalance',
                 tags={'rebalancing_count': self.rebalancing_count},
             )
-            self._span_add_default_tags(span)
         self.tables.on_rebalance_start()
 
     def _span_add_default_tags(self, span: opentracing.Span) -> None:

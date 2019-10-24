@@ -1,6 +1,8 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
+import typing
 
+from collections import deque
 from typing import (
     Any,
     Awaitable,
@@ -15,11 +17,13 @@ from typing import (
     Tuple,
     Type,
     cast,
+    no_type_check,
 )
 
 import aiokafka
 import aiokafka.abc
 import opentracing
+from aiokafka.consumer.group_coordinator import OffsetCommitRequest
 from aiokafka.errors import (
     CommitFailedError,
     ConsumerStoppedError,
@@ -37,10 +41,12 @@ from kafka.errors import (
     for_code,
 )
 from kafka.partitioner.default import DefaultPartitioner
+from kafka.partitioner.hashed import murmur2
 from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds
+from mode.utils.typing import Deque
 from opentracing.ext import tags
 from yarl import URL
 
@@ -83,6 +89,8 @@ if not hasattr(aiokafka, '__robinhood__'):  # pragma: no cover
         'Please install robinhood-aiokafka, not aiokafka')
 
 logger = get_logger(__name__)
+
+DEFAULT_GENERATION_ID = OffsetCommitRequest.DEFAULT_GENERATION_ID
 
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
@@ -187,11 +195,13 @@ class Consumer(ThreadDelegateConsumer):
 
 class AIOKafkaConsumerThread(ConsumerThread):
     _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
+    _pending_rebalancing_spans: Deque[opentracing.Span]
 
     def __post_init__(self) -> None:
         self._partitioner: PartitionerT = (
             self.app.conf.producer_partitioner or DefaultPartitioner())
         self._rebalance_listener = self.consumer.RebalanceListener(self)
+        self._pending_rebalancing_spans = deque()
 
     async def on_start(self) -> None:
         """Call when consumer starts."""
@@ -255,6 +265,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             traced_from_parent_span=self.traced_from_parent_span,
             start_rebalancing_span=self.start_rebalancing_span,
             start_coordinator_span=self.start_coordinator_span,
+            on_generation_id_known=self.on_generation_id_known,
             **auth_settings,
         )
 
@@ -280,7 +291,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             **auth_settings,
         )
 
-    def _start_span(self, name: str) -> opentracing.Span:
+    def _start_span(self, name: str, *,
+                    lazy: bool = False) -> opentracing.Span:
         tracer = self.app.tracer
         if tracer is not None:
             span = tracer.get_tracer('_aiokafka').start_span(
@@ -289,17 +301,77 @@ class AIOKafkaConsumerThread(ConsumerThread):
             span.set_tag(tags.SAMPLING_PRIORITY, 1)
             self.app._span_add_default_tags(span)
             set_current_span(span)
+            if lazy:
+                self._transform_span_lazy(span)
             return span
         else:
             return noop_span()
 
+    @no_type_check
+    def _transform_span_lazy(self, span: opentracing.Span) -> None:
+        # XXX slow
+        consumer = self
+        if typing.TYPE_CHECKING:
+            # MyPy completely disallows the statements below
+            # claiming it is an illegal dynamic baseclass.
+            # We know mypy, but do it anyway :D
+            pass
+        else:
+            cls = span.__class__
+            class LazySpan(cls):
+
+                def finish() -> None:
+                    consumer._span_finish(span)
+
+            span._real_finish, span.finish = span.finish, LazySpan.finish
+
+    def _span_finish(self, span: opentracing.Span) -> None:
+        assert self._consumer is not None
+        if self._consumer._coordinator.generation == DEFAULT_GENERATION_ID:
+            self._on_span_generation_pending(span)
+        else:
+            self._on_span_generation_known(span)
+
+    def _on_span_generation_pending(self, span: opentracing.Span) -> None:
+        self._pending_rebalancing_spans.append(span)
+
+    def _on_span_generation_known(self, span: opentracing.Span) -> None:
+        if self._consumer:
+            coordinator = self._consumer._coordinator
+            coordinator_id = coordinator.coordinator_id
+            app_id = self.app.conf.id
+            op_name = span.operation_name
+            generation = coordinator.generation
+            member_id = coordinator.member_id
+
+            trace_id_str = f'reb-{app_id}-{generation}'
+            trace_id = murmur2(trace_id_str.encode())
+
+            span.context.trace_id = trace_id
+            if op_name.endswith('.REPLACE_WITH_MEMBER_ID'):
+                span.set_operation_name(f'rebalancing node {member_id}')
+            span.set_tag('kafka_generation', generation)
+            span.set_tag('kafka_member_id', member_id)
+            span.set_tag('kafka_coordinator_id', coordinator_id)
+            self.app._span_add_default_tags(span)
+            span._real_finish()
+
     def traced_from_parent_span(self,
                                 parent_span: opentracing.Span,
+                                lazy: bool = False,
                                 **extra_context: Any) -> Callable:
-        return traced_from_parent_span(parent_span, **extra_context)
+        return traced_from_parent_span(
+            parent_span,
+            callback=self._transform_span_lazy if lazy else None,
+            **extra_context)
+
+    def on_generation_id_known(self) -> None:
+        while self._pending_rebalancing_spans:
+            span = self._pending_rebalancing_spans.popleft()
+            self._on_span_generation_known(span)
 
     def start_rebalancing_span(self) -> opentracing.Span:
-        return self._start_span('rebalancing')
+        return self._start_span('rebalancing', lazy=True)
 
     def start_coordinator_span(self) -> opentracing.Span:
         return self._start_span('coordinator')

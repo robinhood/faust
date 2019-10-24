@@ -65,6 +65,7 @@ def operation_name_from_fun(fun: Any) -> str:
 
 
 def traced_from_parent_span(parent_span: opentracing.Span = None,
+                            callback: Callable = None,
                             **extra_context: Any) -> Callable:
     """Decorate function to be traced from parent span."""
     def _wrapper(fun: Callable, **more_context: Any) -> Callable:
@@ -80,10 +81,12 @@ def traced_from_parent_span(parent_span: opentracing.Span = None,
                     child_of=parent,
                     tags={**extra_context, **more_context},
                 )
-                callback = (_restore_span, (parent, child))
+                if callback is not None:
+                    callback(child)
+                on_exit = (_restore_span, (parent, child))
                 set_current_span(child)
                 return call_with_trace(
-                    child, fun, callback, *args, **kwargs)
+                    child, fun, on_exit, *args, **kwargs)
             return fun(*args, **kwargs)
         return _inner
     return _wrapper
