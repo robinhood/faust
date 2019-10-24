@@ -1330,7 +1330,8 @@ class App(AppT, Service):
     def _start_span_from_rebalancing(self, name: str) -> opentracing.Span:
         rebalancing_span = self._rebalancing_span
         if rebalancing_span is not None and self.tracer is not None:
-            span = self.tracer.get_tracer('_faust').start_span(
+            category = f'_faust-{self.conf.name}'
+            span = self.tracer.get_tracer(category).start_span(
                 operation_name=name,
                 child_of=rebalancing_span,
             )
@@ -1479,7 +1480,8 @@ class App(AppT, Service):
                              self._rebalancing_sensor_state)
         self._rebalancing_sensor_state = self.sensors.on_rebalance_start(self)
         if self.tracer:
-            tracer = self.tracer.get_tracer('_faust')
+            category = f'_faust-{self.conf.name}'
+            tracer = self.tracer.get_tracer(category)
             self._rebalancing_span = tracer.start_span(
                 operation_name='rebalance',
                 tags={'rebalancing_count': self.rebalancing_count},

@@ -45,6 +45,7 @@ from kafka.partitioner.hashed import murmur2
 from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
+from mode.utils.objects import cached_property
 from mode.utils.times import Seconds, want_seconds
 from mode.utils.typing import Deque
 from opentracing.ext import tags
@@ -291,11 +292,15 @@ class AIOKafkaConsumerThread(ConsumerThread):
             **auth_settings,
         )
 
+    @cached_property
+    def trace_category(self) -> str:
+        return f'_aiokafka-{self.app.conf.name}'
+
     def _start_span(self, name: str, *,
                     lazy: bool = False) -> opentracing.Span:
         tracer = self.app.tracer
         if tracer is not None:
-            span = tracer.get_tracer('_aiokafka').start_span(
+            span = tracer.get_tracer(self.trace_category).start_span(
                 operation_name=name,
             )
             span.set_tag(tags.SAMPLING_PRIORITY, 1)
