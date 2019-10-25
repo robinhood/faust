@@ -1023,7 +1023,7 @@ class Consumer(Service, ConsumerT):
                 await self.sleep(0)
                 if not self.should_stop:
                     async for tp, message in ait:
-                        if 'changelog' not in tp.topic:
+                        if 'changelog' not in tp.topic and self._committed_offset.get(tp) != self._read_offset.get(tp):
                             last_batch[tp] = monotonic()
                         offset = message.offset
                         r_offset = get_read_offset(tp)
