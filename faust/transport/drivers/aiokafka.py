@@ -267,6 +267,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             start_rebalancing_span=self.start_rebalancing_span,
             start_coordinator_span=self.start_coordinator_span,
             on_generation_id_known=self.on_generation_id_known,
+            flush_spans=self.flush_spans,
             **auth_settings,
         )
 
@@ -361,6 +362,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
             self.app._span_add_default_tags(span)
             span._real_finish()
 
+    def _on_span_cancelled_early(self, span: opentracing.Span) -> None:
+        op_name = span.operation_name
+        span.set_operation_name(f'{op_name} (CANCELLED)')
+        span._real_finish()
+
     def traced_from_parent_span(self,
                                 parent_span: opentracing.Span,
                                 lazy: bool = False,
@@ -369,6 +375,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
             parent_span,
             callback=self._transform_span_lazy if lazy else None,
             **extra_context)
+
+    def flush_spans(self) -> None:
+        while self._pending_rebalancing_spans:
+            span = self._pending_rebalancing_spans.popleft()
+            self._on_span_cancelled_early(span)
 
     def on_generation_id_known(self) -> None:
         while self._pending_rebalancing_spans:
