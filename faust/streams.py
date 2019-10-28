@@ -570,7 +570,7 @@ class Stream(StreamT[T_co], Service):
         else:
 
             prefix = ''
-            if self.prefix and not self.channel.has_prefix:
+            if self.prefix and not cast(TopicT, self.channel).has_prefix:
                 prefix = self.prefix + '-'
             suffix = f'-{name}-repartition'
             p = partitions if partitions else self.app.conf.topic_partitions

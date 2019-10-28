@@ -162,7 +162,7 @@ def test_group_by_callback_must_have_name(app):
 
 @pytest.mark.asyncio
 async def test_group_by__with_prefix(app):
-    expected_topic = 'test-foo.bar.baz-funtest-FooModel.foo-repartition'
+    expected_topic = 'foo.bar.baz-test-FooModel.foo-repartition'
     async with new_topic_stream(app) as stream:
         stream.prefix = 'foo.bar.baz'
         stream._enable_passive = Mock()
