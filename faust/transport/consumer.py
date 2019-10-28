@@ -1030,8 +1030,8 @@ class Consumer(Service, ConsumerT):
                                 .acks_enabled_for(message.topic)
                             gap = offset - (r_offset or 0)
                             # We have a gap in income messages
-                            if acks_enabled and gap > 1:
-                                self._add_gap(tp, (r_offset or 0) + 1, offset)
+                            if acks_enabled and gap > 1 and r_offset:
+                                self._add_gap(tp, r_offset + 1, offset)
                             if commit_every is not None:
                                 if self._n_acked >= commit_every:
                                     self._n_acked = 0
