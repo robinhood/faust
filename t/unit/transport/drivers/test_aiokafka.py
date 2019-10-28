@@ -1,7 +1,8 @@
 from contextlib import contextmanager
-import faust
-import pytest
 import aiokafka
+import faust
+import opentracing
+import pytest
 from aiokafka.errors import CommitFailedError, IllegalStateError, KafkaError
 from aiokafka.structs import OffsetAndMetadata, TopicPartition
 from opentracing.ext import tags
@@ -233,6 +234,23 @@ class test_AIOKafkaConsumerThread:
         return AIOKafkaConsumerThread(consumer)
 
     @pytest.fixture()
+    def tracer(self, *, app):
+        tracer = app.tracer = Mock(name='tracer')
+        tobj = tracer.get_tracer.return_value
+
+        def start_span(operation_name=None, **kwargs):
+            span = opentracing.Span(
+                tracer=tobj,
+                context=opentracing.SpanContext(),
+            )
+            span.operation_name = operation_name
+            assert span.operation_name == operation_name
+            return span
+
+        tobj.start_span = start_span
+        return tracer
+
+    @pytest.fixture()
     def _consumer(self):
         return Mock(
             name='AIOKafkaConsumer',
@@ -349,6 +367,8 @@ class test_AIOKafkaConsumerThread:
                 traced_from_parent_span=cthread.traced_from_parent_span,
                 start_rebalancing_span=cthread.start_rebalancing_span,
                 start_coordinator_span=cthread.start_coordinator_span,
+                on_generation_id_known=cthread.on_generation_id_known,
+                flush_spans=cthread.flush_spans,
                 **auth_settings,
             )
 
@@ -380,7 +400,8 @@ class test_AIOKafkaConsumerThread:
         with patch(TESTED_MODULE + '.set_current_span') as s:
             app.tracer = Mock(name='tracer')
             span = cthread._start_span('test')
-            app.tracer.get_tracer.assert_called_once_with('_aiokafka')
+            app.tracer.get_tracer.assert_called_once_with(
+                f'{app.conf.name}-_aiokafka')
             tracer = app.tracer.get_tracer.return_value
             tracer.start_span.assert_called_once_with(
                 operation_name='test')
@@ -392,6 +413,82 @@ class test_AIOKafkaConsumerThread:
             s.assert_called_once_with(span)
             assert span is tracer.start_span.return_value
 
+    def test_trace_category(self, *, cthread, app):
+        assert cthread.trace_category == f'{app.conf.name}-_aiokafka'
+
+    def test_transform_span_lazy(self, *, cthread, app, tracer):
+        cthread._consumer = Mock(name='_consumer')
+        cthread._consumer._coordinator.generation = -1
+        self.assert_setup_lazy_spans(cthread, app, tracer)
+
+        cthread._consumer._coordinator.generation = 10
+        pending = cthread._pending_rebalancing_spans
+        assert len(pending) == 3
+
+        cthread.on_generation_id_known()
+        assert not pending
+
+    def test_transform_span_flush_spans(self, *, cthread, app, tracer):
+        cthread._consumer = Mock(name='_consumer')
+        cthread._consumer._coordinator.generation = -1
+        self.assert_setup_lazy_spans(cthread, app, tracer)
+        pending = cthread._pending_rebalancing_spans
+        assert len(pending) == 3
+
+        cthread.flush_spans()
+        assert not pending
+
+    def test_transform_span_lazy_no_consumer(self, *, cthread, app, tracer):
+        cthread._consumer = Mock(name='_consumer')
+        cthread._consumer._coordinator.generation = -1
+        self.assert_setup_lazy_spans(cthread, app, tracer)
+
+        cthread._consumer = None
+        pending = cthread._pending_rebalancing_spans
+        assert len(pending) == 3
+
+        while pending:
+            span = pending.popleft()
+            cthread._on_span_generation_known(span)
+
+    def test_transform_span_eager(self, *, cthread, app, tracer):
+        cthread._consumer = Mock(name='_consumer')
+        cthread._consumer._coordinator.generation = 10
+        self.assert_setup_lazy_spans(cthread, app, tracer, expect_lazy=False)
+
+    def assert_setup_lazy_spans(self, cthread, app, tracer, expect_lazy=True):
+        got_foo = got_bar = got_baz = False
+
+        def foo():
+            nonlocal got_foo
+            got_foo = True
+            T = cthread.traced_from_parent_span(None, lazy=True)
+            T(bar)()
+
+        def bar():
+            nonlocal got_bar
+            got_bar = True
+            T = cthread.traced_from_parent_span(None, lazy=True)
+            T(REPLACE_WITH_MEMBER_ID)()
+
+        def REPLACE_WITH_MEMBER_ID():
+            nonlocal got_baz
+            got_baz = True
+
+        with cthread.start_rebalancing_span() as span:
+            T = cthread.traced_from_parent_span(span)
+            T(foo)()
+            if expect_lazy:
+                assert len(cthread._pending_rebalancing_spans) == 2
+
+        assert got_foo
+        assert got_bar
+        assert got_baz
+        if expect_lazy:
+            assert len(cthread._pending_rebalancing_spans) == 3
+        else:
+            assert not cthread._pending_rebalancing_spans
+
     def test__start_span__no_tracer(self, *, cthread, app):
         app.tracer = None
         with cthread._start_span('test') as span:
@@ -401,14 +498,14 @@ class test_AIOKafkaConsumerThread:
         with patch(TESTED_MODULE + '.traced_from_parent_span') as traced:
             parent_span = Mock(name='parent_span')
             ret = cthread.traced_from_parent_span(parent_span, foo=303)
-            traced.assert_called_once_with(parent_span, foo=303)
+            traced.assert_called_once_with(parent_span, callback=None, foo=303)
             assert ret is traced.return_value
 
     def test_start_rebalancing_span(self, *, cthread):
         cthread._start_span = Mock()
         ret = cthread.start_rebalancing_span()
         assert ret is cthread._start_span.return_value
-        cthread._start_span.assert_called_once_with('rebalancing')
+        cthread._start_span.assert_called_once_with('rebalancing', lazy=True)
 
     def test_start_coordinator_span(self, *, cthread):
         cthread._start_span = Mock()
