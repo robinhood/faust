@@ -1142,6 +1142,9 @@ class App(AppT, Service):
                 default=default,
                 beacon=self.beacon,
                 partitions=partitions,
+                # we want to apply standby changes
+                # as they come min (using 1 buffer size).
+                standby_buffer_size=1,
                 help=help,
                 **kwargs))
         return gtable.using_window(window) if window else gtable
