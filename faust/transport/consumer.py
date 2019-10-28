@@ -781,10 +781,11 @@ class Consumer(Service, ConsumerT):
     async def _commit_livelock_detector(self) -> None:  # pragma: no cover
         soft_timeout = self.commit_livelock_soft_timeout
         interval: float = self.commit_interval * 2.5
+        acks_enabled_for = self.app.topics.acks_enabled_for
         await self.sleep(interval)
         async for sleep_time in self.itertimer(interval, name='livelock'):
             for tp, last_batch_time in self._last_batch.items():
-                if last_batch_time:
+                if last_batch_time and acks_enabled_for(tp.topic):
                     s_since_batch = monotonic() - last_batch_time
                     if s_since_batch > soft_timeout:
                         self.log.warning(
@@ -1007,10 +1008,12 @@ class Consumer(Service, ConsumerT):
 
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
+        get_commit_offset = self.committed_offsets.__getitem__
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
         commit_every = self._commit_every
+        acks_enabled_for = self.app.topics.acks_enabled_for
 
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
@@ -1023,20 +1026,18 @@ class Consumer(Service, ConsumerT):
                 await self.sleep(0)
                 if not self.should_stop:
                     async for tp, message in ait:
-                        committed_offset = self._committed_offset.get(tp)
-                        read_offset = self._read_offset.get(tp)
-                        check_to_commit = committed_offset != read_offset
-                        if 'changelog' not in tp.topic and check_to_commit:
-                            last_batch[tp] = monotonic()
                         offset = message.offset
                         r_offset = get_read_offset(tp)
+                        committed_offset = get_commit_offset(tp)
+                        if committed_offset != r_offset:
+                            last_batch[tp] = monotonic()
                         if r_offset is None or offset > r_offset:
-                            acks_enabled = self.app.topics \
-                                .acks_enabled_for(message.topic)
                             gap = offset - (r_offset or 0)
                             # We have a gap in income messages
-                            if acks_enabled and gap > 1 and r_offset:
-                                self._add_gap(tp, r_offset + 1, offset)
+                            if gap > 1 and r_offset:
+                                acks_enabled = acks_enabled_for(message.topic)
+                                if acks_enabled:
+                                    self._add_gap(tp, r_offset + 1, offset)
                             if commit_every is not None:
                                 if self._n_acked >= commit_every:
                                     self._n_acked = 0
