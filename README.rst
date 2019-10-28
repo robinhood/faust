@@ -285,6 +285,12 @@ Caching
 :``faust[redis]``:
     for using `Redis_` as a simple caching backend (Memcached-style).
 
+Codecs
+~~~~~~
+
+:``faust[yaml]``:
+    for using YAML and the ``PyYAML`` library in streams.
+
 Optimization
 ~~~~~~~~~~~~
 
@@ -363,8 +369,7 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use ``eventlet`` as a bridge to integrate with
-``asyncio``.
+Yes! Use ``eventlet`` as a bridge to integrate with ``asyncio``.
 
 
 Using ``eventlet``
