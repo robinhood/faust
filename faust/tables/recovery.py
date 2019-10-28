@@ -169,8 +169,9 @@ class Recovery(Service):
                                       topics: Set[TP]) -> None:
         """Add standby topics for global table."""
         for tp in topics:
-            # No need to add table's own topic.
-            if tp != active_topic:
+            table = self.tables._changelogs.get(tp.topic)
+            if table is gtable and tp != active_topic:
+                # No need to add table's own topic.
                 self.add_standby(gtable, tp)
 
     def _add(self, table: CollectionT, tp: TP, offsets: Counter[TP]) -> None:
