@@ -499,7 +499,7 @@ Slack
 
 Come chat with us on Slack:
 
-https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTRkM2Q2ODkwZTk5MzczNmUxOGU0NWYxNzA2YzYwNTAyZmRiOTRmMzkyMDk0ODY2MjIzOTg2NGI0ODlmNTYxNTc
+https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg
 
 Resources
 =========
