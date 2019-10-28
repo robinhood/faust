@@ -352,21 +352,26 @@ class AIOKafkaConsumerThread(ConsumerThread):
             coordinator = self._consumer._coordinator
             coordinator_id = coordinator.coordinator_id
             app_id = self.app.conf.id
-            op_name = span.operation_name
             generation = coordinator.generation
             member_id = coordinator.member_id
 
-            trace_id_str = f'reb-{app_id}-{generation}'
-            trace_id = murmur2(trace_id_str.encode())
+            try:
+                op_name = span.operation_name
+                set_tag = span.set_tag
+            except AttributeError:  # not a real span
+                pass
+            else:
+                trace_id_str = f'reb-{app_id}-{generation}'
+                trace_id = murmur2(trace_id_str.encode())
 
-            span.context.trace_id = trace_id
-            if op_name.endswith('.REPLACE_WITH_MEMBER_ID'):
-                span.set_operation_name(f'rebalancing node {member_id}')
-            span.set_tag('kafka_generation', generation)
-            span.set_tag('kafka_member_id', member_id)
-            span.set_tag('kafka_coordinator_id', coordinator_id)
-            self.app._span_add_default_tags(span)
-            span._real_finish()
+                span.context.trace_id = trace_id
+                if op_name.endswith('.REPLACE_WITH_MEMBER_ID'):
+                    span.set_operation_name(f'rebalancing node {member_id}')
+                set_tag('kafka_generation', generation)
+                set_tag('kafka_member_id', member_id)
+                set_tag('kafka_coordinator_id', coordinator_id)
+                self.app._span_add_default_tags(span)
+                span._real_finish()
 
     def _on_span_cancelled_early(self, span: opentracing.Span) -> None:
         op_name = span.operation_name

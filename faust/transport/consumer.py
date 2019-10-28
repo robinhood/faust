@@ -1008,7 +1008,7 @@ class Consumer(Service, ConsumerT):
 
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
-        get_commit_offset = self.committed_offsets.__getitem__
+        get_commit_offset = self._committed_offset.__getitem__
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
