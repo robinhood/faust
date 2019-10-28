@@ -295,7 +295,13 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
     @cached_property
     def trace_category(self) -> str:
-        return f'_aiokafka-{self.app.conf.name}'
+        return f'{self.app.conf.name}-_aiokafka'
+
+    def start_rebalancing_span(self) -> opentracing.Span:
+        return self._start_span('rebalancing', lazy=True)
+
+    def start_coordinator_span(self) -> opentracing.Span:
+        return self._start_span('coordinator')
 
     def _start_span(self, name: str, *,
                     lazy: bool = False) -> opentracing.Span:
@@ -385,12 +391,6 @@ class AIOKafkaConsumerThread(ConsumerThread):
         while self._pending_rebalancing_spans:
             span = self._pending_rebalancing_spans.popleft()
             self._on_span_generation_known(span)
-
-    def start_rebalancing_span(self) -> opentracing.Span:
-        return self._start_span('rebalancing', lazy=True)
-
-    def start_coordinator_span(self) -> opentracing.Span:
-        return self._start_span('coordinator')
 
     def close(self) -> None:
         """Close consumer for graceful shutdown."""
