@@ -936,7 +936,8 @@ class Consumer(Service, ConsumerT):
                 on_timeout.info('-tables.on_commit')
         self._committed_offset.update(committable_offsets)
         self.app.monitor.on_tp_commit(committable_offsets)
-        self._last_batch.update((tp, None) for tp in offsets)
+        for tp in offsets:
+            self._last_batch.pop(tp, None)
         return did_commit
 
     def _filter_tps_with_pending_acks(
@@ -1022,7 +1023,11 @@ class Consumer(Service, ConsumerT):
                 await self.sleep(0)
                 if not self.should_stop:
                     async for tp, message in ait:
-                        last_batch[tp] = monotonic()
+                        committed_offset = self._committed_offset.get(tp)
+                        read_offset = self._read_offset.get(tp)
+                        check_to_commit = committed_offset != read_offset
+                        if 'changelog' not in tp.topic and check_to_commit:
+                            last_batch[tp] = monotonic()
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         if r_offset is None or offset > r_offset:
