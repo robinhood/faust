@@ -568,13 +568,14 @@ class Stream(StreamT[T_co], Service):
         if topic is not None:
             channel = topic
         else:
-            prefix = self.prefix
-            if prefix:
-                prefix = '-' + prefix.lstrip('-')
-            suffix = f'{prefix}-{self.app.conf.id}-{name}-repartition'
+
+            prefix = ''
+            if self.prefix and not self.channel.has_prefix:
+                prefix = self.prefix + '-'
+            suffix = f'-{name}-repartition'
             p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
-                suffix=suffix, partitions=p, internal=True)
+                prefix=prefix, suffix=suffix, partitions=p, internal=True)
         format_key = self._format_key
 
         channel_it = aiter(channel)

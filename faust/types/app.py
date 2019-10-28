@@ -214,6 +214,7 @@ class AppT(ServiceT):
               config: Mapping[str, Any] = None,
               maxsize: int = None,
               allow_empty: bool = False,
+              has_prefix: bool = False,
               loop: asyncio.AbstractEventLoop = None) -> TopicT:
         ...
 

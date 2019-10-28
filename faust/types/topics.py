@@ -51,6 +51,8 @@ class TopicT(ChannelT):
     #: to create or delete the topic as necessary.
     internal: bool
 
+    has_prefix: bool = False
+
     active_partitions: Optional[Set[TP]]
 
     @abc.abstractmethod
@@ -78,6 +80,7 @@ class TopicT(ChannelT):
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
                  allow_empty: bool = False,
+                 has_prefix: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

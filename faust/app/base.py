@@ -752,6 +752,7 @@ class App(AppT, Service):
               config: Mapping[str, Any] = None,
               maxsize: int = None,
               allow_empty: bool = False,
+              has_prefix: bool = False,
               loop: asyncio.AbstractEventLoop = None) -> TopicT:
         """Create topic description.
 
@@ -780,6 +781,7 @@ class App(AppT, Service):
             internal=internal,
             config=config,
             allow_empty=allow_empty,
+            has_prefix=has_prefix,
             loop=loop,
         )
 

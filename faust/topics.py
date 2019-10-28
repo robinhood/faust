@@ -115,6 +115,7 @@ class Topic(SerializedChannel, TopicT):
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
                  allow_empty: bool = None,
+                 has_prefix: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(
             app,
@@ -140,6 +141,7 @@ class Topic(SerializedChannel, TopicT):
         self.acks = acks
         self.internal = internal
         self.config = config or {}
+        self.has_prefix = has_prefix
 
         self._compile_decode()
 
@@ -252,6 +254,7 @@ class Topic(SerializedChannel, TopicT):
                 'config': self.config,
                 'active_partitions': self.active_partitions,
                 'allow_empty': self.allow_empty,
+                'has_prefix': self.has_prefix,
             },
         }
 
@@ -347,6 +350,7 @@ class Topic(SerializedChannel, TopicT):
             deleting=self.deleting if deleting is None else deleting,
             config=self.config if config is None else config,
             internal=self.internal if internal is None else internal,
+            has_prefix=bool(self.has_prefix or prefix),
         )
 
     def get_topic_name(self) -> str:

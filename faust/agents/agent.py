@@ -479,7 +479,10 @@ class Agent(AgentT, Service):
                          value_type: ModelArg = None,
                          **kwargs: Any) -> ChannelT:
         app = self.app
-        channel = f'{app.conf.id}-{self.name}' if channel is None else channel
+        has_prefix = False
+        if channel is None:
+            channel = f'{app.conf.id}-{self.name}'
+            has_prefix = True
         if isinstance(channel, ChannelT):
             return channel
         elif isinstance(channel, str):
@@ -489,6 +492,7 @@ class Agent(AgentT, Service):
                 schema=schema,
                 key_type=key_type,
                 value_type=value_type,
+                has_prefix=has_prefix,
                 **kwargs)
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
