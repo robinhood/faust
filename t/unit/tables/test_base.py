@@ -11,7 +11,7 @@ from faust.tables.base import Collection
 from faust.types import TP
 from faust.windows import Window
 from mode import label, shortlabel
-from mode.utils.mocks import AsyncMock, Mock, patch
+from mode.utils.mocks import AsyncMock, Mock, call, patch
 
 TP1 = TP('foo', 0)
 
@@ -173,17 +173,23 @@ class test_Collection:
         table._del_old_keys()
 
     def test_del_old_keys(self, *, table):
+        on_window_close = table._on_window_close = Mock(name='on_window_close')
+
         table.window = Mock(name='window')
         table._data = {
-            'boo': 'BOO',
-            'moo': 'MOO',
-            'faa': 'FAA',
+            ('boo', (1.1, 1.4)): 'BOO',
+            ('moo', (1.4, 1.6)): 'MOO',
+            ('faa', (1.9, 2.0)): 'FAA',
         }
         table._partition_timestamps = {
             TP1: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
         }
         table._partition_timestamp_keys = {
-            (TP1, 2.0): ['boo', 'moo', 'faa'],
+            (TP1, 2.0): [
+                ('boo', (1.1, 1.4)),
+                ('moo', (1.4, 1.6)),
+                ('faa', (1.9, 2.0)),
+            ],
         }
 
         def is_stale(timestamp, latest_timestamp):
@@ -195,6 +201,16 @@ class test_Collection:
 
         assert table._partition_timestamps[TP1] == [4.0, 5.0, 6.0, 7.0]
         assert not table.data
+
+        on_window_close.assert_has_calls([
+            call(('boo', (1.1, 1.4)), 'BOO'),
+            call(('moo', (1.4, 1.6)), 'MOO'),
+            call(('faa', (1.9, 2.0)), 'FAA'),
+        ])
+
+    def test_on_window_close__default(self, *, table):
+        assert table._on_window_close is None
+        table.on_window_close(('boo', (1.1, 1.4)), 'BOO')
 
     @pytest.mark.parametrize('source_n,change_n,expect_error', [
         (3, 3, False),

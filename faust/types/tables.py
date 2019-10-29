@@ -87,6 +87,7 @@ class CollectionT(ServiceT, JoinableT):
     recovery_buffer_size: int
     standby_buffer_size: int
     options: Optional[Mapping[str, Any]]
+    last_closed_window: float
     use_partitioner: bool
 
     @abc.abstractmethod

@@ -18,6 +18,7 @@ from typing import (
     MutableSet,
     Optional,
     Set,
+    Tuple,
     Union,
     cast,
     no_type_check,
@@ -73,7 +74,8 @@ class Collection(Service, CollectionT):
 
     _store: Optional[URL]
     _changelog_topic: Optional[TopicT]
-    _partition_timestamp_keys: MutableMapping[tuple, MutableSet]
+    _partition_timestamp_keys: MutableMapping[
+        Tuple[int, float], MutableSet[Tuple[Any, WindowRange]]]
     _partition_timestamps: MutableMapping[int, List[float]]
     _partition_latest_timestamp: MutableMapping[int, float]
     _recover_callbacks: MutableSet[RecoverCallback]
@@ -138,7 +140,7 @@ class Collection(Service, CollectionT):
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
         self.use_partitioner = use_partitioner
         self._on_window_close = on_window_close
-        self.last_closed_window = 0
+        self.last_closed_window = 0.0
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
         self.options = options
