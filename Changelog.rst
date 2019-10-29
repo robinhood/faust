@@ -45,6 +45,10 @@ please visit the :ref:`history` section.
 - **Table**: Fixed issue with worker startup crash when global
   tables are used.
 
+- **Web**: Views now support the ``SEARCH`` HTTP method (Issue #460).
+
+    Contributed by Ignacio Peluffo (:github_user:`ipeluffo`).
+
 - **Table**: Global table changes are now instantly reflected
   on other nodes (Issue #451).
 
