@@ -64,6 +64,7 @@ class View:
             'delete': self.delete,
             'put': self.put,
             'options': self.options,
+            'search': self.search,
         }
         self.__post_init__()
 
@@ -161,6 +162,11 @@ class View:
     async def options(self, request: Request, **kwargs: Any) -> Any:
         """Override ``options`` to define the HTTP OPTIONS handler."""
         raise exceptions.MethodNotAllowed('Method OPTIONS not allowed.')
+
+    @no_type_check  # subclasses change signature based on route match_info
+    async def search(self, request: Request, **kwargs: Any) -> Any:
+        """Override ``search`` to define the HTTP SEARCH handler."""
+        raise exceptions.MethodNotAllowed('Method SEARCH not allowed.')
 
     def text(self, value: str, *,
              content_type: str = None,

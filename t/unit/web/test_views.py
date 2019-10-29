@@ -37,11 +37,12 @@ class test_View:
             'delete': view.delete,
             'put': view.put,
             'options': view.options,
+            'search': view.search,
         }
 
     @pytest.mark.parametrize('method', [
-        'GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS',
-        'get', 'post', 'patch', 'delete', 'put', 'options',
+        'GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS', 'SEARCH',
+        'get', 'post', 'patch', 'delete', 'put', 'options', 'search',
     ])
     @pytest.mark.asyncio
     async def test_dispatch(self, method, *, view):
@@ -102,6 +103,11 @@ class test_View:
     async def test_interface_options(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.options(Mock(name='request', autospec=Request))
+
+    @pytest.mark.asyncio
+    async def test_interface_search(self, *, view):
+        with pytest.raises(MethodNotAllowed):
+            await view.search(Mock(name='request', autospec=Request))
 
     def test_text(self, *, view, web):
         response = view.text(
