@@ -34,6 +34,14 @@ please visit the :ref:`history` section.
 
     Fix contributed by Vikram Patki (:github_user:`patkivikram`).
 
+- **Table**: Windowed tables now supports an ``on_window_close``
+  callback that is called whenever a window expires (Issue #446).
+
+    For an example see :file:`examples/windowed_aggregation.py` in
+    the Faust source distribution.
+
+    Contributed by Leandro Vonwerra (:github_user:`lvwerra`).
+
 - **Table**: Fixed issue with worker startup crash when global
   tables are used.
 
