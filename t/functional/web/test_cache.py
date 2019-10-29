@@ -166,6 +166,12 @@ async def test_cached_view__redis(expected_backend, *,
         assert await model_value(await client.get(urlC)) == 0
         assert await model_value(await client.get(urlC)) == 0
 
+        storage._expires['xuzzy'] = None
+        storage._time_index['xuzzy'] = None
+        assert storage.get('xuzzy') is None
+        assert 'xuzzy' not in storage._expires
+        assert 'xuzzy' not in storage._time_index
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('scheme,host,port,password,db,settings', [

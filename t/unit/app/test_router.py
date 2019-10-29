@@ -21,6 +21,16 @@ class test_Router:
         assert router.app is app
         assert router._assignor is assignor
 
+    def test__get_serialized_key(self, *, router):
+        table = Mock(name='table')
+        key = Mock(name='key')
+        prepare_key = table.changelog_topic.prepare_key
+        prepare_key.return_value = [Mock(name='v1'), Mock(name='v2')]
+        ret = router._get_serialized_key(table, key)
+        assert ret is prepare_key.return_value[0]
+        table.changelog_topic.prepare_key.assert_called_once_with(
+            key, None)
+
     def test_key_store(self, *, router, app, assignor):
         table = app.tables['foo'] = Mock(name='table')
         router._get_serialized_key = \

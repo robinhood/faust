@@ -358,8 +358,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             try:
                 op_name = span.operation_name
                 set_tag = span.set_tag
-            except AttributeError:  # not a real span
-                pass
+            except AttributeError:  # pragma: no cover
+                pass  # not a real span
             else:
                 trace_id_str = f'reb-{app_id}-{generation}'
                 trace_id = murmur2(trace_id_str.encode())
