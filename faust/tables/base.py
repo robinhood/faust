@@ -50,6 +50,7 @@ from faust.types.tables import (
     CollectionT,
     RecoverCallback,
     RelativeHandler,
+    WindowCloseCallback,
 )
 from faust.types.windows import WindowRange, WindowT
 
@@ -117,7 +118,7 @@ class Collection(Service, CollectionT):
                  recover_callbacks: Set[RecoverCallback] = None,
                  options: Mapping[str, Any] = None,
                  use_partitioner: bool = False,
-                 on_window_close_callback: Callable = None,
+                 on_window_close: WindowCloseCallback = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -136,7 +137,7 @@ class Collection(Service, CollectionT):
         self.recovery_buffer_size = recovery_buffer_size
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
         self.use_partitioner = use_partitioner
-        self.on_window_close_callback = on_window_close_callback
+        self._on_window_close = on_window_close
         self.last_closed_window = 0
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
@@ -362,14 +363,16 @@ c
                 if keys_to_remove:
                     for key in keys_to_remove:
                         value = self.data.pop(key, None)
-                        if self.on_window_close_callback and (
-                            key[1][0] > self.last_closed_window
-                        ):
-                            self.on_window_close_callback(key, value)
+                        if key[1][0] > self.last_closed_window:
+                            self.on_window_close(key, value)
                     self.last_closed_window = max(
                         self.last_closed_window,
                         max(key[1][0] for key in keys_to_remove),
                     )
+
+    def on_window_close(self, key: Any, value: Any) -> None:
+        if self._on_window_close:
+            self._on_window_close(key, value)
 
     def _should_expire_keys(self) -> bool:
         window = self.window

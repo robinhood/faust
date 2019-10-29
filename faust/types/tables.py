@@ -49,6 +49,7 @@ __all__ = [
     'TableT',
     'GlobalTableT',
     'TableManagerT',
+    'WindowCloseCallback',
     'WindowSetT',
     'WindowedItemsViewT',
     'WindowedValuesViewT',
@@ -60,6 +61,7 @@ __all__ = [
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
+WindowCloseCallback = Callable[[Any, Any], None]
 RelativeArg = Optional[Union[
     _FieldDescriptorT,
     RelativeHandler,
@@ -108,6 +110,7 @@ class CollectionT(ServiceT, JoinableT):
                  extra_topic_configs: Mapping[str, Any] = None,
                  options: Mapping[str, Any] = None,
                  use_partitioner: bool = False,
+                 on_window_close: WindowCloseCallback = None,
                  **kwargs: Any) -> None:
         ...
 
@@ -147,6 +150,10 @@ class CollectionT(ServiceT, JoinableT):
 
     @abc.abstractmethod
     def partition_for_key(self, key: Any) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def on_window_close(self, key: Any, value: Any) -> None:
         ...
 
     @abc.abstractmethod
