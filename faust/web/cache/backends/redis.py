@@ -15,7 +15,8 @@ from faust.types import AppT
 from . import base
 
 from asyncio import futures
-futures.CancelledError = asyncio.CancelledError  # XXX fix for aredis on Py3.8
+# XXX fix for aredis on Py3.8
+futures.CancelledError = asyncio.CancelledError   # type: ignore
 
 try:
     import aredis
