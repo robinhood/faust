@@ -123,12 +123,7 @@ matrix:
     os: linux
     dist: xenial
     stage: test
-  - python: 3.8
-    env: TOXENV=3.8 IDENT="3.8.0" RUN_SUITE=y NO_CYTHON=y
-    os: linux
-    dist: xenial
-    stage: test
-  - python: 3.8.0
+  - python: 3.7.4
     env: TOXENV=3.7 RUN_SUITE=y NO_CYTHON=y
     os: windows
     stage: test
