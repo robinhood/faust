@@ -1,5 +1,4 @@
 """Redis cache backend."""
-import asyncio
 import socket
 import typing
 
@@ -13,9 +12,6 @@ from yarl import URL
 from faust.exceptions import ImproperlyConfigured
 from faust.types import AppT
 from . import base
-
-from asyncio import futures
-futures.CancelledError = asyncio.CancelledError  # XXX fix for aredis on Py3.8
 
 try:
     import aredis

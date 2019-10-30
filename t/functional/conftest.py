@@ -1,4 +1,3 @@
-import asyncio
 import logging as _logging
 import os
 import pytest
@@ -97,10 +96,6 @@ def logging(request):
 
 @pytest.fixture()
 def mocked_redis(*, event_loop, monkeypatch):
-    from asyncio import futures
-    # XXX fix for aredis on Py3.8
-    futures.CancelledError = asyncio.CancelledError
-
     import aredis
 
     storage = CacheStorage()
