@@ -376,9 +376,13 @@ class AIOKafkaConsumerThread(ConsumerThread):
                 span._real_finish()
 
     def _on_span_cancelled_early(self, span: opentracing.Span) -> None:
-        op_name = span.operation_name
-        span.set_operation_name(f'{op_name} (CANCELLED)')
-        span._real_finish()
+        try:
+            op_name = span.operation_name
+        except AttributeError:
+            return
+        else:
+            span.set_operation_name(f'{op_name} (CANCELLED)')
+            span._real_finish()
 
     def traced_from_parent_span(self,
                                 parent_span: opentracing.Span,
