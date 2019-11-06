@@ -93,6 +93,8 @@ logger = get_logger(__name__)
 
 DEFAULT_GENERATION_ID = OffsetCommitRequest.DEFAULT_GENERATION_ID
 
+TOPIC_LENGTH_MAX = 249
+
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
     """Convert list of urls to list of servers accepted by :pypi:`aiokafka`."""
@@ -568,6 +570,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
         _consumer = self._ensure_consumer()
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
+        if len(topic) > TOPIC_LENGTH_MAX:
+            raise ValueError(
+                f'Topic name {topic!r} is too long (max={TOPIC_LENGTH_MAX})')
         await self.call_thread(
             transport._create_topic,
             self,
