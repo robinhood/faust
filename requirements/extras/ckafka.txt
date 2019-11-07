@@ -1,1 +1,1 @@
-confluent-kafka~=0.11.0
+confluent-kafka~=1.2.0
