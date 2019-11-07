@@ -52,7 +52,7 @@ tumbling_table = (
         TABLE,
         default=list,
         partitions=PARTITIONS,
-        on_window_close_callback=window_processor,
+        on_window_close=window_processor,
     )
     .tumbling(WINDOW, expires=timedelta(seconds=WINDOW_EXPIRES))
     .relative_to_field(RawModel.date)
