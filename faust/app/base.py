@@ -1147,6 +1147,7 @@ class App(AppT, Service):
                 # we want to apply standby changes
                 # as they come min (using 1 buffer size).
                 standby_buffer_size=1,
+                is_global=True,
                 help=help,
                 **kwargs))
         return gtable.using_window(window) if window else gtable
