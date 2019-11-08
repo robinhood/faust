@@ -28,7 +28,6 @@ from yarl import URL
 
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
-from faust.tables import GlobalTable
 from faust.types import AppT, CollectionT, EventT, TP
 from faust.utils import platforms
 
