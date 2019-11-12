@@ -391,7 +391,9 @@ class Store(base.SerializedStore):
         topic = self.table._changelog_topic_name()
         for partition, db in self._dbs.items():
             tp = TP(topic=topic, partition=partition)
-            if tp in actives:
+            # for global tables, keys from all
+            # partitions are available.
+            if tp in actives or self.table.is_global:
                 yield db
 
     def _size(self) -> int:

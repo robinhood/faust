@@ -433,7 +433,13 @@ class test_Store:
             3: self.new_db('db3'),
         }
 
+        # Normal Table
+        table.is_global = False
         assert list(store._dbs_for_actives()) == [dbs[1], dbs[2]]
+
+        # Global Table
+        table.is_global = True
+        assert list(store._dbs_for_actives()) == [dbs[1], dbs[2], dbs[3]]
 
     def test__size(self, *, store):
         dbs = self._setup_keys(
