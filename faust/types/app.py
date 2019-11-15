@@ -237,7 +237,7 @@ class AppT(ServiceT):
               supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None,
               isolated_partitions: bool = False,
-              use_reply_headers: bool = False,
+              use_reply_headers: bool = True,
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         ...
 
