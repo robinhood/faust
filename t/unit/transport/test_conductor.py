@@ -176,7 +176,7 @@ class test_Conductor:
 
     def test_iter(self, *, con):
         con._topics = {'1', '2'}
-        assert sorted(list(iter(con))) == ['1', '2']
+        assert sorted(iter(con)) == ['1', '2']
 
     def test_hash(self, *, con):
         assert hash(con)

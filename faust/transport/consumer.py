@@ -211,7 +211,7 @@ class TransactionManager(Service, TransactionManagerT):
         """Call when the cluster is rebalancing."""
         T = traced_from_parent_span()
         # Stop producers for revoked partitions.
-        revoked_tids = list(sorted(self._tps_to_transactional_ids(revoked)))
+        revoked_tids = sorted(self._tps_to_transactional_ids(revoked))
         if revoked_tids:
             self.log.info(
                 'Stopping %r transactional %s for %r revoked %s...',
@@ -222,7 +222,7 @@ class TransactionManager(Service, TransactionManagerT):
             await T(self._stop_transactions, tids=revoked_tids)(revoked_tids)
 
         # Start produers for assigned partitions
-        assigned_tids = list(sorted(self._tps_to_transactional_ids(assigned)))
+        assigned_tids = sorted(self._tps_to_transactional_ids(assigned))
         if assigned_tids:
             self.log.info(
                 'Starting %r transactional %s for %r assigned %s...',

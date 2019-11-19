@@ -45,7 +45,7 @@ class AgentCase(Service):
             self.name = name
         if partitions is None:
             partitions = [0]
-        self.partitions = list(sorted(partitions))
+        self.partitions = sorted(partitions)
         self.concurrency = concurrency
         self.value_serializer = value_serializer
         self.num_messages = num_messages

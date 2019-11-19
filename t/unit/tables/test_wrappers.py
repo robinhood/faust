@@ -39,6 +39,25 @@ def event():
     return Mock(name='event', autospec=Event)
 
 
+def same_items(a, b):
+    a_list = _maybe_items(a)
+    b_list = _maybe_items(b)
+    return same(a_list, b_list)
+
+
+def _maybe_items(d):
+    try:
+        items = d.items
+    except AttributeError:
+        return d
+    else:
+        return items()
+
+
+def same(a, b):
+    return sorted(a) == sorted(b)
+
+
 @pytest.yield_fixture()
 def current_event(*, freeze_time):
     with patch('faust.tables.wrappers.current_event') as current_event:
@@ -378,34 +397,27 @@ class test_WindowWrapper_using_key_index:
         assert 'AUNIQSTR' in table
 
     def test_items(self, *, iwtable, data):
-        assert sorted(list(iwtable.relative_to_now().items())) == sorted(
-            list(self.TABLE_DATA.items()))
+        assert same_items(iwtable.relative_to_now(), self.TABLE_DATA)
 
     def test_items_keys_in_index_not_in_table(self, *, iwtable, remove_a_key):
-        assert sorted(list(iwtable.relative_to_now().items())) == sorted(
-            list(remove_a_key.items()))
+        assert same_items(iwtable.relative_to_now(), remove_a_key)
 
     def test_items_now(self, *, iwtable, data):
-        assert sorted(list(iwtable.items().now())) == sorted(
-            list(self.TABLE_DATA.items()))
+        assert same_items(iwtable.items().now(), self.TABLE_DATA)
 
     def test_items_now_keys_in_index_not_in_table(
             self, *, iwtable, remove_a_key):
-        assert sorted(list(iwtable.items().now())) == sorted(
-            list(remove_a_key.items()))
+        assert same_items(iwtable.items().now(), remove_a_key)
 
     def test_items_current(self, *, iwtable, data, current_event):
-        assert sorted(list(iwtable.items().current())) == sorted(
-            list(self.TABLE_DATA.items()))
+        assert same_items(iwtable.items().current(), self.TABLE_DATA)
 
     def test_items_current_keys_in_index_not_in_table(
             self, *, iwtable, remove_a_key, current_event):
-        assert sorted(list(iwtable.items().current())) == sorted(
-            list(remove_a_key.items()))
+        assert same_items(iwtable.items().current(), remove_a_key)
 
     def test_items_delta(self, *, iwtable, data_with_30s_delta, current_event):
-        assert sorted(list(iwtable.items().delta(30))) == sorted(
-            list(self.TABLE_DATA_DELTA.items()))
+        assert same_items(iwtable.items().delta(30), self.TABLE_DATA_DELTA)
 
     def test_items_delta_key_not_in_table(
             self, *, iwtable,
@@ -414,61 +426,52 @@ class test_WindowWrapper_using_key_index:
             k: v for k, v in self.TABLE_DATA_DELTA.items()
             if k in remove_a_key
         }
-        assert sorted(list(iwtable.items().delta(30))) == sorted(
-            list(expected.items()))
+        assert same_items(iwtable.items().delta(30), expected)
 
     def test_keys(self, *, iwtable, data):
-        assert sorted(list(iwtable.relative_to_now().keys())) == sorted(
-            list(self.TABLE_DATA))
+        assert same(iwtable.relative_to_now().keys(), self.TABLE_DATA)
 
     def test_keys__now(self, *, iwtable, data):
-        assert sorted(list(iwtable.relative_to_now().keys().now())) == sorted(
-            list(self.TABLE_DATA))
+        assert same(iwtable.relative_to_now().keys().now(), self.TABLE_DATA)
 
     def test_keys__current(self, *, iwtable, data, current_event):
         keys = iwtable.relative_to_now().keys().current()
-        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
+        assert same(keys, self.TABLE_DATA)
 
     def test_keys__delta(self, *, iwtable, data, current_event):
         keys = iwtable.relative_to_now().keys().delta(1000)
-        assert sorted(list(keys)) == []
+        assert same(keys, [])
         keys = iwtable.relative_to_now().keys().delta(10)
-        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
+        assert same(keys, self.TABLE_DATA)
 
     def test_iter(self, *, iwtable, data):
-        assert sorted(list(iwtable.relative_to_now())) == sorted(
-            list(self.TABLE_DATA))
+        assert same(iwtable.relative_to_now(), self.TABLE_DATA)
 
     def test_values(self, *, iwtable, data):
-        assert sorted(list(iwtable.relative_to_now().values())) == sorted(
-            list(self.TABLE_DATA.values()))
+        assert same(iwtable.relative_to_now().values(),
+                    self.TABLE_DATA.values())
 
     def test_values_keys_in_index_not_in_table(self, *, iwtable, remove_a_key):
-        assert sorted(list(iwtable.relative_to_now().values())) == sorted(
-            list(remove_a_key.values()))
+        assert same(iwtable.relative_to_now().values(),
+                    remove_a_key.values())
 
     def test_values_now(self, *, iwtable, data):
-        assert sorted(list(iwtable.values().now())) == sorted(
-            list(self.TABLE_DATA.values()))
+        assert same(iwtable.values().now(), self.TABLE_DATA.values())
 
     def test_values_now_keys_in_index_not_in_table(
             self, *, iwtable, remove_a_key):
-        assert sorted(list(iwtable.values().now())) == sorted(
-            list(remove_a_key.values()))
+        assert same(iwtable.values().now(), remove_a_key.values())
 
     def test_values_current(self, *, iwtable, data, current_event):
-        assert sorted(list(iwtable.values().current())) == sorted(
-            list(self.TABLE_DATA.values()))
+        assert same(iwtable.values().current(), self.TABLE_DATA.values())
 
     def test_values_current_keys_in_index_not_in_table(
             self, *, iwtable, remove_a_key, current_event):
-        assert sorted(list(iwtable.values().current())) == sorted(
-            list(remove_a_key.values()))
+        assert same(iwtable.values().current(), remove_a_key.values())
 
     def test_values_delta(
             self, *, iwtable, data_with_30s_delta, current_event):
-        assert sorted(list(iwtable.values().delta(30))) == sorted(
-            list(self.TABLE_DATA_DELTA.values()))
+        assert same(iwtable.values().delta(30), self.TABLE_DATA_DELTA.values())
 
     def test_values_delta_key_not_in_table(
             self, *, iwtable,
@@ -477,8 +480,7 @@ class test_WindowWrapper_using_key_index:
             k: v for k, v in self.TABLE_DATA_DELTA.items()
             if k in remove_a_key
         }
-        assert sorted(list(iwtable.values().delta(30))) == sorted(
-            list(expected.values()))
+        assert same(iwtable.values().delta(30), expected.values())
 
     def test_setitem(self, *, wset):
         wset.table = {}

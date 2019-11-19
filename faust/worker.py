@@ -47,7 +47,7 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
         if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
             return '\n' + terminal.logtable(
-                [(k, v) for k, v in arg.items()],
+                list(arg.items()),
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )

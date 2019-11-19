@@ -84,9 +84,9 @@ def dict_as_ansitable(d: Mapping,
                       title: str = None) -> str:
     header = [text.title(key), text.title(value)]
     data = cast(Iterable[List[str]], d.items())
-    data = list(sorted(data, key=sortkey)) if sort else list(data)
+    data = sorted(data, key=sortkey) if sort else list(data)
     if sort:
-        data = list(sorted(data, key=sortkey))
+        data = sorted(data, key=sortkey)
     return table(
         [header] + list(data),
         title=text.title(title) if title is not None else '',
