@@ -694,6 +694,7 @@ class test_Agent:
             )
 
     def test_create_req(self, *, agent):
+        agent.use_reply_headers = False
         agent._get_strtopic = Mock(name='_get_strtopic')
         with patch('faust.agents.agent.uuid4') as uuid4:
             uuid4.return_value = 'vvv'
@@ -725,6 +726,7 @@ class test_Agent:
             assert h['Faust-Ag-CorrelationId'] == 'vvv'.encode()
 
     def test_create_req__model(self, *, agent):
+        agent.use_reply_headers = False
         agent._get_strtopic = Mock(name='_get_strtopic')
         with patch('faust.agents.agent.uuid4') as uuid4:
             uuid4.return_value = 'vvv'
