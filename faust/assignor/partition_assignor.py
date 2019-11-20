@@ -289,21 +289,23 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     def _global_table_standby_assignments(
             self,
-            assignments: dict) -> dict:
+            assignments: Mapping[str, ClientAssignment],
+    ) -> Mapping[str, ClientAssignment]:
         # Ensures all members have access to all changelog partitions
         # as standbys, if not already as actives
-        global_table_topics = []
-        for each_table in self._table_manager.data.values():
+        for table in self._table_manager.data.values():
             # Add changelog standbys only if global table
-            if each_table.is_global:
-                changelog_topic_name = each_table._changelog_topic_name()
-                partitions = set(range(0, each_table.partitions))
-                global_table_topics.append(changelog_topic_name)
-                for each_client in assignments:
-                    active_value = set(assignments[each_client].actives.get(changelog_topic_name, []))
-                    # Only add those partitions as standbys which aren't active
+            if table.is_global:
+                changelog_topic_name = table._changelog_topic_name()
+                partitions = set(range(0, table.partitions))
+                for client in assignments:
+                    active_value = set(
+                        assignments[client].actives.get(
+                            changelog_topic_name, []))
+                    # Only add those partitions as standby which aren't active
                     standbys = list(partitions - active_value)
-                    assignments[each_client].standbys[changelog_topic_name] = standbys
+                    assignments[client].standbys[
+                        changelog_topic_name] = standbys
         return assignments
 
     def _protocol_assignments(
