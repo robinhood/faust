@@ -74,6 +74,7 @@ class Table(TableT[KT, VT], Collection):
         # is in fut.partition
         partition = fut.message.partition
         assert partition is not None
+        self.set_partition_for_key(key, partition)
         self._maybe_set_key_ttl(key, partition)
         self._sensor_on_set(self, key, value)
 

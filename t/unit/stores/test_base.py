@@ -94,7 +94,7 @@ class MySerializedStore(SerializedStore):
     def _get(self, key):
         return self.keep.get(key)
 
-    def _set(self, key, value):
+    def _set(self, key, value, partition):
         self.keep[key] = value
 
     def _del(self, key):

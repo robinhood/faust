@@ -157,6 +157,7 @@ class Collection(Service, CollectionT):
         self._partition_timestamp_keys = defaultdict(set)
         self._partition_timestamps = defaultdict(list)
         self._partition_latest_timestamp = defaultdict(int)
+        self._key_partition_map = {}
 
         self._recover_callbacks = set(recover_callbacks or [])
         if on_recover:
@@ -284,11 +285,20 @@ class Collection(Service, CollectionT):
             event.message.partition,
             key, value, key_serializer, value_serializer)
 
+    def set_partition_for_key(self, key: Any, partition: int) -> None:
+        """ in case of `use_partitioner` is enabled, this callback has to be used
+            to register the partition for the given key. This will be returned
+            by `partition_for_key` (e.g. used by the
+            underlying `SerializedStore`)
+        """
+        self._key_partition_map[key] = partition
+
     def partition_for_key(self, key: Any) -> Optional[int]:
         """Return partition number for table key.
-c
+
         Note:
-            If :attr:`use_partitioner` is enabled this always returns
+            If :attr:`use_partitioner` is enabled this functions returns
+            the partition registered with `set_partition_for_key` or
             :const:`None`.
 
         Returns:
@@ -296,7 +306,10 @@ c
                 the producer should select partition using its partitioner.
         """
         if self.use_partitioner:
-            return None
+            if key in self._key_partition_map:
+                return self._key_partition_map[key]
+            else:
+                return None
         else:
             event = current_event()
             if event is None:

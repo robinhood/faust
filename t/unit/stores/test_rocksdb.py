@@ -208,16 +208,10 @@ class test_Store:
             call(TP4, 4005),
         ])
 
-    @pytest.yield_fixture()
-    def current_event(self):
-        with patch('faust.stores.rocksdb.current_event') as current_event:
-            yield current_event.return_value
-
-    def test__set(self, *, store, db_for_partition, current_event):
-        store._set(b'key', b'value')
-        db_for_partition.assert_called_once_with(
-            current_event.message.partition)
-        assert store._key_index[b'key'] == current_event.message.partition
+    def test__set(self, *, store, db_for_partition):
+        partition = 1
+        store._set(b'key', b'value', partition)
+        assert store._key_index[b'key'] == partition
         db_for_partition.return_value.put.assert_called_once_with(
             b'key', b'value',
         )

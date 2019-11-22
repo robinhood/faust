@@ -149,7 +149,8 @@ class SerializedStore(Store[KT, VT]):
     @abc.abstractmethod
     def _set(self,
              key: bytes,
-             value: Optional[bytes]) -> None:  # pragma: no cover
+             value: Optional[bytes],
+             partition: Optional[int]) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
@@ -194,7 +195,7 @@ class SerializedStore(Store[KT, VT]):
                 self._del(key)
             else:
                 # keys/values are already JSON serialized in the message
-                self._set(key, value)
+                self._set(key, value, event.message.partition)
 
     def __getitem__(self, key: KT) -> VT:
         value = self._get(self._encode_key(key))
@@ -203,7 +204,8 @@ class SerializedStore(Store[KT, VT]):
         return self._decode_value(value)
 
     def __setitem__(self, key: KT, value: VT) -> None:
-        return self._set(self._encode_key(key), self._encode_value(value))
+        return self._set(self._encode_key(key), self._encode_value(value),
+                         self.table.partition_for_key(key))
 
     def __delitem__(self, key: KT) -> None:
         return self._del(self._encode_key(key))

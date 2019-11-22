@@ -27,7 +27,6 @@ from mode.utils.collections import LRUCache
 from yarl import URL
 
 from faust.exceptions import ImproperlyConfigured
-from faust.streams import current_event
 from faust.types import AppT, CollectionT, EventT, TP
 from faust.utils import platforms
 
@@ -257,10 +256,9 @@ class Store(base.SerializedStore):
         for tp, offset in tp_offsets.items():
             self.set_persisted_offset(tp, offset)
 
-    def _set(self, key: bytes, value: Optional[bytes]) -> None:
-        event = current_event()
-        assert event is not None
-        partition = event.message.partition
+    def _set(self, key: bytes, value: Optional[bytes],
+             partition: Optional[int]) -> None:
+        assert partition is not None
         db = self._db_for_partition(partition)
         self._key_index[key] = partition
         db.put(key, value)
