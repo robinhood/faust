@@ -753,6 +753,29 @@ rebalancing, but make sure you also increase the
     The session timeout must not be greater than the
     :setting:`broker_request_timeout`.
 
+
+.. setting:: broker_rebalancing_timeout
+
+``broker_rebalancing_timeout``
+------------------------------
+
+.. versionadded:: 1.10
+
+:type: :class:`int`
+:default: ``60.0`` (one minute)
+
+How long to wait for a node to finish rebalancing before the broker
+will consider it dysfunctional and remove it from the cluster.
+
+Increase this if you experience the cluster being in a state of constantly
+rebalancing, but make sure you also increase the
+:setting:`broker_heartbeat_interval` at the same time.
+
+.. note::
+
+    The session timeout must not be greater than the
+    :setting:`broker_request_timeout`.
+
 .. setting:: broker_max_poll_records
 
 ``broker_max_poll_records``

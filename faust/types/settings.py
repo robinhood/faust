@@ -186,8 +186,11 @@ BROKER_COMMIT_EVERY = 10_000
 #: Used as the default value for :setting:`broker_commit_interval`.
 BROKER_COMMIT_INTERVAL = 2.8
 
-#: Kafka consumer session timeout (``session_timeout_ms``).
+#: Kafka consumer session timeout (``session_timeout_ms`` in seconds).
 BROKER_SESSION_TIMEOUT = 60.0
+
+#: Kafka consumer heartbeat timeout (``rebalancing_timeout_ms`` in seconds).
+BROKER_REBALANCING_TIMEOUT = 60.0
 
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
 BROKER_HEARTBEAT_INTERVAL = 3.0
@@ -371,6 +374,7 @@ class Settings(abc.ABC):
     _agent_supervisor: Type[SupervisorStrategyT]
     _broker_request_timeout: float = BROKER_REQUEST_TIMEOUT
     _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
+    _broker_rebalancing_timeout: float = BROKER_REBALANCING_TIMEOUT
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
@@ -443,6 +447,7 @@ class Settings(abc.ABC):
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
             broker_session_timeout: Seconds = None,
+            broker_rebalancing_timeout: Seconds = None,
             broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
             broker_max_poll_records: int = None,
@@ -571,6 +576,9 @@ class Settings(abc.ABC):
             self._broker_commit_livelock_soft_timeout)
         if broker_session_timeout is not None:
             self.broker_session_timeout = want_seconds(broker_session_timeout)
+        if broker_rebalancing_timeout is not None:
+            self.broker_rebalancing_timeout = want_seconds(
+                broker_rebalancing_timeout)
         if broker_heartbeat_interval is not None:
             self.broker_heartbeat_interval = want_seconds(
                 broker_heartbeat_interval)
@@ -901,6 +909,14 @@ class Settings(abc.ABC):
     @broker_session_timeout.setter
     def broker_session_timeout(self, value: Seconds) -> None:
         self._broker_session_timeout = want_seconds(value)
+
+    @property
+    def broker_rebalancing_timeout(self) -> float:
+        return self._broker_rebalancing_timeout
+
+    @broker_rebalancing_timeout.setter
+    def broker_rebalancing_timeout(self, value: Seconds) -> None:
+        self._broker_rebalancing_timeout = want_seconds(value)
 
     @property
     def broker_heartbeat_interval(self) -> float:
