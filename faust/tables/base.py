@@ -78,6 +78,7 @@ class Collection(Service, CollectionT):
         Tuple[int, float], MutableSet[Tuple[Any, WindowRange]]]
     _partition_timestamps: MutableMapping[int, List[float]]
     _partition_latest_timestamp: MutableMapping[int, float]
+    _key_partition_map: MutableMapping[Any, int]
     _recover_callbacks: MutableSet[RecoverCallback]
     _data: Optional[StoreT] = None
     _changelog_compacting: Optional[bool] = True
