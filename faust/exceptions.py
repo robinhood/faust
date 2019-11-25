@@ -4,9 +4,13 @@ import typing
 __all__ = [
     'FaustError',
     'FaustWarning',
+    'FaustPredicate',
+    'SecurityError',
     'NotReady',
+    'Skip',
     'AlreadyConfiguredWarning',
     'ImproperlyConfigured',
+    'ValidationError',
     'DecodeError',
     'KeyDecodeError',
     'ValueDecodeError',
@@ -14,6 +18,7 @@ __all__ = [
     'ProducerSendError',
     'ConsumerNotStarted',
     'PartitionsMismatch',
+    'ConsistencyError',
 ]
 
 if typing.TYPE_CHECKING:
@@ -32,6 +37,10 @@ class FaustWarning(UserWarning):
 
 class FaustPredicate(FaustError):
     """Base-class for semi-predicates such as :exc:`Skip`."""
+
+
+class SecurityError(FaustError):
+    """Base-class for security related (high priority) exceptions."""
 
 
 class NotReady(FaustPredicate):

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple, Union
 from dateutil.parser import parse as parse_date
 import faust
-from faust.exceptions import ValidationError
+from faust.exceptions import SecurityError, ValidationError
 from faust.models import maybe_model
 from faust.models.fields import (
     BytesField,
@@ -14,11 +14,15 @@ from faust.models.fields import (
     IntegerField,
     StringField,
 )
+from mode.utils.logging import get_logger
 from faust.models.record import _is_of_type
+from faust.models.tags import Secret, Sensitive
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
 import pytest
+
+logger = get_logger(__name__)
 
 
 class Record(faust.Record, serializer='json'):
@@ -1511,3 +1515,96 @@ def test_lazy_creation():
 ])
 def test__is_of_type(typ, input, expected):
     assert _is_of_type(typ, input) == expected
+
+
+def test_Sensitive(*, capsys):
+
+    class Foo(Record):
+        name: str
+        phone_number: Sensitive[str]
+
+    class Bar(Record):
+        alias: str
+        foo: Foo
+
+    class Baz(Record):
+        alias: str
+        bar: List[Bar]
+
+    x = Foo(name='Foo', phone_number='631-342-3412')
+
+    assert Foo._options.has_sensitive_fields
+    assert Foo._options.has_tagged_fields
+    assert not Foo._options.has_secret_fields
+    assert not Foo._options.has_personal_fields
+
+    assert 'phone_number' in Foo._options.sensitive_fields
+    assert 'foo' not in Foo._options.sensitive_fields
+
+    # Model with related model that has sensitive fields, is also sensitive.
+    assert Bar._options.has_sensitive_fields
+    assert 'foo' in Bar._options.sensitive_fields
+    assert 'alias' not in Bar._options.sensitive_fields
+
+    assert Baz._options.has_sensitive_fields
+    assert 'bar' in Baz._options.sensitive_fields
+    assert 'alias' not in Baz._options.sensitive_fields
+
+    assert x.name == 'Foo'
+    with pytest.raises(SecurityError):
+        str(x.phone_number)
+    assert x.phone_number.get_value() == '631-342-3412'
+
+    with pytest.raises(SecurityError):
+        f'Name={x.name} Phone={x.phone_number}'
+
+    logger.critical('User foo error %s', x.phone_number)
+    stderr_content = capsys.readouterr()
+    assert 'Logging error' in stderr_content.err
+    assert 'SecurityError' in stderr_content.err
+
+
+def test_Secret(*, caplog):
+
+    class Foo(Record):
+        name: str
+        phone_number: Secret[str]
+
+    class Bar(Record):
+        alias: str
+        foo: Foo
+
+    class Baz(Record):
+        alias: str
+        bar: List[Bar]
+
+    x = Foo(name='Foo', phone_number='631-342-3412')
+
+    assert Foo._options.has_secret_fields
+    assert not Foo._options.has_sensitive_fields
+    assert Foo._options.has_tagged_fields
+    assert not Foo._options.has_personal_fields
+
+    assert 'phone_number' in Foo._options.secret_fields
+    assert 'foo' not in Foo._options.secret_fields
+
+    # Model with related model that has sensitive fields, is also sensitive.
+    assert Bar._options.has_secret_fields
+    assert 'foo' in Bar._options.secret_fields
+    assert 'alias' not in Bar._options.secret_fields
+
+    assert Baz._options.has_secret_fields
+    assert 'bar' in Baz._options.secret_fields
+    assert 'alias' not in Baz._options.secret_fields
+
+    assert x.name == 'Foo'
+    assert str(x.phone_number) == x.phone_number.mask
+    assert x.phone_number.get_value() == '631-342-3412'
+
+    assert (f'Name={x.name} Phone={x.phone_number}' ==
+            f'Name={x.name} Phone={x.phone_number.mask}')
+
+    logger.critical('User foo error %s', x.phone_number)
+
+    assert x.phone_number.get_value() not in caplog.text
+    assert x.phone_number.mask in caplog.text

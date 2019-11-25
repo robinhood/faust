@@ -362,6 +362,43 @@ class Record(Model, abstract=True):
         date_parser = options.date_parser
         coerce = options.coerce
         index = {}
+
+        secret_fields = set()
+        sensitive_fields = set()
+        personal_fields = set()
+        tagged_fields = set()
+
+        def add_to_tagged_indices(field, tag):
+            if tag.is_secret:
+                options.has_secret_fields = True
+                secret_fields.add(field)
+            if tag.is_sensitive:
+                options.has_sensitive_fields = True
+                sensitive_fields.add(field)
+            if tag.is_personal:
+                options.has_personal_fields = True
+                personal_fields.add(field)
+            options.has_tagged_fields = True
+            tagged_fields.add(field)
+
+        def add_related_to_tagged_indices(field, related_model):
+            try:
+                related_options = related_model._options
+            except AttributeError:
+                return
+            if related_options.has_secret_fields:
+                options.has_secret_fields = True
+                secret_fields.add(field)
+            if related_options.has_sensitive_fields:
+                options.has_sensitive_fields = True
+                sensitive_fields.add(field)
+            if related_options.has_personal_fields:
+                options.has_personal_fields = True
+                personal_fields.add(field)
+            if related_options.has_tagged_fields:
+                options.has_tagged_fields = True
+                tagged_fields.add(field)
+
         for field, typ in fields.items():
             try:
                 default, needed = defaults[field], False
@@ -370,7 +407,9 @@ class Record(Model, abstract=True):
             descr = getattr(target, field, None)
             typeinfo = options.polyindex[field]
             if descr is None or not isinstance(descr, FieldDescriptorT):
-                DescriptorType = field_for_type(typeinfo.member_type)
+                DescriptorType, tag = field_for_type(typeinfo.member_type)
+                if tag:
+                    add_to_tagged_indices(field, tag)
                 descr = DescriptorType(
                     field=field,
                     type=typ,
@@ -382,6 +421,7 @@ class Record(Model, abstract=True):
                     generic_type=typeinfo.generic_type,
                     member_type=typeinfo.member_type,
                     date_parser=date_parser,
+                    tag=tag,
                 )
             else:
                 descr = descr.clone(
@@ -395,8 +435,17 @@ class Record(Model, abstract=True):
                     generic_type=typeinfo.generic_type,
                     member_type=typeinfo.member_type,
                 )
+
+            related_model = options.models.get(field)
+            if related_model:
+                add_related_to_tagged_indices(field, descr.member_type)
             setattr(target, field, descr)
             index[field] = descr
+
+        options.secret_fields = frozenset(secret_fields)
+        options.sensitive_fields = frozenset(sensitive_fields)
+        options.personal_fields = frozenset(personal_fields)
+        options.tagged_fields = frozenset(tagged_fields)
         return index
 
     @classmethod

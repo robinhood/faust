@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -24,6 +25,8 @@ from faust.types.models import (
     T,
 )
 from faust.utils import iso8601
+
+from .tags import Tag
 
 __all__ = [
     'TYPE_TO_FIELD',
@@ -123,6 +126,9 @@ class FieldDescriptor(FieldDescriptorT[T]):
     #: ``Model.to_representation()``).
     exclude: bool = False
 
+    #: Field may be tagged with Secret/Sensitive/etc.
+    tag: Type[Tag]
+
     def __init__(self, *,
                  field: str = None,
                  input_name: str = None,
@@ -137,6 +143,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
                  member_type: Type = None,
                  exclude: bool = None,
                  date_parser: Callable[[Any], datetime] = None,
+                 tag: Type[Tag] = None,
                  **options: Any) -> None:
         self.field = cast(str, field)
         self.input_name = cast(str, input_name or field)
@@ -157,6 +164,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
         if date_parser is None:
             date_parser = iso8601.parse
         self.date_parser: Callable[[Any], datetime] = date_parser
+        self.tag = tag
 
     def __set_name__(self, owner: Type[ModelT], name: str) -> None:
         self.model = owner
@@ -180,6 +188,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
             'member_type': self.member_type,
             'exclude': self.exclude,
             'date_parser': self.date_parser,
+            'tag': self.tag,
             **self.options,
         }
 
@@ -240,7 +249,11 @@ class FieldDescriptor(FieldDescriptorT[T]):
         return ValidationError(reason, field=self)
 
     def __set__(self, instance: Any, value: T) -> None:
-        instance.__dict__[self.field] = value
+        if self.tag:
+            store_value = self.tag(value, field=self.field)
+        else:
+            store_value = value
+        instance.__dict__[self.field] = store_value
 
     def __repr__(self) -> str:
         default = '' if self.required else f' = {self.default!r}'
@@ -453,16 +466,32 @@ TYPE_TO_FIELD = {
 
 
 @lru_cache(maxsize=2048)
-def field_for_type(typ: Type) -> Type[FieldDescriptorT]:
+def field_for_type(
+        typ: Type) -> Tuple[Type[FieldDescriptorT], Optional[Type[Tag]]]:
     try:
-        return TYPE_TO_FIELD[typ]
+        # 1) Check if type is in fast index.
+        return TYPE_TO_FIELD[typ], None
     except KeyError:
+        # 2) Unwrap Tag fields to their destination type.
+        try:
+            origin = typ.__origin__
+        except AttributeError:
+            pass
+        else:
+            try:
+                if origin is not None and issubclass(origin, Tag):
+                    return field_for_type(typ.__args__[0])[0], typ
+            except TypeError:
+                pass
+
+        # 3) Check if type is a subclass of any of the types
+        # in TYPE_TO_FIELD
         for basecls, DescriptorType in TYPE_TO_FIELD.items():
             try:
                 if issubclass(typ, basecls):
-                    return DescriptorType
+                    return DescriptorType, None
             except TypeError:
                 # not a type that can be used with issubclass
                 # so skip trying
                 break
-        return FieldDescriptor
+        return FieldDescriptor, None

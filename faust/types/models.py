@@ -116,7 +116,7 @@ class ModelOptions(abc.ABC):
     models: Mapping[str, Type['ModelT']] = cast(
         Mapping[str, Type['ModelT']], None)
 
-    # Index: Set of field names that are ModelT and there concrete type
+    # Index: Set of field names that are ModelT and their concrete type
     modelattrs: Mapping[str, Optional[Type]] = cast(
         Mapping[str, Optional[Type]], None)
 
@@ -136,6 +136,16 @@ class ModelOptions(abc.ABC):
     #: Index of field to polymorphic type
     polyindex: Mapping[str, TypeInfo] = cast(
         Mapping[str, TypeInfo], None)
+
+    tagged_fields: FrozenSet[str] = cast(FrozenSet[str], None)
+    personal_fields: FrozenSet[str] = cast(FrozenSet[str], None)
+    sensitive_fields: FrozenSet[str] = cast(FrozenSet[str], None)
+    secret_fields: FrozenSet[str] = cast(FrozenSet[str], None)
+
+    has_tagged_fields: bool = False
+    has_personal_fields: bool = False
+    has_sensitive_fields: bool = False
+    has_secret_fields: bool = False
 
     def clone_defaults(self) -> 'ModelOptions':
         new_options = type(self)()
