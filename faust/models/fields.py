@@ -31,6 +31,7 @@ from .tags import Tag
 __all__ = [
     'TYPE_TO_FIELD',
     'FieldDescriptor',
+    'BooleanField',
     'NumberField',
     'FloatField',
     'IntegerField',
@@ -266,6 +267,20 @@ class FieldDescriptor(FieldDescriptorT[T]):
         return f'{self.model.__name__}.{self.field}'
 
 
+class BooleanField(FieldDescriptor[T]):
+
+    def validate(self, value: T) -> Iterable[ValidationError]:
+        if not isinstance(value, bool):
+            yield self.validation_error(
+                f'{self.field} must be True or False, of type bool')
+
+    def prepare_value(self, value: Any, *,
+                      coerce: bool = None) -> Optional[bool]:
+        if self.should_coerce(value, coerce):
+            return True if value else False
+        return value
+
+
 class NumberField(FieldDescriptor[T]):
 
     max_value: Optional[int]
@@ -456,6 +471,7 @@ class BytesField(CharField[bytes]):
 
 
 TYPE_TO_FIELD = {
+    bool: BooleanField,
     int: IntegerField,
     float: FloatField,
     Decimal: DecimalField,
