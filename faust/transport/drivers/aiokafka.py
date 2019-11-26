@@ -240,7 +240,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
         request_timeout = conf.broker_request_timeout
         session_timeout = conf.broker_session_timeout
-        rebalancing_timeout = conf.broker_rebalancing_timeout
+        rebalance_timeout = conf.broker_rebalance_timeout
 
         if session_timeout > request_timeout:
             raise ImproperlyConfigured(
@@ -264,7 +264,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             request_timeout_ms=int(request_timeout * 1000.0),
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(session_timeout * 1000.0),
-            rebalancing_timeout_ms=int(rebalancing_timeout * 1000.0),
+            rebalance_timeout_ms=int(rebalance_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
             isolation_level=isolation_level,
             traced_from_parent_span=self.traced_from_parent_span,

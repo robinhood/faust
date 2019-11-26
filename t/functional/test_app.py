@@ -66,8 +66,8 @@ class test_settings:
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
-        assert (conf.broker_rebalancing_timeout ==
-                settings.BROKER_REBALANCING_TIMEOUT)
+        assert (conf.broker_rebalance_timeout ==
+                settings.BROKER_REBALANCE_TIMEOUT)
         assert (conf.broker_heartbeat_interval ==
                 settings.BROKER_HEARTBEAT_INTERVAL)
         assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
@@ -190,7 +190,7 @@ class test_settings:
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
                                  broker_session_timeout=30303.30,
-                                 broker_rebalancing_timeout=606606.60,
+                                 broker_rebalance_timeout=606606.60,
                                  broker_commit_every=202,
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
@@ -258,7 +258,7 @@ class test_settings:
             processing_guarantee=processing_guarantee,
             broker_request_timeout=broker_request_timeout,
             broker_session_timeout=broker_session_timeout,
-            broker_rebalancing_timeout=broker_rebalancing_timeout,
+            broker_rebalance_timeout=broker_rebalance_timeout,
             broker_heartbeat_interval=broker_heartbeat_interval,
             broker_commit_every=broker_commit_every,
             broker_commit_interval=broker_commit_interval,
@@ -319,7 +319,7 @@ class test_settings:
         assert conf.broker_request_timeout == broker_request_timeout
         assert conf.broker_heartbeat_interval == broker_heartbeat_interval
         assert conf.broker_session_timeout == broker_session_timeout
-        assert conf.broker_rebalancing_timeout == broker_rebalancing_timeout
+        assert conf.broker_rebalance_timeout == broker_rebalance_timeout
         assert conf.broker_commit_every == broker_commit_every
         assert conf.broker_commit_interval == broker_commit_interval
         assert (conf.broker_commit_livelock_soft_timeout ==

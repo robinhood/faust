@@ -754,10 +754,10 @@ rebalancing, but make sure you also increase the
     :setting:`broker_request_timeout`.
 
 
-.. setting:: broker_rebalancing_timeout
+.. setting:: broker_rebalance_timeout
 
-``broker_rebalancing_timeout``
-------------------------------
+``broker_rebalance_timeout``
+----------------------------
 
 .. versionadded:: 1.10
 
