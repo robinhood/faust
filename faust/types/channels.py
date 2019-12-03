@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import typing
-from typing import Any, AsyncIterator, Awaitable, Optional, Set
+from typing import Any, AsyncIterator, Awaitable, Optional, Set, TypeVar
 
 from mode import Seconds
 from mode.utils.futures import stampede
@@ -30,8 +30,11 @@ else:
     class _SchemaT: ...          # noqa
     class _StreamT: ...          # noqa
 
+_T = TypeVar('_T')
+_T_contra = TypeVar('_T_contra', contravariant=True)
 
-class ChannelT(AsyncIterator):
+
+class ChannelT(AsyncIterator[_T]):
     app: _AppT
     schema: _SchemaT
     key_type: Optional[_ModelArg]
@@ -56,15 +59,16 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> 'ChannelT':
+    def clone(self, *, is_iterator: bool = None,
+              **kwargs: Any) -> 'ChannelT[_T]':
         ...
 
     @abc.abstractmethod
-    def clone_using_queue(self, queue: asyncio.Queue) -> 'ChannelT':
+    def clone_using_queue(self, queue: asyncio.Queue) -> 'ChannelT[_T]':
         ...
 
     @abc.abstractmethod
-    def stream(self, **kwargs: Any) -> _StreamT:
+    def stream(self, **kwargs: Any) -> '_StreamT[_T]':
         ...
 
     @abc.abstractmethod
@@ -155,11 +159,11 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def put(self, value: Any) -> None:
+    async def put(self, value: _T_contra) -> None:
         ...
 
     @abc.abstractmethod
-    async def get(self, *, timeout: Seconds = None) -> Any:
+    async def get(self, *, timeout: Seconds = None) -> _T:
         ...
 
     @abc.abstractmethod

@@ -34,6 +34,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
@@ -130,6 +131,8 @@ else:
 __all__ = ['App', 'BootStrategy']
 
 logger = get_logger(__name__)
+
+_T = TypeVar('_T')
 
 #: Format string for ``repr(app)``.
 APP_REPR_FINALIZED = '''
@@ -812,7 +815,7 @@ class App(AppT, Service):
         )
 
     def agent(self,
-              channel: Union[str, ChannelT] = None,
+              channel: Union[str, ChannelT[_T]] = None,
               *,
               name: str = None,
               concurrency: int = 1,
@@ -820,7 +823,7 @@ class App(AppT, Service):
               sink: Iterable[SinkT] = None,
               isolated_partitions: bool = False,
               use_reply_headers: bool = True,
-              **kwargs: Any) -> Callable[[AgentFun], AgentT]:
+              **kwargs: Any) -> Callable[[AgentFun[_T]], AgentT[_T]]:
         """Create Agent from async def function.
 
         It can be a regular async function::
@@ -841,7 +844,7 @@ class App(AppT, Service):
                     yield number * 2
 
         """
-        def _inner(fun: AgentFun) -> AgentT:
+        def _inner(fun: AgentFun[_T]) -> AgentT[_T]:
             agent = self.conf.Agent(
                 fun,
                 name=name,

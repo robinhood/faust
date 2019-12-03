@@ -15,6 +15,7 @@ from typing import (
     Pattern,
     Set,
     Type,
+    TypeVar,
     Union,
     no_type_check,
 )
@@ -74,6 +75,7 @@ __all__ = [
 ]
 
 TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
+_T = TypeVar('_T')
 
 
 class BootStrategyT:
@@ -230,7 +232,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def agent(self,
-              channel: Union[str, ChannelT] = None,
+              channel: Union[str, ChannelT[_T]] = None,
               *,
               name: str = None,
               concurrency: int = 1,
@@ -238,7 +240,7 @@ class AppT(ServiceT):
               sink: Iterable[SinkT] = None,
               isolated_partitions: bool = False,
               use_reply_headers: bool = True,
-              **kwargs: Any) -> Callable[[AgentFun], AgentT]:
+              **kwargs: Any) -> Callable[[AgentFun[_T]], AgentT[_T]]:
         ...
 
     @abc.abstractmethod

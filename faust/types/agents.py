@@ -56,7 +56,7 @@ __all__ = [
 _T = TypeVar('_T')
 AgentErrorHandler = Callable[['AgentT', BaseException], Awaitable]
 AgentFun = Callable[
-    [StreamT],
+    [StreamT[_T]],
     Union[Coroutine[Any, Any, None], Awaitable[None], AsyncIterable],
 ]
 
@@ -109,7 +109,7 @@ class AwaitableActorT(ActorT[Awaitable], Awaitable):
 ActorRefT = ActorT[Union[AsyncIterable, Awaitable]]
 
 
-class AgentT(ServiceT):
+class AgentT(ServiceT, Generic[_T]):
 
     name: str
     app: _AppT

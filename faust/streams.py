@@ -748,15 +748,16 @@ class Stream(StreamT[T_co], Service):
     def __iter__(self) -> Any:
         return self
 
-    def __next__(self) -> Any:
+    def __next__(self) -> T:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
-    def __aiter__(self) -> AsyncIterator:  # pragma: no cover
+    def __aiter__(self) -> AsyncIterator[T_co]:  # pragma: no cover
         if _CStreamIterator is not None:
             return self._c_aiter()
-        return self._py_aiter()
+        else:
+            return self._py_aiter()
 
-    async def _c_aiter(self) -> AsyncIterator:  # pragma: no cover
+    async def _c_aiter(self) -> AsyncIterator[T_co]:  # pragma: no cover
         self.log.dev('Using Cython optimized __aiter__')
         skipped_value = self._skipped_value
         self._finalized = True
@@ -768,7 +769,7 @@ class Stream(StreamT[T_co], Service):
                 value, sensor_state = await it.next()  # noqa: B305
                 try:
                     if value is not skipped_value:
-                        yield value
+                        yield cast(T, value)
                 finally:
                     event, self.current_event = self.current_event, None
                     it.after(event, do_ack, sensor_state)
@@ -791,7 +792,7 @@ class Stream(StreamT[T_co], Service):
             _current_event.set(weakref.ref(event))
         self.current_event = event
 
-    async def _py_aiter(self) -> AsyncIterator:
+    async def _py_aiter(self) -> AsyncIterator[T_co]:
         self._finalized = True
         loop = self.loop
         await self.maybe_start()
@@ -902,7 +903,7 @@ class Stream(StreamT[T_co], Service):
                         value = skipped_value
                 try:
                     if value is not skipped_value:
-                        yield value
+                        yield cast(T, value)
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:
