@@ -258,7 +258,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             max_poll_interval_ms=int(max_poll_interval * 1000.0),
             max_partition_fetch_bytes=conf.consumer_max_fetch_size,
             fetch_max_wait_ms=100,
-            fetch_min_bytes=0,
+            fetch_min_bytes=1000,
             request_timeout_ms=int(request_timeout * 1000.0),
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(session_timeout * 1000.0),
