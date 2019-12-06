@@ -214,8 +214,8 @@ class SerializedStore(Store[KT, VT]):
     def __len__(self) -> int:
         return self._size()
 
-    def __contains__(self, key: KT) -> bool:
-        return self._contains(self._encode_key(key))
+    def __contains__(self, key: object) -> bool:
+        return self._contains(self._encode_key(cast(KT, key)))
 
     def keys(self) -> KeysView:
         """Return view of keys in the K/V store."""

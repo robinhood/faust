@@ -90,6 +90,8 @@ class CollectionT(ServiceT, JoinableT):
     last_closed_window: float
     use_partitioner: bool
 
+    is_global: bool = False
+
     @abc.abstractmethod
     def __init__(self,
                  app: _AppT,
@@ -115,6 +117,10 @@ class CollectionT(ServiceT, JoinableT):
                  **kwargs: Any) -> None:
         ...
 
+    @abc.abstractmethod
+    def clone(self, **kwargs: Any) -> Any:
+        ...
+
     @property
     @abc.abstractmethod
     def changelog_topic(self) -> TopicT:
@@ -122,6 +128,10 @@ class CollectionT(ServiceT, JoinableT):
 
     @changelog_topic.setter
     def changelog_topic(self, topic: TopicT) -> None:
+        ...
+
+    @abc.abstractmethod
+    def _changelog_topic_name(self) -> str:
         ...
 
     @abc.abstractmethod
@@ -182,9 +192,6 @@ class CollectionT(ServiceT, JoinableT):
     async def call_recover_callbacks(self) -> None:
         ...
 
-
-class TableT(CollectionT, ManagedUserDict[KT, VT]):
-
     @abc.abstractmethod
     def using_window(self, window: WindowT, *,
                      key_index: bool = False) -> 'WindowWrapperT':
@@ -205,6 +212,30 @@ class TableT(CollectionT, ManagedUserDict[KT, VT]):
     @abc.abstractmethod
     def as_ansitable(self, **kwargs: Any) -> str:
         ...
+
+    @abc.abstractmethod
+    def _relative_now(self, event: EventT = None) -> float:
+        ...
+
+    @abc.abstractmethod
+    def _relative_event(self, event: EventT = None) -> float:
+        ...
+
+    @abc.abstractmethod
+    def _relative_field(self, field: _FieldDescriptorT) -> RelativeHandler:
+        ...
+
+    @abc.abstractmethod
+    def _relative_timestamp(self, timestamp: float) -> RelativeHandler:
+        ...
+
+    @abc.abstractmethod
+    def _windowed_contains(self, key: Any, timestamp: float) -> bool:
+        ...
+
+
+class TableT(CollectionT, ManagedUserDict[KT, VT]):
+    ...
 
 
 class GlobalTableT(TableT):
@@ -241,6 +272,18 @@ class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def wait_until_recovery_completed(self) -> bool:
         ...
 
     @property

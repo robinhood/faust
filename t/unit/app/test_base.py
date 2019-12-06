@@ -616,7 +616,7 @@ class test_App:
                 ...
 
             venusian.attach.assert_called_once_with(foo, category=SCAN_TASK)
-            assert foo in app._tasks
+            assert foo in app._app_tasks
 
     @pytest.mark.asyncio
     async def test_task__on_leader(self, *, app):

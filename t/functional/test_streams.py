@@ -210,7 +210,7 @@ async def test_events(app):
     stream = new_stream(app)
     for i in range(100):
         await stream.channel.deliver(message(key=i, value=i * 2))
-        await stream.send(i)  # no associated event
+        await stream.channel.queue.put(i)  # no associated event
     i = 0
     events = []
     async for event in stream.events():
@@ -641,11 +641,3 @@ async def test_take__no_event_crashes(app, loop):
         assert isinstance(s._crash_reason, RuntimeError)
     print('RETURNING')
     assert s.enable_acks is True
-
-
-@pytest.mark.asyncio
-async def test_send__to_non_topic_channel_stream(app):
-    async with new_stream(app) as s:
-        s.channel = [1, 2, 3]
-        with pytest.raises(NotImplementedError):
-            await s.send('foo')

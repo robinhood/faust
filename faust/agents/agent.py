@@ -74,7 +74,7 @@ from faust.types.agents import (
 from faust.types.core import merge_headers, prepare_headers
 from faust.types.serializers import SchemaT
 
-from .actor import Actor, AsyncIterableActor, AwaitableActor
+from .actor import AsyncIterableActor, AwaitableActor
 from .models import (
     ModelReqRepRequest,
     ModelReqRepResponse,
@@ -161,7 +161,8 @@ class Agent(AgentT, Service):
     This is the type of object returned by the ``@app.agent`` decorator.
     """
 
-    supervisor: SupervisorStrategyT = None
+    # supervisor is None until the agent is started so we cast to simplify.
+    supervisor: SupervisorStrategyT = cast(SupervisorStrategyT, None)
     instances: MutableSequence[ActorRefT]
 
     # channel is loaded lazily on .channel property access
@@ -348,7 +349,7 @@ class Agent(AgentT, Service):
     async def _stop_supervisor(self) -> None:
         if self.supervisor:
             await self.supervisor.stop()
-            self.supervisor = None
+            self.supervisor = cast(SupervisorStrategyT, None)
 
     def cancel(self) -> None:
         """Cancel agent and its actor instances running in this process."""
@@ -461,15 +462,15 @@ class Agent(AgentT, Service):
         async def on_agent_error(agent: AgentT, exc: BaseException) -> None:
             if on_error is not None:
                 await on_error(agent, exc)
-            await agent.crash_test_agent(exc)
+            await cast(AgentTestWrapper, agent).crash_test_agent(exc)
 
-        return self.clone(
+        return cast(AgentTestWrapperT, self.clone(
             cls=AgentTestWrapper,
             channel=channel if channel is not None else self.app.channel(),
             supervisor_strategy=supervisor_strategy or CrashingSupervisor,
             original_channel=self.channel,
             on_error=on_agent_error,
-            **kwargs)
+            **kwargs))
 
     def _prepare_channel(self,
                          channel: Union[str, ChannelT] = None,
@@ -551,18 +552,25 @@ class Agent(AgentT, Service):
         if isinstance(res, AsyncIterable):
             if we_created_stream:
                 actual_stream.add_processor(self._maybe_unwrap_reply_request)
-            typ = cast(Type[Actor], AsyncIterableActor)
+            return cast(ActorRefT, AsyncIterableActor(
+                self,
+                actual_stream,
+                res,
+                index=actual_stream.concurrency_index,
+                active_partitions=actual_stream.active_partitions,
+                loop=self.loop,
+                beacon=self.beacon,
+            ))
         else:
-            typ = cast(Type[Actor], AwaitableActor)
-        return typ(
-            self,
-            actual_stream,
-            res,
-            index=actual_stream.concurrency_index,
-            active_partitions=actual_stream.active_partitions,
-            loop=self.loop,
-            beacon=self.beacon,
-        )
+            return cast(ActorRefT, AwaitableActor(
+                self,
+                actual_stream,
+                res,
+                index=actual_stream.concurrency_index,
+                active_partitions=actual_stream.active_partitions,
+                loop=self.loop,
+                beacon=self.beacon,
+            ))
 
     def add_sink(self, sink: SinkT) -> None:
         """Add new sink to further handle results from this agent."""
@@ -623,13 +631,13 @@ class Agent(AgentT, Service):
         else:
             # agent yields and is an AsyncIterator so we have to consume it.
             coro = self._slurp(aref, aiter(aref))
-        task = asyncio.Task(self._execute_task(coro, aref), loop=self.loop)
+        task = asyncio.Task(self._execute_actor(coro, aref), loop=self.loop)
         task._beacon = beacon  # type: ignore
         aref.actor_task = task
         self._actors.add(aref)
         return aref
 
-    async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
+    async def _execute_actor(self, coro: Awaitable, aref: ActorRefT) -> None:
         # This executes the agent task itself, and does exception handling.
         _current_agent.set(self)
         try:
@@ -664,9 +672,13 @@ class Agent(AgentT, Service):
                     reply_to = req.reply_to
                     correlation_id = req.correlation_id
                 elif headers:
-                    reply_to = want_str(headers.get('Faust-Ag-ReplyTo'))
-                    correlation_id = want_str(headers.get(
-                        'Faust-Ag-CorrelationId'))
+                    reply_to_bytes = headers.get('Faust-Ag-ReplyTo')
+                    if reply_to_bytes:
+                        reply_to = want_str(reply_to_bytes)
+                        correlation_id_bytes = headers.get(
+                            'Faust-Ag-CorrelationId')
+                        if correlation_id_bytes:
+                            correlation_id = want_str(correlation_id_bytes)
                 if reply_to is not None:
                     await self._reply(
                         event.key, value, reply_to, cast(str, correlation_id))
@@ -1120,4 +1132,4 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
         await self.stream().throw(exc)
 
     def __aiter__(self) -> AsyncIterator:
-        return aiter(self._stream())
+        return aiter(self._stream)

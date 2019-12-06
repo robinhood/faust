@@ -38,7 +38,8 @@ __all__ = [
 
 _bytes = bytes
 
-_BPList = Iterable[Tuple[str, SymbolArg[Type[BlueprintT]]]]
+_BPArg = SymbolArg[Type[BlueprintT]]
+_BPList = Iterable[Tuple[str, _BPArg]]
 
 DEFAULT_BLUEPRINTS: _BPList = [
     ('/router', 'faust.web.apps.router:blueprint'),
@@ -128,7 +129,7 @@ class BlueprintManager:
 
     applied: bool
 
-    _enabled: List[Tuple[str, str]]
+    _enabled: List[Tuple[str, _BPArg]]
     _active: MutableMapping[str, BlueprintT]
 
     def __init__(self, initial: _BPList = None) -> None:
@@ -136,7 +137,7 @@ class BlueprintManager:
         self._enabled = list(initial) if initial else []
         self._active = {}
 
-    def add(self, prefix: str, blueprint: SymbolArg[Type[BlueprintT]]) -> None:
+    def add(self, prefix: str, blueprint: _BPArg) -> None:
         """Register blueprint with this app."""
         if self.applied:
             raise RuntimeError('Cannot add blueprints after server started')

@@ -31,11 +31,20 @@ class ReplyPromise(asyncio.Future):
     reply_to: str
     correlation_id: str
 
-    def __init__(self, reply_to: str, correlation_id: str,
+    def __init__(self, reply_to: str, correlation_id: str = '',
                  **kwargs: Any) -> None:
         self.reply_to = reply_to
+        self._verify_correlation_id(correlation_id)
         self.correlation_id = correlation_id
+        self.__post_init__()
         super().__init__(**kwargs)
+
+    def __post_init__(self) -> None:
+        ...
+
+    def _verify_correlation_id(self, correlation_id: str) -> None:
+        if not correlation_id:
+            raise ValueError('ReplyPromise missing correlation_id argument.')
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
         """Fulfill promise: a reply was received."""
@@ -47,14 +56,12 @@ class ReplyPromise(asyncio.Future):
         self.set_result(value)
 
 
-class BarrierState(asyncio.Future):
+class BarrierState(ReplyPromise):
     """State of pending/complete barrier.
 
     A barrier is a synchronization primitive that will wait until
     a group of coroutines have completed.
     """
-
-    reply_to: str
 
     #: This is the size while the messages are being sent.
     #: (it's a tentative total, added to until the total is finalized).
@@ -73,12 +80,13 @@ class BarrierState(asyncio.Future):
     #: Set of pending replies that this barrier is composed of.
     pending: MutableSet[ReplyPromise]
 
-    def __init__(self, reply_to: str, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.reply_to = reply_to
+    def __post_init__(self) -> None:
         self.pending = set()
         loop: asyncio.AbstractEventLoop = self._loop
         self._results = asyncio.Queue(maxsize=1000, loop=loop)
+
+    def _verify_correlation_id(self, correlation_id: str) -> None:
+        pass  # barrier does not require a correlation id.
 
     def add(self, p: ReplyPromise) -> None:
         """Add promise to barrier.

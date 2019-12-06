@@ -1,7 +1,7 @@
 """LiveCheck :pypi:`aiohttp` integration."""
 from contextlib import ExitStack
 from types import SimpleNamespace
-from typing import Any, List, Optional
+from typing import Any, List, Optional, no_type_check
 
 import aiohttp
 from aiohttp import web
@@ -29,7 +29,7 @@ def patch_aiohttp_session() -> None:
     # monkeypatch to remove ridiculous "do not subclass" warning.
     def __init_subclass__() -> None:
         ...
-    client.ClientSession.__init_subclass__ = __init_subclass__
+    client.ClientSession.__init_subclass__ = __init_subclass__  # type: ignore
 
     async def _on_request_start(
             session: aiohttp.ClientSession,
@@ -44,15 +44,21 @@ def patch_aiohttp_session() -> None:
         def __init__(self,
                      trace_configs: Optional[List[TraceConfig]] = None,
                      **kwargs: Any) -> None:
-            if trace_configs is None:
-                trace_configs = []
+            super().__init__(
+                trace_configs=self._faust_trace_configs(trace_configs),
+                **kwargs)
+
+        @no_type_check
+        def _faust_trace_configs(
+                self, configs: List[TraceConfig] = None) -> List[TraceConfig]:
+            if configs is None:
+                configs = []
             trace_config = aiohttp.TraceConfig()
             trace_config.on_request_start.append(_on_request_start)
-            trace_configs.append(trace_config)
+            configs.append(trace_config)
+            return configs
 
-            super().__init__(trace_configs=trace_configs, **kwargs)
-
-    client.ClientSession = ClientSession
+    client.ClientSession = ClientSession  # type: ignore
 
 
 @web.middleware

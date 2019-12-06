@@ -1,7 +1,8 @@
 """Tables (changelog stream)."""
 import asyncio
+import typing
 
-from typing import Any, MutableMapping, Optional, Set, Tuple
+from typing import Any, MutableMapping, Optional, Set, Tuple, cast
 
 from mode import Service
 from mode.utils.queues import ThrowableQueue
@@ -11,6 +12,11 @@ from faust.types.tables import CollectionT, TableManagerT
 from faust.utils.tracing import traced_from_parent_span
 
 from .recovery import Recovery
+
+if typing.TYPE_CHECKING:
+    from faust.app import App as _App
+else:
+    class _App: ...  # noqa
 
 __all__ = [
     'TableManager',
@@ -23,7 +29,7 @@ class TableManager(Service, TableManagerT):
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
     _recovery_started: asyncio.Event
-    _changelog_queue: ThrowableQueue
+    _changelog_queue: Optional[ThrowableQueue]
     _pending_persisted_offsets: MutableMapping[TP, Tuple[StoreT, int]]
 
     _recovery: Optional[Recovery] = None
@@ -145,7 +151,7 @@ class TableManager(Service, TableManagerT):
 
     async def on_stop(self) -> None:
         """Call when table manager is stopping."""
-        await self.app._fetcher.stop()
+        await cast(_App, self.app)._fetcher.stop()
         if self._recovery:
             await self._recovery.stop()
         for table in self.values():
@@ -168,3 +174,9 @@ class TableManager(Service, TableManagerT):
 
         await T(self._update_channels)()
         await T(self.recovery.on_rebalance)(assigned, revoked, newly_assigned)
+
+    async def wait_until_recovery_completed(self) -> bool:
+        if (self.recovery.started and not
+                self.app.producer_only and not self.app.client_only):
+            return await self.wait_for_stopped(self.recovery.completed)
+        return False

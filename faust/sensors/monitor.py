@@ -430,8 +430,8 @@ class Monitor(Sensor, KeywordReduce):
                            event: EventT) -> Optional[Dict]:
         """Call when stream starts processing an event."""
         self.events_total += 1
-        self.events_by_stream[stream] += 1
-        self.events_by_task[stream.task_owner] += 1
+        self.events_by_stream[str(stream)] += 1
+        self.events_by_task[str(stream.task_owner)] += 1
         self.events_active += 1
         return {
             'time_in': self.time(),

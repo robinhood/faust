@@ -199,7 +199,7 @@ class TestRunner:
         self.error = None
         self.state = State.PASS
         human_secs = humanize_seconds(
-            self.runtime,
+            self.runtime or 0.0,
             microseconds=True,
             now='~0.0 seconds',
         )

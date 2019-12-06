@@ -16,7 +16,7 @@ from faust.models.fields import (
 )
 from mode.utils.logging import get_logger
 from faust.models.record import _is_of_type
-from faust.models.tags import Secret, Sensitive
+from faust.models.tags import Secret, Sensitive, _FrameLocal
 from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
@@ -1533,6 +1533,8 @@ def test_Sensitive(*, capsys):
 
     x = Foo(name='Foo', phone_number='631-342-3412')
 
+    print(Foo.phone_number)
+
     assert Foo._options.has_sensitive_fields
     assert Foo._options.has_tagged_fields
     assert not Foo._options.has_secret_fields
@@ -1562,6 +1564,19 @@ def test_Sensitive(*, capsys):
     stderr_content = capsys.readouterr()
     assert 'Logging error' in stderr_content.err
     assert 'SecurityError' in stderr_content.err
+
+    def exclaim(x: str) -> str:
+        assert isinstance(x, _FrameLocal)
+        return f'{x}!'
+
+    with pytest.raises(SecurityError):
+        exclaim(x.phone_number.get_value())
+
+    def upper(x: str) -> str:
+        return x.upper()
+
+    with pytest.raises(SecurityError):
+        upper(x.phone_number.get_value())
 
 
 def test_Secret(*, caplog):

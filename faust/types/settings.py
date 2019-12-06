@@ -380,7 +380,7 @@ class Settings(abc.ABC):
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
     _producer_partitioner: Optional[PartitionerT] = None
-    _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
+    _producer_request_timeout: float = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
@@ -569,11 +569,11 @@ class Settings(abc.ABC):
             self.broker_credentials = cast(CredentialsT, broker_credentials)
         if broker_request_timeout is not None:
             self.broker_request_timeout = want_seconds(broker_request_timeout)
-        self.broker_commit_interval = (
-            broker_commit_interval or self._broker_commit_interval)
-        self.broker_commit_livelock_soft_timeout = (
+        self.broker_commit_interval = cast(float, (
+            broker_commit_interval or self._broker_commit_interval))
+        self.broker_commit_livelock_soft_timeout = cast(float, (
             broker_commit_livelock_soft_timeout or
-            self._broker_commit_livelock_soft_timeout)
+            self._broker_commit_livelock_soft_timeout))
         if broker_session_timeout is not None:
             self.broker_session_timeout = want_seconds(broker_session_timeout)
         if broker_rebalance_timeout is not None:
@@ -582,8 +582,8 @@ class Settings(abc.ABC):
         if broker_heartbeat_interval is not None:
             self.broker_heartbeat_interval = want_seconds(
                 broker_heartbeat_interval)
-        self.table_cleanup_interval = (
-            table_cleanup_interval or self._table_cleanup_interval)
+        self.table_cleanup_interval = cast(float, (
+            table_cleanup_interval or self._table_cleanup_interval))
 
         if timezone is not None:
             self.timezone = timezone
@@ -632,7 +632,7 @@ class Settings(abc.ABC):
         if stream_publish_on_commit is not None:
             self.stream_publish_on_commit = stream_publish_on_commit
         if stream_recovery_delay is not None:
-            self.stream_recovery_delay = stream_recovery_delay
+            self.stream_recovery_delay = cast(float, stream_recovery_delay)
         if producer_linger_ms is not None:
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
@@ -644,9 +644,10 @@ class Settings(abc.ABC):
         if producer_compression_type is not None:
             self.producer_compression_type = producer_compression_type
         if producer_partitioner is not None:
-            self.producer_partitioner = producer_partitioner
+            self.producer_partitioner = producer_partitioner  # type: ignore
         if producer_request_timeout is not None:
-            self.producer_request_timeout = producer_request_timeout
+            self.producer_request_timeout = cast(
+                float, producer_request_timeout)
         if producer_api_version is not None:
             self.producer_api_version = producer_api_version
         if consumer_max_fetch_size is not None:
@@ -678,20 +679,21 @@ class Settings(abc.ABC):
         else:
             self.reply_to = f'{self.reply_to_prefix}{uuid4()}'
         if reply_expires is not None:
-            self.reply_expires = reply_expires
+            self.reply_expires = cast(float, reply_expires)
 
         self.GlobalTable = cast(
-            GlobalTableT, GlobalTable or GLOBAL_TABLE_TYPE)
+            Type[GlobalTableT], GlobalTable or GLOBAL_TABLE_TYPE)
         self.SetGlobalTable = cast(
-            GlobalTableT, SetGlobalTable or SET_GLOBAL_TABLE_TYPE)
-        self.agent_supervisor = cast(  # type: ignore
-            SupervisorStrategyT, agent_supervisor or AGENT_SUPERVISOR_TYPE)
+            Type[GlobalTableT], SetGlobalTable or SET_GLOBAL_TABLE_TYPE)
+        self.agent_supervisor = cast(
+            Type[SupervisorStrategyT],
+            agent_supervisor or AGENT_SUPERVISOR_TYPE)
 
-        self.Agent = cast(AgentT, Agent or AGENT_TYPE)
+        self.Agent = cast(Type[AgentT], Agent or AGENT_TYPE)
         self.ConsumerScheduler = cast(
             Type[SchedulingStrategyT],
             ConsumerScheduler or CONSUMER_SCHEDULER_TYPE)
-        self.Event = cast(EventT, Event or EVENT_TYPE)
+        self.Event = cast(Type[EventT], Event or EVENT_TYPE)
         self.Schema = cast(Type[SchemaT], Schema or SCHEMA_TYPE)
         self.Stream = cast(Type[StreamT], Stream or STREAM_TYPE)
         self.Table = cast(Type[TableT], Table or TABLE_TYPE)

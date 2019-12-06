@@ -12,16 +12,14 @@ from typing import Any, Awaitable, Mapping, Optional, cast
 from mode import Seconds, Service
 from faust.types import AppT, HeadersArg
 from faust.types.tuples import FutureMessage, RecordMetadata, TP
-from faust.types.transports import ProducerT, TransportT
+from faust.types.transports import ProducerBufferT, ProducerT, TransportT
 
 __all__ = ['Producer']
 
 
-class ProducerBuffer(Service):
+class ProducerBuffer(Service, ProducerBufferT):
 
-    max_messages: int = 100
-
-    pending: asyncio.Queue
+    max_messages = 100
 
     def __post_init__(self) -> None:
         self.pending = asyncio.Queue()

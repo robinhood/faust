@@ -21,6 +21,7 @@ from aiohttp.web import (
     TCPSite,
     UnixSite,
 )
+from aiohttp.payload import Payload
 from aiohttp_cors import CorsConfig, ResourceOptions
 from faust.types import AppT
 from faust.utils import json as _json
@@ -265,10 +266,16 @@ class Web(base.Web):
         using :meth:`bytes_to_response`.
         """
         resp = cast(Response, response)
+        if resp.body is None:
+            body = b''
+        elif isinstance(resp.body, Payload):
+            raise NotImplementedError('Does not support Payload')
+        else:
+            body = resp.body
         return self._response_to_bytes(
             resp.status,
             resp.headers,
-            resp.body,
+            body,
         )
 
     def _create_site(self) -> BaseSite:

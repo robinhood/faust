@@ -7,6 +7,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Set,
@@ -90,7 +91,7 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
     def as_stored_value(self) -> Any:
         return self.data
 
-    def __iter__(self) -> Iterable[VT]:
+    def __iter__(self) -> Iterator[VT]:
         return iter(self.data)
 
     def apply_changelog_event(self, operation: int, value: Any) -> None:
@@ -266,7 +267,7 @@ class SetTableManager(Service, Generic[KT, VT]):
                               value_type=SetManagerOperation)
 
 
-class SetTable(Table[KT, VT]):
+class SetTable(Table[KT, ChangeloggedSet[VT]]):
     """Table that maintains a dictionary of sets."""
 
     Manager: ClassVar[Type[SetTableManager]] = SetTableManager

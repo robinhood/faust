@@ -1,5 +1,5 @@
 """HTTP endpoint showing partition routing destinations."""
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from faust import web
 from faust.app.router import SameNode
 from faust.models import Record
@@ -32,7 +32,7 @@ class TableView(web.View):
     def get_table_or_404(self, name: str) -> TableT:
         """Find table by name, or raise NotFound if not found."""
         try:
-            return self.app.tables[name]
+            return cast(TableT, self.app.tables[name])
         except KeyError:
             raise self.NotFound('unknown table', name=name)
 

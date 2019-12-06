@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import List, MutableMapping, Set
+from typing import Any, List, MutableMapping, Set
 
 from mode import ServiceT
 from yarl import URL
@@ -68,6 +68,10 @@ class PartitionAssignorT(abc.ABC):
 class LeaderAssignorT(ServiceT):
 
     app: _AppT
+
+    @abc.abstractmethod
+    def __init__(self, app: _AppT, **kwargs: Any) -> None:
+        ...
 
     @abc.abstractmethod
     def is_leader(self) -> bool:

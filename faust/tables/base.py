@@ -185,7 +185,7 @@ class Collection(Service, CollectionT):
         return self._new_store_by_url(self._store or self.app.conf.store)
 
     def _new_store_by_url(self, url: Union[str, URL]) -> StoreT:
-        return cast(StoreT, stores.by_url(url)(
+        return stores.by_url(url)(
             url, self.app, self,
             table_name=self.name,
             key_type=self.key_type,
@@ -194,7 +194,7 @@ class Collection(Service, CollectionT):
             value_type=self.value_type,
             loop=self.loop,
             options=self.options,
-        ))
+        )
 
     @property  # type: ignore
     @no_type_check  # XXX https://github.com/python/mypy/issues/4125

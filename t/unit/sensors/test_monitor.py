@@ -174,8 +174,8 @@ class test_Monitor:
             state = mon.on_stream_event_in(TP1, 3 + i, stream, event)
 
             assert mon.events_total == i
-            assert mon.events_by_stream[stream] == i
-            assert mon.events_by_task[stream.task_owner] == i
+            assert mon.events_by_stream[str(stream)] == i
+            assert mon.events_by_task[str(stream.task_owner)] == i
             assert mon.events_active == i
             assert state == {
                 'time_in': time(),

@@ -5,6 +5,7 @@ import inspect
 import io
 import os
 import sys
+import typing
 from functools import wraps
 from pathlib import Path
 from textwrap import wrap
@@ -51,6 +52,11 @@ from faust.utils import terminal
 from faust.utils.codegen import reprcall
 
 from . import params
+
+if typing.TYPE_CHECKING:
+    from faust.app import App as _App
+else:
+    class _App: ...  # noqa
 
 try:
     import click_completion
@@ -494,8 +500,8 @@ class Command(abc.ABC):
     _blocking_timeout: Optional[float]
     _console_port: Optional[int]
 
-    stdout: Optional[IO]
-    stderr: Optional[IO]
+    stdout: IO
+    stderr: IO
 
     daemon: bool = False
     redirect_stdouts: Optional[bool] = None
@@ -566,8 +572,8 @@ class Command(abc.ABC):
         self.json = self.state.json
         self.no_color = self.state.no_color
         self.logfile = self.state.logfile
-        self.stdout = root.stdout
-        self.stderr = root.stderr
+        self.stdout = root.stdout or sys.stdout
+        self.stderr = root.stderr or sys.stderr
         self.args = args
         self.kwargs = kwargs
         self.prog_name = root.command_path
@@ -621,7 +627,7 @@ class Command(abc.ABC):
 
     def as_service(self,
                    loop: asyncio.AbstractEventLoop,
-                   *args: Any, **kwargs: Any) -> Service:
+                   *args: Any, **kwargs: Any) -> ServiceT:
         """Wrap command in a :class:`mode.Service` object."""
         return Service.from_awaitable(
             self.execute(*args, **kwargs),
@@ -642,7 +648,7 @@ class Command(abc.ABC):
             logfile=self.logfile,
             blocking_timeout=self.blocking_timeout,
             console_port=self.console_port,
-            redirect_stdouts=self.redirect_stdouts,
+            redirect_stdouts=self.redirect_stdouts or False,
             redirect_stdouts_level=self.redirect_stdouts_level,
             loop=loop or asyncio.get_event_loop(),
             daemon=self.daemon,
@@ -886,7 +892,7 @@ class AppCommand(Command):
     async def on_stop(self) -> None:
         """Call after command executed."""
         await super().on_stop()
-        app = self.app
+        app = cast(_App, self.app)
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.
         if app._producer is not None and app._producer.started:
@@ -997,7 +1003,9 @@ class AppCommand(Command):
             ...           'examples.other.Foo', prefix='[...]')
             'examples.other.foo'
         """
-        return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)
+        if self.app.conf.origin:
+            return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)
+        return ''
 
 
 def call_command(command: str,

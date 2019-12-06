@@ -11,7 +11,7 @@ class livecheck(worker):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         try:
-            livecheck = self.app.livecheck
+            livecheck = self.app.livecheck  # type: ignore
         except AttributeError:
             raise self.UsageError(
                 f'App {self.app!r} is not associated with LiveCheck')

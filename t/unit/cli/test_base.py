@@ -369,7 +369,7 @@ class test_Command:
                 logfile=command.logfile,
                 blocking_timeout=command.blocking_timeout,
                 console_port=command.console_port,
-                redirect_stdouts=command.redirect_stdouts,
+                redirect_stdouts=command.redirect_stdouts or False,
                 redirect_stdouts_level=command.redirect_stdouts_level,
                 loop=loop,
                 daemon=command.daemon,

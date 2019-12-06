@@ -264,6 +264,10 @@ class AgentT(ServiceT, Generic[_T]):
     def channel_iterator(self, channel: AsyncIterator) -> None:
         ...
 
+    @abc.abstractmethod
+    def _agent_label(self, name_suffix: str = '') -> str:
+        ...
+
 
 class AgentManagerT(ServiceT, ManagedUserDict[str, AgentT]):
     app: _AppT

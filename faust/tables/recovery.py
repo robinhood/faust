@@ -20,8 +20,10 @@ from faust.utils.tracing import finish_span, traced_from_parent_span
 from faust.tables.globaltable import GlobalTable
 
 if typing.TYPE_CHECKING:
+    from faust.app import App as _App
     from .manager import TableManager as _TableManager
 else:
+    class _App: ...           # noqa
     class _TableManager: ...  # noqa
 
 E_PERSISTED_OFFSET = '''\
@@ -179,7 +181,7 @@ class Recovery(Service):
         persisted_offset = table.persisted_offset(tp)
         if persisted_offset is not None:
             offsets[tp] = persisted_offset
-        offsets.setdefault(tp, None)
+        offsets.setdefault(tp, None)  # type: ignore
 
     def revoke(self, tp: TP) -> None:
         """Revoke assignment of table changelog partition."""
@@ -231,10 +233,11 @@ class Recovery(Service):
         self.active_offsets.clear()
         self.active_offsets.update(active_offsets)
 
-        if app.tracer and app._rebalancing_span:
+        rebalancing_span = cast(_App, self.app)._rebalancing_span
+        if app.tracer and rebalancing_span:
             self._recovery_span = app.tracer.get_tracer('_faust').start_span(
                 'recovery',
-                child_of=app._rebalancing_span,
+                child_of=rebalancing_span,
             )
             app._span_add_default_tags(self._recovery_span)
         self.signal_recovery_reset.clear()
@@ -258,7 +261,7 @@ class Recovery(Service):
             self.log.info('Resuming streams with empty assignment')
         self.completed.set()
         # finally make sure the fetcher is running.
-        await app._fetcher.maybe_start()
+        await cast(_App, app)._fetcher.maybe_start()
         self.tables.on_actives_ready()
         self.tables.on_standbys_ready()
         app.on_rebalance_end()
@@ -313,7 +316,9 @@ class Recovery(Service):
                 self.standbys_pending = True
                 # Must flush any buffers before starting rebalance.
                 T(self.flush_buffers)()
-                await self._wait(T(self.app._producer.flush)())
+                producer = cast(_App, self.app)._producer
+                if producer is not None:
+                    await self._wait(T(producer.flush)())
 
                 self.log.dev('Build highwaters for active partitions')
                 await self._wait(T(self._build_highwaters)(
@@ -349,7 +354,7 @@ class Recovery(Service):
                     # Resume partitions and start fetching.
                     self.log.info('Resuming flow...')
                     T(consumer.resume_flow)()
-                    await T(self.app._fetcher.maybe_start)()
+                    await T(cast(_App, self.app)._fetcher.maybe_start)()
                     T(self.app.flow_control.resume)()
 
                     # Wait for actives to be up to date.
@@ -489,7 +494,7 @@ class Recovery(Service):
             if not self._is_changelog_tp(tp)
         })
         # finally make sure the fetcher is running.
-        await self.app._fetcher.maybe_start()
+        await cast(_App, self.app)._fetcher.maybe_start()
         self.tables.on_actives_ready()
         if not self.app.assignor.assigned_standbys():
             self.tables.on_standbys_ready()
@@ -540,7 +545,8 @@ class Recovery(Service):
             else:
                 destination[tp] = max(last_value, new_value)
         table = terminal.logtable(
-            [(k.topic, k.partition, v) for k, v in destination.items()],
+            [[k.topic, str(k.partition), str(v)]
+             for k, v in destination.items()],
             title=f'Reading Starts At - {title.capitalize()}',
             headers=['topic', 'partition', 'offset'],
         )

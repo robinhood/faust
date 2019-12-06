@@ -8,18 +8,21 @@ from typing import (
     Awaitable,
     Callable,
     ClassVar,
+    ContextManager,
     Iterable,
     Mapping,
     MutableSequence,
     Optional,
     Pattern,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
     no_type_check,
 )
 
+import opentracing
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import stampede
 from mode.utils.objects import cached_property
@@ -40,7 +43,7 @@ from .streams import StreamT
 from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
-from .tuples import MessageSentCallback, RecordMetadata, TP
+from .tuples import Message, MessageSentCallback, RecordMetadata, TP
 from .web import (
     CacheBackendT,
     HttpClientT,
@@ -57,6 +60,7 @@ if typing.TYPE_CHECKING:
     from faust.livecheck.app import LiveCheck as _LiveCheck
     from faust.sensors.monitor import Monitor as _Monitor
     from faust.worker import Worker as _Worker
+    from .events import EventT as _EventT
     from .models import ModelArg as _ModelArg
     from .serializers import SchemaT as _SchemaT
     from .settings import Settings as _Settings
@@ -66,6 +70,7 @@ else:
     class _LiveCheck: ...      # noqa
     class _Monitor: ...        # noqa
     class _Worker: ...         # noqa
+    class _EventT: ...         # noqa
     class _ModelArg: ...       # noqa
     class _Settings: ...       # noqa
 
@@ -76,6 +81,24 @@ __all__ = [
 
 TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 _T = TypeVar('_T')
+
+
+class TracerT(abc.ABC):
+
+    @property
+    @abc.abstractmethod
+    def default_tracer(self) -> opentracing.Tracer:
+        ...
+
+    @abc.abstractmethod
+    def trace(self, name: str,
+              sample_rate: float = None,
+              **extra_context: Any) -> ContextManager:
+        ...
+
+    @abc.abstractmethod
+    def get_tracer(self, service_name: str) -> opentracing.Tracer:
+        ...
 
 
 class BootStrategyT:
@@ -155,11 +178,17 @@ class AppT(ServiceT):
     on_produce_message: SyncSignal = SyncSignal()
 
     client_only: bool
+    producer_only: bool
 
     agents: AgentManagerT
     sensors: SensorDelegateT
 
     fixups: MutableSequence[FixupT]
+
+    tracer: Optional[TracerT] = None
+
+    #: Original id argument + kwargs passed to App.__init__
+    _default_options: Tuple[str, Mapping[str, Any]]
 
     @abc.abstractmethod
     def __init__(self,
@@ -188,6 +217,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def worker_init(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def worker_init_post_autodiscover(self) -> None:
         ...
 
     @abc.abstractmethod
@@ -344,11 +377,26 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def create_event(self,
+                     key: K,
+                     value: V,
+                     headers: HeadersArg,
+                     message: Message) -> _EventT:
+        ...
+
+    @abc.abstractmethod
     async def start_client(self) -> None:
         ...
 
     @abc.abstractmethod
     async def maybe_start_client(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def trace(self,
+              name: str,
+              trace_enabled: bool = True,
+              **extra_context: Any) -> ContextManager:
         ...
 
     @abc.abstractmethod
@@ -398,6 +446,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def on_rebalance_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_return(self) -> None:
         ...
 
     @abc.abstractmethod
@@ -482,31 +534,35 @@ class AppT(ServiceT):
     def http_client(self, client: HttpClientT) -> None:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def assignor(self) -> PartitionAssignorT:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def router(self) -> RouterT:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def serializers(self) -> RegistryT:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def web(self) -> Web:
         ...
 
-    @web.setter
-    def web(self, web: Web) -> None:
-        ...
-
-    @property
+    @cached_property
     @abc.abstractmethod
     def in_transaction(self) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def _span_add_default_tags(self, span: opentracing.Span) -> None:
+        ...
+
+    @abc.abstractmethod
+    def _start_span_from_rebalancing(self, name: str) -> opentracing.Span:
         ...

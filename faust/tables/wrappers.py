@@ -13,14 +13,11 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     ValuesView,
     cast,
-    overload,
 )
 
 from mode import Seconds
-from mode.utils.typing import NoReturn
 
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
@@ -37,7 +34,6 @@ from faust.types.tables import (
     WindowedItemsViewT,
     WindowedValuesViewT,
 )
-from faust.types.windows import WindowRange
 from faust.utils.terminal.tables import dict_as_ansitable
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -239,46 +235,28 @@ class WindowSet(WindowSetT[KT, VT]):
         table = cast(_Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
-    @overload
-    def __getitem__(self, w: EventT) -> WindowSetT[KT, VT]: ...  # noqa
-
-    @overload  # noqa
-    def __getitem__(self, w: WindowRange) -> VT: ...  # noqa
-
-    def __getitem__(self, w: Union[EventT, WindowRange]) -> VT:  # noqa
+    def __getitem__(self, w: KT) -> VT:  # noqa
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
-            return type(self)(self.key, self.table, self.wrapper, w)
+            return cast(VT, type(self)(self.key, self.table, self.wrapper, w))
         # wrapper[key][window_range] returns value for that range.
         return self.table[self.key, w]
 
-    @overload  # noqa
-    def __setitem__(self, w: EventT, value: VT) -> NoReturn: ...  # noqa
-
-    @overload  # noqa
-    def __setitem__(self, w: WindowRange, value: VT) -> None: ...  # noqa
-
     def __setitem__(self,  # noqa
-                    w: Union[EventT, WindowRange],
+                    w: KT,
                     value: VT) -> None:
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot set WindowSet key, when key is an event')
-        self.wrapper.on_set_key(self.key, value)
         self.table[self.key, w] = value
+        self.wrapper.on_set_key(self.key, value)
 
-    @overload  # noqa
-    def __delitem__(self, w: EventT) -> NoReturn: ...  # noqa
-
-    @overload  # noqa
-    def __delitem__(self, w: WindowRange) -> None: ...  # noqa
-
-    def __delitem__(self, w: Union[EventT, WindowRange]) -> None:  # noqa
+    def __delitem__(self, w: KT) -> None:
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot delete WindowSet key, when key is an event')
-        self.wrapper.on_del_key(self.key)
         del self.table[self.key, w]
+        self.wrapper.on_del_key(self.key)
 
     def __iadd__(self, other: VT) -> WindowSetT:
         return self.apply(operator.add, other)

@@ -375,3 +375,7 @@ class Conductor(ConductorT, Service):
     def shortlabel(self) -> str:
         """Return short label for use in logs."""
         return type(self).__name__
+
+    @property
+    def acking_topics(self) -> Set[str]:
+        return self._acking_topics

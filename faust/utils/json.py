@@ -67,16 +67,25 @@ DECIMAL_MAXLEN = 1000
 #: Types that we convert to lists.
 SEQUENCE_TYPES: TypeTuple[Iterable] = (set, deque)
 
+DateTypeTuple = Tuple[Union[Type[datetime.date], Type[datetime.time]], ...]
+DatetimeTypeTuple = Tuple[
+    Union[
+        Type[datetime.time],
+        Type[datetime.datetime],
+    ],
+    ...,
+]
+
 #: Types that we convert o mapping.
 MAPPING_TYPES: TypeTuple[Mapping] = (Counter,)
 
 #: Types that are datetimes and dates (-> .isoformat())
-DATE_TYPES: TypeTuple[datetime.date] = (datetime.date, datetime.time)
+DATE_TYPES: DateTypeTuple = (datetime.date, datetime.time)
 
 #: Types we use `return obj.value` for (Enum)
 VALUE_DELEGATE_TYPES: TypeTuple[enum.Enum] = (enum.Enum,)
 
-HAS_TIME: TypeTuple[datetime.time] = (datetime.datetime, datetime.time)
+HAS_TIME: DatetimeTypeTuple = (datetime.datetime, datetime.time)
 
 
 def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
@@ -108,9 +117,9 @@ def on_default(o: Any,
                *,
                sequences: TypeTuple[Iterable] = SEQUENCE_TYPES,
                maps: TypeTuple[Mapping] = MAPPING_TYPES,
-               dates: TypeTuple[datetime.date] = DATE_TYPES,
+               dates: DateTypeTuple = DATE_TYPES,
                value_delegate: TypeTuple[enum.Enum] = VALUE_DELEGATE_TYPES,
-               has_time: TypeTuple[datetime.time] = HAS_TIME,
+               has_time: DatetimeTypeTuple = HAS_TIME,
                _isinstance: Callable[[Any, IsInstanceArg], bool] = isinstance,
                _dict: Callable = dict,
                _str: Callable[[Any], str] = str,

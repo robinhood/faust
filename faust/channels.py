@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    TypeVar,
     cast,
     no_type_check,
 )
@@ -49,8 +50,11 @@ __all__ = ['Channel']
 
 logger = get_logger(__name__)
 
+T = TypeVar('T')
+T_contra = TypeVar('T_contra', contravariant=True)
 
-class Channel(ChannelT):
+
+class Channel(ChannelT[T]):
     """Create new channel.
 
     Arguments:
@@ -138,7 +142,7 @@ class Channel(ChannelT):
             )
         return self._queue
 
-    def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
+    def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT[T]:
         """Create clone of this channel.
 
         Arguments:
@@ -159,11 +163,11 @@ class Channel(ChannelT):
         subchannel.queue
         return subchannel
 
-    def clone_using_queue(self, queue: asyncio.Queue) -> ChannelT:
+    def clone_using_queue(self, queue: asyncio.Queue) -> ChannelT[T]:
         """Create clone of this channel using specific queue instance."""
         return self.clone(queue=queue, is_iterator=True)
 
-    def _clone(self, **kwargs: Any) -> ChannelT:
+    def _clone(self, **kwargs: Any) -> ChannelT[T]:
         return type(self)(**{**self._clone_args(), **kwargs})
 
     def _clone_args(self) -> Mapping:
@@ -180,7 +184,7 @@ class Channel(ChannelT):
             'active_partitions': self.active_partitions,
         }
 
-    def stream(self, **kwargs: Any) -> StreamT:
+    def stream(self, **kwargs: Any) -> StreamT[T]:
         """Create stream reading from this channel."""
         return self.app.stream(self, **kwargs)
 
@@ -311,9 +315,7 @@ class Channel(ChannelT):
         the message, and acts as a promise that is resolved
         once the message has been fully transmitted.
         """
-        event = self._create_event(
-            fut.message.key, fut.message.value, fut.message.headers,
-            message=_PendingMessage_to_Message(fut.message))
+        event = self._future_message_to_event(fut)
         await self.put(event)
         topic, partition = tp = TP(
             fut.message.topic or '<anon>',
@@ -328,6 +330,11 @@ class Channel(ChannelT):
                 timestamp_type=1,
             ),
         )
+
+    def _future_message_to_event(self, fut: FutureMessage) -> EventT:
+        return self._create_event(
+            fut.message.key, fut.message.value, fut.message.headers,
+            message=_PendingMessage_to_Message(fut.message))
 
     async def _finalize_message(self, fut: FutureMessage,
                                 result: RecordMetadata) -> FutureMessage:
@@ -376,7 +383,7 @@ class Channel(ChannelT):
         return value, headers
 
     async def decode(self, message: Message, *,
-                     propagate: bool = False) -> EventT:
+                     propagate: bool = False) -> EventT[T]:
         """Decode :class:`~faust.types.Message` into :class:`~faust.Event`."""
         return self._create_event(
             message.key, message.value, message.headers, message=message)
@@ -406,16 +413,16 @@ class Channel(ChannelT):
                       key: K,
                       value: V,
                       headers: Optional[HeadersArg],
-                      message: Message) -> EventT:
+                      message: Message) -> EventT[T]:
         return self.app.create_event(key, value, headers, message)
 
-    async def put(self, value: Any) -> None:
+    async def put(self, value: EventT[T_contra]) -> None:
         """Put event onto this channel."""
         root = self._root if self._root is not None else self
         for subscriber in root._subscribers:
             await subscriber.queue.put(value)
 
-    async def get(self, *, timeout: Seconds = None) -> Any:
+    async def get(self, *, timeout: Seconds = None) -> EventT[T]:
         """Get the next :class:`~faust.Event` received on this channel."""
         timeout_: float = want_seconds(timeout)
         if timeout_:
@@ -477,7 +484,7 @@ class Channel(ChannelT):
         """
         ...
 
-    def derive(self, **kwargs: Any) -> ChannelT:
+    def derive(self, **kwargs: Any) -> ChannelT[T]:
         """Derive new channel from this channel, using new configuration.
 
         See :class:`faust.Topic.derive`.
@@ -486,10 +493,10 @@ class Channel(ChannelT):
         """
         return self
 
-    def __aiter__(self) -> ChannelT:
+    def __aiter__(self) -> ChannelT[T]:
         return self if self.is_iterator else self.clone(is_iterator=True)
 
-    async def __anext__(self) -> EventT:
+    async def __anext__(self) -> EventT[T]:
         if not self.is_iterator:
             raise RuntimeError('Need to call channel.__aiter__()')
         return await self.queue.get()
@@ -546,7 +553,7 @@ class Channel(ChannelT):
         return f'{sym}{type(self).__name__}: {self}'
 
 
-class SerializedChannel(Channel):
+class SerializedChannel(Channel[T]):
 
     def __init__(self,
                  app: AppT,

@@ -1,7 +1,15 @@
 import abc
 import asyncio
 import typing
-from typing import Any, AsyncIterator, Awaitable, Optional, Set, TypeVar
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Generic,
+    Optional,
+    Set,
+    TypeVar,
+)
 
 from mode import Seconds
 from mode.utils.futures import stampede
@@ -17,6 +25,9 @@ from .tuples import (
     TP,
 )
 
+_T = TypeVar('_T')
+_T_contra = TypeVar('_T_contra', contravariant=True)
+
 if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
     from .events import EventT as _EventT
@@ -24,17 +35,14 @@ if typing.TYPE_CHECKING:
     from .serializers import SchemaT as _SchemaT
     from .streams import StreamT as _StreamT
 else:
-    class _AppT: ...             # noqa
-    class _EventT: ...           # noqa
-    class _ModelArg: ...         # noqa
-    class _SchemaT: ...          # noqa
-    class _StreamT: ...          # noqa
-
-_T = TypeVar('_T')
-_T_contra = TypeVar('_T_contra', contravariant=True)
+    class _AppT: ...                          # noqa
+    class _EventT(Generic[_T]): ...           # noqa
+    class _ModelArg: ...                      # noqa
+    class _SchemaT: ...                       # noqa
+    class _StreamT: ...                       # noqa
 
 
-class ChannelT(AsyncIterator[_T]):
+class ChannelT(AsyncIterator[_EventT[_T]]):
     app: _AppT
     schema: _SchemaT
     key_type: Optional[_ModelArg]
@@ -151,7 +159,7 @@ class ChannelT(AsyncIterator[_T]):
 
     @abc.abstractmethod
     async def decode(self, message: Message, *,
-                     propagate: bool = False) -> _EventT:
+                     propagate: bool = False) -> _EventT[_T]:
         ...
 
     @abc.abstractmethod
@@ -159,11 +167,11 @@ class ChannelT(AsyncIterator[_T]):
         ...
 
     @abc.abstractmethod
-    async def put(self, value: _T_contra) -> None:
+    async def put(self, value: _EventT[_T]) -> None:
         ...
 
     @abc.abstractmethod
-    async def get(self, *, timeout: Seconds = None) -> _T:
+    async def get(self, *, timeout: Seconds = None) -> _EventT[_T]:
         ...
 
     @abc.abstractmethod
@@ -193,7 +201,7 @@ class ChannelT(AsyncIterator[_T]):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> _EventT:
+    def __anext__(self) -> Awaitable[_EventT[_T]]:
         ...
 
     @abc.abstractmethod

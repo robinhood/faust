@@ -12,8 +12,10 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    cast,
 )
 
+from mode.signals import BaseSignalT
 from mode.utils.compat import want_bytes
 from mode.utils.objects import annotations, cached_property, qualname
 from mode.utils.times import Seconds
@@ -51,7 +53,7 @@ class LiveCheckSensor(Sensor):
         """Call when stream starts processing event."""
         test = TestExecution.from_headers(event.headers)
         if test is not None:
-            stream.current_test = test
+            stream.current_test = test  # type: ignore
             current_test_stack.push_without_automatic_cleanup(test)
         return None
 
@@ -64,7 +66,7 @@ class LiveCheckSensor(Sensor):
         """Call when stream is finished handling event."""
         has_active_test = getattr(stream, 'current_test', None)
         if has_active_test:
-            stream.current_test = None
+            stream.current_test = None  # type: ignore
             current_test_stack.pop()
 
 
@@ -132,9 +134,10 @@ class LiveCheck(faust.App):
 
     def _contribute_to_app(self, app: AppT) -> None:
         from .patches.aiohttp import LiveCheckMiddleware
-        app.web.web_app.middlewares.append(LiveCheckMiddleware())
+        web_app = app.web.web_app  # type: ignore
+        web_app.middlewares.append(LiveCheckMiddleware())
         app.sensors.add(LiveCheckSensor())
-        app.livecheck = self
+        app.livecheck = self  # type: ignore
 
     def __init__(self,
                  id: str,
@@ -180,7 +183,8 @@ class LiveCheck(faust.App):
         patches.patch_all()
 
     def _connect_signals(self) -> None:
-        AppT.on_produce_message.connect(self.on_produce_attach_test_headers)
+        AppT.on_produce_message.connect(
+            self.on_produce_attach_test_headers)  # type: ignore
 
     def on_produce_attach_test_headers(
             self,
@@ -190,6 +194,7 @@ class LiveCheck(faust.App):
             partition: int = None,
             timestamp: float = None,
             headers: List[Tuple[str, bytes]] = None,
+            signal: BaseSignalT = None,
             **kwargs: Any) -> None:
         """Attach test headers to Kafka produce requests."""
         test = current_test()
@@ -259,7 +264,7 @@ class LiveCheck(faust.App):
                 url_error_delay_backoff=url_error_delay_backoff,
                 url_error_delay_max=url_error_delay_max,
             ))
-            venusian.attach(case, category=SCAN_CASE)
+            venusian.attach(cast(Callable, case), category=SCAN_CASE)
             return case
 
         return _inner

@@ -210,10 +210,6 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def send(self, value: T_contra) -> None:
-        ...
-
-    @abc.abstractmethod
     def __copy__(self) -> 'StreamT':
         ...
 

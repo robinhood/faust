@@ -230,7 +230,7 @@ class Model(ModelT):
         data = loads(ser, s)
         return cls.from_data(data)
 
-    def __init_subclass__(cls,
+    def __init_subclass__(self,
                           serializer: str = None,
                           namespace: str = None,
                           include_metadata: bool = None,
@@ -255,7 +255,7 @@ class Model(ModelT):
         #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
         finalizer = partial(
-            cls._init_subclass,
+            self._init_subclass,
             serializer,
             namespace,
             include_metadata,
@@ -270,9 +270,9 @@ class Model(ModelT):
             date_parser,
         )
         if lazy_creation:
-            cls._pending_finalizers = [finalizer]
+            self._pending_finalizers = [finalizer]
         else:
-            cls._pending_finalizers = None
+            self._pending_finalizers = None
             finalizer()
 
     @classmethod

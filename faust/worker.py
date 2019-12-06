@@ -17,7 +17,7 @@ from typing import Any, Dict, IO, Iterable, Mapping, Optional, Set, Union
 
 import mode
 from mode import ServiceT, get_logger
-from mode.utils.logging import formatter
+from mode.utils.logging import Severity, formatter
 
 from .types import AppT, SensorT, TP, TopicT
 from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
@@ -161,16 +161,18 @@ class Worker(mode.Worker):
                  console_port: int = CONSOLE_PORT,
                  loop: asyncio.AbstractEventLoop = None,
                  redirect_stdouts: bool = None,
-                 redirect_stdouts_level: int = None,
+                 redirect_stdouts_level: Severity = None,
                  logging_config: Dict = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
         self.workdir = Path(workdir or Path.cwd())
+        conf = app.conf
         if redirect_stdouts is None:
-            redirect_stdouts = app.conf.worker_redirect_stdouts
+            redirect_stdouts = conf.worker_redirect_stdouts
         if redirect_stdouts_level is None:
-            redirect_stdouts_level = app.conf.worker_redirect_stdouts_level
+            redirect_stdouts_level = (
+                conf.worker_redirect_stdouts_level or logging.INFO)
         if logging_config is None:
             logging_config = app.conf.logging_config
         super().__init__(

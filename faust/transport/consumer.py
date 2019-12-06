@@ -77,7 +77,6 @@ from mode.utils.futures import notify
 from mode.utils.locks import Event
 from mode.utils.text import pluralize
 from mode.utils.times import Seconds
-from mode.utils.typing import Counter
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
 from faust.types.core import HeadersArg
@@ -91,6 +90,7 @@ from faust.types.transports import (
     TransactionManagerT,
     TransportT,
 )
+from faust.types.tuples import FutureMessage
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
 from faust.utils.tracing import traced_from_parent_span
@@ -284,6 +284,9 @@ class TransactionManager(Service, TransactionManagerT):
             transactional_id=transactional_id,
         )
 
+    def send_soon(self, fut: FutureMessage) -> None:
+        raise NotImplementedError()
+
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
@@ -389,7 +392,7 @@ class Consumer(Service, ConsumerT):
     #: Set only when not set, and reset by commit() so actually
     #: tracks how long it ago it was since we received a record that
     #: was never committed.
-    _last_batch: Counter[TP]
+    _last_batch: MutableMapping[TP, float]
 
     #: Time of when the consumer was started.
     _time_start: float
@@ -439,7 +442,7 @@ class Consumer(Service, ConsumerT):
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         self._time_start = monotonic()
-        self._last_batch = Counter()
+        self._last_batch = defaultdict(float)
         self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
         self.can_resume_flow = Event()
@@ -893,7 +896,7 @@ class Consumer(Service, ConsumerT):
             # If we cannot commit it means the events will be processed again,
             # so conforms to at-least-once semantics.
             if pending:
-                await producer.wait_many(pending)
+                await cast(Service, producer).wait_many(pending)
 
     async def _commit_offsets(self, offsets: Mapping[TP, int],
                               start_new_transaction: bool = True) -> bool:
@@ -1003,8 +1006,8 @@ class Consumer(Service, ConsumerT):
         # stop it using `await Fetcher.stop()`.
         callback = self.callback
         getmany = self.getmany
-        consumer_should_stop = self._stopped.is_set
-        fetcher_should_stop = fetcher._stopped.is_set
+        consumer_should_stop = cast(Service, self)._stopped.is_set
+        fetcher_should_stop = cast(Service, fetcher)._stopped.is_set
 
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
@@ -1084,7 +1087,8 @@ class ConsumerThread(QueueServiceThread):
     consumer: 'ThreadDelegateConsumer'
     transport: TransportT
 
-    def __init__(self, consumer: ConsumerT, **kwargs: Any) -> None:
+    def __init__(self, consumer: 'ThreadDelegateConsumer',
+                 **kwargs: Any) -> None:
         self.consumer = consumer
         self.transport = self.consumer.transport
         self.app = self.transport.app
@@ -1138,6 +1142,10 @@ class ConsumerThread(QueueServiceThread):
     @abc.abstractmethod
     def topic_partitions(self, topic: str) -> Optional[int]:
         """Return number of configured partitions for topic by name."""
+        ...
+
+    @abc.abstractmethod
+    def close(self) -> None:
         ...
 
     @abc.abstractmethod

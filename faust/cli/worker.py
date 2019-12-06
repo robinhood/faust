@@ -3,13 +3,14 @@ import asyncio
 import os
 import platform
 import socket
-from typing import Any, List, Optional, cast
+from typing import Any, List, Optional, Type, cast
 
 from mode import ServiceT, Worker
 from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
 from yarl import URL
 
+from faust.worker import Worker as FaustWorker
 from faust.types import AppT
 from faust.types._env import WEB_BIND, WEB_PORT, WEB_TRANSPORT
 
@@ -85,13 +86,13 @@ class worker(AppCommand):
             self.app.conf.web_transport = web_transport
 
     @property
-    def _Worker(self) -> Worker:
+    def _Worker(self) -> Type[Worker]:
         # using Faust worker to start the app, not command code.
         return self.app.conf.Worker
 
     def banner(self, worker: Worker) -> str:
         """Generate the text banner emitted before the worker starts."""
-        app = worker.app
+        app = cast(FaustWorker, worker).app
         loop = worker.loop
         transport_extra = ''
         # uvloop didn't leave us with any way to identify itself,

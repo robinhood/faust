@@ -29,6 +29,7 @@ from mode.utils.text import pluralize
 
 from faust.types.models import (
     CoercionHandler,
+    CoercionMapping,
     FieldDescriptorT,
     FieldMap,
     IsInstanceArgT,
@@ -43,6 +44,7 @@ from faust.utils.json import str_to_decimal
 
 from .base import Model
 from .fields import FieldDescriptor, field_for_type
+from .tags import Tag
 
 __all__ = ['Record']
 
@@ -79,13 +81,14 @@ _ReconFun = Callable[..., Any]
 # the polymorphic type for x would be `list`, and the polymorphic type
 # for y would be `dict`.
 
-__polymorphic_type_cache: Dict[Type, Tuple[Type, Type]] = {}
+__polymorphic_type_cache: Dict[Type, Tuple[Type, Optional[Type]]] = {}
 
 
-def _polymorphic_type(typ: Type) -> Tuple[Type, Type]:
+def _polymorphic_type(typ: Type) -> Tuple[Type, Optional[Type]]:
     try:
         polymorphic_type, cls = __polymorphic_type_cache[typ]
     except KeyError:
+        val: Tuple[Type, Optional[Type]]
         try:
             val = guess_polymorphic_type(typ)
         except TypeError:
@@ -93,7 +96,7 @@ def _polymorphic_type(typ: Type) -> Tuple[Type, Type]:
         __polymorphic_type_cache[typ] = val
         return val
     if polymorphic_type is TypeError:
-        raise TypeError()
+        raise TypeError(typ)
     return polymorphic_type, cls
 
 
@@ -204,7 +207,7 @@ def _is_of_type(value: Any, typ: Type) -> bool:
         return isinstance(value, typ)
 
 
-class Record(Model, abstract=True):
+class Record(Model, abstract=True):  # type: ignore
     """Describes a model type that is a record (Mapping).
 
     Examples:
@@ -238,6 +241,40 @@ class Record(Model, abstract=True):
         >>> LogEvent.severity
         >>> <FieldDescriptor: LogEvent.severity (str)>
     """
+
+    def __init_subclass__(cls,
+                          serializer: str = None,
+                          namespace: str = None,
+                          include_metadata: bool = None,
+                          isodates: bool = None,
+                          abstract: bool = False,
+                          allow_blessed_key: bool = None,
+                          decimals: bool = None,
+                          coerce: bool = None,
+                          coercions: CoercionMapping = None,
+                          polymorphic_fields: bool = None,
+                          validation: bool = None,
+                          date_parser: Callable[[Any], datetime] = None,
+                          lazy_creation: bool = False,
+                          **kwargs: Any) -> None:
+        # XXX mypy 0.750 requires this to be defined on the class,
+        # and do not recognize the parent class signature.
+
+        super().__init_subclass__(
+            serializer=serializer,
+            namespace=namespace,
+            include_metadata=include_metadata,
+            isodates=isodates,
+            abstract=abstract,
+            allow_blessed_key=allow_blessed_key,
+            decimals=decimals,
+            coerce=coerce,
+            coercions=coercions,
+            polymorphic_fields=polymorphic_fields,
+            validation=validation,
+            date_parser=date_parser,
+            lazy_creation=lazy_creation,
+            **kwargs)
 
     @classmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
@@ -368,7 +405,7 @@ class Record(Model, abstract=True):
         personal_fields = set()
         tagged_fields = set()
 
-        def add_to_tagged_indices(field, tag):
+        def add_to_tagged_indices(field: str, tag: Type[Tag]) -> None:
             if tag.is_secret:
                 options.has_secret_fields = True
                 secret_fields.add(field)
@@ -381,7 +418,10 @@ class Record(Model, abstract=True):
             options.has_tagged_fields = True
             tagged_fields.add(field)
 
-        def add_related_to_tagged_indices(field, related_model):
+        def add_related_to_tagged_indices(field: str,
+                                          related_model: Type = None) -> None:
+            if related_model is None:
+                return
             try:
                 related_options = related_model._options
             except AttributeError:

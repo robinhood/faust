@@ -38,6 +38,18 @@ class MyTable(Collection):
     def _del_key(self, key):
         self.datas.pop(key, None)
 
+    def hopping(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def tumbling(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def using_window(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def as_ansitable(self, *args, **kwargs):
+        raise NotImplementedError()
+
 
 class test_Collection:
 

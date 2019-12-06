@@ -47,7 +47,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
 
     async def stop(self) -> None:
         """Stop all running agents."""
-        # Cancel first so _execute_task sees we are not stopped.
+        # Cancel first so _execute_actor sees we are not stopped.
         self.cancel()
         # Then stop the agents
         await super().stop()

@@ -37,6 +37,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    no_type_check,
 )
 
 import opentracing
@@ -78,7 +79,7 @@ from faust.web.cache import backends as cache_backends
 from faust.web.views import View
 
 from faust.types._env import STRICT
-from faust.types.app import AppT, BootStrategyT, TaskArg
+from faust.types.app import AppT, BootStrategyT, TaskArg, TracerT
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
 from faust.types.core import HeadersArg, K, V
@@ -122,10 +123,12 @@ from ._attached import Attachments
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.cli.base import AppCommand as _AppCommand
     from faust.livecheck import LiveCheck as _LiveCheck
+    from faust.transport.consumer import Fetcher as _Fetcher
     from faust.worker import Worker as _Worker
 else:
     class _AppCommand: ...  # noqa
     class _LiveCheck: ...   # noqa
+    class _Fetcher: ...     # noqa
     class _Worker: ...      # noqa
 
 __all__ = ['App', 'BootStrategy']
@@ -282,11 +285,12 @@ class BootStrategy(BootStrategyT):
 
     def client_only(self) -> Iterable[ServiceT]:
         """Return services to start when app is in client_only mode."""
+        app = cast(App, self.app)
         return self._chain(
             self.kafka_producer(),
             self.kafka_client_consumer(),
             self.kafka_conductor(),
-            [self.app._fetcher],
+            [app._fetcher],
         )
 
     def producer_only(self) -> Iterable[ServiceT]:
@@ -319,12 +323,13 @@ class BootStrategy(BootStrategyT):
     def kafka_consumer(self) -> Iterable[ServiceT]:
         """Return list of services required to start Kafka consumer."""
         if self._should_enable_kafka_consumer():
+            app = cast(App, self.app)
             return [
                 self.app.consumer,
                 # Leader Assignor (assignor.LeaderAssignor)
-                self.app._leader_assignor,
+                app._leader_assignor,
                 # Reply Consumer (ReplyConsumer)
-                self.app._reply_consumer,
+                app._reply_consumer,
             ]
         return []
 
@@ -335,9 +340,10 @@ class BootStrategy(BootStrategyT):
 
     def kafka_client_consumer(self) -> Iterable[ServiceT]:
         """Return list of services required to start Kafka client consumer."""
+        app = cast(App, self.app)
         return [
-            self.app.consumer,
-            self.app._reply_consumer,
+            app.consumer,
+            app._reply_consumer,
         ]
 
     def agents(self) -> Iterable[ServiceT]:
@@ -423,11 +429,11 @@ class App(AppT, Service):
 
     # @app.task decorator adds asyncio tasks to be started
     # with the app here.
-    _tasks: MutableSequence[Callable[[], Awaitable]]
+    _app_tasks: MutableSequence[Callable[[], Awaitable]]
 
     _http_client: Optional[HttpClientT] = None
 
-    _extra_services: List[ServiceT]
+    _extra_services: List[Type[ServiceT]]
     _extra_service_instances: Optional[List[ServiceT]] = None
 
     # See faust/app/_attached.py
@@ -437,7 +443,7 @@ class App(AppT, Service):
     _assignment: Optional[Set[TP]] = None
 
     #: Optional tracing support.
-    tracer: Optional[Any] = None
+    tracer: Optional[TracerT] = None
     _rebalancing_span: Optional[opentracing.Span] = None
     _rebalancing_sensor_state: Optional[Dict] = None
 
@@ -468,7 +474,7 @@ class App(AppT, Service):
         self._monitor = monitor
 
         # Any additional asyncio.Task's specified using @app.task decorator.
-        self._tasks = []
+        self._app_tasks = []
 
         # Called as soon as the a worker is fully operational.
         self.on_startup_finished: Optional[Callable] = None
@@ -588,14 +594,11 @@ class App(AppT, Service):
                 await self.on_startup_finished()
 
     async def _wait_for_table_recovery_completed(self) -> bool:
-        if (self.tables.recovery.started and not
-                self.producer_only and not self.client_only):
-            return await self.wait_for_stopped(self.tables.recovery.completed)
-        return False
+        return await self.tables.wait_until_recovery_completed()
 
     async def on_started_init_extra_tasks(self) -> None:
         """Call when started to start additional tasks."""
-        for task in self._tasks:
+        for task in self._app_tasks:
             self.add_future(task())
 
     async def on_started_init_extra_services(self) -> None:
@@ -618,8 +621,12 @@ class App(AppT, Service):
     def _prepare_subservice(
             self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
         if inspect.isclass(service):
-            return service(loop=self.loop, beacon=self.beacon)
-        return service
+            return cast(Type[ServiceT], service)(
+                loop=self.loop,
+                beacon=self.beacon,
+            )
+        else:
+            return cast(ServiceT, service)
 
     def config_from_object(self,
                            obj: Any,
@@ -708,7 +715,7 @@ class App(AppT, Service):
 
     def _on_autodiscovery_error(self, name: str) -> None:
         logger.warning('Autodiscovery importing module %r raised error: %r',
-                       name, sys.exc_info()[1], exc_info=1)
+                       name, sys.exc_info()[1], exc_info=True)
 
     def _discovery_modules(self) -> List[str]:
         modules: List[str] = []
@@ -876,6 +883,7 @@ class App(AppT, Service):
             except Exception as exc:
                 self.log.exception('Consumer error callback raised: %r', exc)
 
+    @no_type_check
     def task(self,
              fun: TaskArg = None,
              *,
@@ -925,9 +933,10 @@ class App(AppT, Service):
                         return await task()
 
         venusian.attach(_wrapped, category=SCAN_TASK)
-        self._tasks.append(_wrapped)
+        self._app_tasks.append(_wrapped)
         return _wrapped
 
+    @no_type_check
     def timer(self, interval: Seconds,
               on_leader: bool = False,
               traced: bool = True,
@@ -1111,7 +1120,7 @@ class App(AppT, Service):
                 partitions=partitions,
                 help=help,
                 **kwargs))
-        return table.using_window(window) if window else table
+        return cast(TableT, table.using_window(window) if window else table)
 
     def GlobalTable(self,
                     name: str,
@@ -1153,7 +1162,8 @@ class App(AppT, Service):
                 is_global=True,
                 help=help,
                 **kwargs))
-        return gtable.using_window(window) if window else gtable
+        return cast(GlobalTableT,
+                    gtable.using_window(window) if window else gtable)
 
     def SetTable(self,
                  name: str,
@@ -1173,7 +1183,7 @@ class App(AppT, Service):
                 start_manager=start_manager,
                 help=help,
                 **kwargs))
-        return table.using_window(window) if window else table
+        return cast(TableT, table.using_window(window) if window else table)
 
     def SetGlobalTable(self,
                        name: str,
@@ -1193,7 +1203,7 @@ class App(AppT, Service):
                 start_manager=start_manager,
                 help=help,
                 **kwargs))
-        return table.using_window(window) if window else table
+        return cast(TableT, table.using_window(window) if window else table)
 
     def page(self, path: str, *,
              base: Type[View] = View,
@@ -1871,9 +1881,10 @@ class App(AppT, Service):
         self._monitor = monitor
 
     @cached_property
-    def _fetcher(self) -> ServiceT:
+    def _fetcher(self) -> _Fetcher:
         """Fetcher helps Kafka Consumer retrieve records in topics."""
-        return self.transport.Fetcher(self, loop=self.loop, beacon=self.beacon)
+        return cast(Type[_Fetcher], self.transport.Fetcher)(
+            self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:

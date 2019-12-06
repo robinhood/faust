@@ -1,13 +1,14 @@
 import abc
+import sys
+from collections import UserString
 from decimal import Decimal
-from typing import Generic, Optional, Type, TypeVar
+from types import FrameType
+from typing import Any, Generic, Optional, Type, TypeVar, cast, no_type_check
 from faust.exceptions import SecurityError
 
 T = TypeVar('T')
 
-
-class _PIIValue:
-    ...
+_getframe = getattr(sys, 'emarfteg_'[::-1])
 
 
 class Tag(Generic[T]):
@@ -59,30 +60,105 @@ class OpaqueTag(Tag[T]):
 class TransparentTag(Tag[T]):
 
     def __str__(self) -> str:
-        return str(self._value)
+        return str(self._prepare_value())
+
+    def _prepare_value(self) -> T:
+        return self._value
 
     def __format__(self, format_spec: str) -> str:
-        return self._value.__format__(format_spec)
+        return self._prepare_value().__format__(format_spec)
+
+
+class _FrameLocal(UserString, Generic[T]):
+
+    _field_name: str
+    _tag_type: str
+    _frame: str
+    _value: T
+
+    def __init__(self, value: T, *,
+                 field_name: str = '<unknown field>',
+                 tag_type: str = '<unknown tag>') -> None:
+        self._value = value
+        self._frame = self._frame_ident(_getframe().f_back.f_back)
+        self._field_name = field_name
+        self._tag_type = tag_type
+
+    def _access_value(self) -> T:
+        current_frame = self._frame_ident(
+            _getframe().f_back.f_back.f_back)
+        import traceback
+        traceback.print_stack()
+        if current_frame == self._frame:
+            return self._value
+        else:
+            raise SecurityError(
+                f'Protected {self._tag_type} value from '
+                f'field {self._field_name} accessed outside origin frame.')
+
+    def __repr__(self) -> str:
+        val = self._value
+        return f'<Protected {type(val)}: {val!r}@{id(self):#x}>'
+
+    def _frame_ident(self, frame: FrameType) -> str:
+        return '::'.join(map(str, [
+            # cannot rely on id alone as memory addresses are reused
+            id(frame),
+            frame.f_code.co_filename,
+            frame.f_code.co_name,
+        ]))
+
+    @property
+    def data(self) -> T:  # type: ignore
+        return self._access_value()
 
 
 class Personal(OpaqueTag[T]):
     is_personal = True
+    FrameLocal: Type[_FrameLocal] = _FrameLocal
+
+    def get_value(self) -> T:
+        return cast(T, self.FrameLocal(
+            self._value,
+            field_name=self.field or '<unknown field>',
+            tag_type=self._name.lower(),
+        ))
+
+    @no_type_check
+    def __class_getitem__(self, params: Any) -> Any:
+        if not issubclass(params, (str, bytes)):
+            raise TypeError(f'Personal only supports str/bytes not {params!r}')
+        return super().__class_getitem__(params)
 
 
-class Secret(OpaqueTag[T]):
+class Secret(TransparentTag[T]):
     is_secret = True
 
     mask: str = '***********'
 
-    def __str__(self) -> str:
-        return self.mask
-
-    def __format__(self, format_spec: str) -> str:
-        return self.mask.__format__(format_spec)
+    def _prepare_value(self) -> T:
+        return cast(T, self.mask)
 
 
 class Sensitive(OpaqueTag[T]):
     is_sensitive = True
+
+    FrameLocal: Type[_FrameLocal] = _FrameLocal
+
+    def get_value(self) -> T:
+        return cast(T, self.FrameLocal(
+            self._value,
+            field_name=self.field or '<unknown field>',
+            tag_type=self._name.lower(),
+        ))
+
+    def __class_getitem__(self, params: Any) -> Any:
+        if not issubclass(params, (str, bytes)):
+            raise TypeError(f'Personal only supports str/bytes not {params!r}')
+
+        # bypass mypy bug by using getattr
+        sup = getattr(super(), '__class_getitem__')  # noqa: B009
+        return sup(params)
 
 
 class _PIIstr(str):

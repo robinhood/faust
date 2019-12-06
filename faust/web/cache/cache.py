@@ -109,14 +109,15 @@ class Cache(CacheT):
         return cast(CacheBackendT, self.backend or view.app.cache)
 
     async def set_view(self, key: str, view: View, response: Response,
-                       timeout: Seconds) -> None:
+                       timeout: Seconds = None) -> None:
         """Set cached value for HTTP view request."""
         backend = self._view_backend(view)
+        _timeout = timeout if timeout is not None else self.timeout
         with suppress(backend.Unavailable):
             return await backend.set(
                 key,
                 view.response_to_bytes(response),
-                want_seconds(timeout if timeout is not None else self.timeout),
+                want_seconds(_timeout) if _timeout is not None else None,
             )
 
     def can_cache_request(self, request: Request) -> bool:

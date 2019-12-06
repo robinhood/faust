@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, Awaitable, Mapping, Optional, Union
+from typing import Any, Awaitable, Generic, Mapping, Optional, TypeVar, Union
 from mode.utils.typing import AsyncContextManager
 from .codecs import CodecArg
 from .core import HeadersArg, K, V
@@ -15,8 +15,10 @@ else:
     class _ChannelT: ...  # noqa
     class _SchemaT: ...   # noqa
 
+T = TypeVar('T')
 
-class EventT(AsyncContextManager):
+
+class EventT(Generic[T], AsyncContextManager):
 
     app: _AppT
     key: K

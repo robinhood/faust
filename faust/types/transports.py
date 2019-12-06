@@ -29,7 +29,7 @@ from yarl import URL
 
 from .core import HeadersArg
 from .channels import ChannelT
-from .tuples import Message, RecordMetadata, TP
+from .tuples import FutureMessage, Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT as _AppT
@@ -72,10 +72,40 @@ PartitionerT = Callable[
 ]
 
 
+class ProducerBufferT(ServiceT):
+
+    max_messages: int
+
+    pending: asyncio.Queue
+
+    @abc.abstractmethod
+    def put(self, fut: FutureMessage) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def flush(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def flush_atmost(self, n: int) -> int:
+        ...
+
+    @abc.abstractmethod
+    async def wait_until_ebb(self) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def size(self) -> int:
+        ...
+
+
 class ProducerT(ServiceT):
 
     #: The transport that created this Producer.
     transport: 'TransportT'
+
+    buffer: ProducerBufferT
 
     client_id: str
     linger_ms: int
@@ -101,6 +131,10 @@ class ProducerT(ServiceT):
                    headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        ...
+
+    @abc.abstractmethod
+    def send_soon(self, fut: FutureMessage) -> None:
         ...
 
     @abc.abstractmethod
@@ -389,6 +423,10 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
 
     @abc.abstractmethod
     def __init__(self, app: _AppT, **kwargs: Any) -> None:
+        self.on_message: ConsumerCallback
+
+    @abc.abstractmethod
+    async def on_client_only_start(self) -> None:
         ...
 
     @abc.abstractmethod
@@ -409,6 +447,11 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
 
     @abc.abstractmethod
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def acking_topics(self) -> Set[str]:
         ...
 
 

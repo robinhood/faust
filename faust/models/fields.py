@@ -128,7 +128,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
     exclude: bool = False
 
     #: Field may be tagged with Secret/Sensitive/etc.
-    tag: Type[Tag]
+    tag: Optional[Type[Tag]]
 
     def __init__(self, *,
                  field: str = None,
@@ -251,7 +251,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
 
     def __set__(self, instance: Any, value: T) -> None:
         if self.tag:
-            store_value = self.tag(value, field=self.field)
+            store_value = cast(T, self.tag(value, field=self.field))
         else:
             store_value = value
         instance.__dict__[self.field] = store_value
@@ -267,7 +267,7 @@ class FieldDescriptor(FieldDescriptorT[T]):
         return f'{self.model.__name__}.{self.field}'
 
 
-class BooleanField(FieldDescriptor[T]):
+class BooleanField(FieldDescriptor[bool]):
 
     def validate(self, value: T) -> Iterable[ValidationError]:
         if not isinstance(value, bool):

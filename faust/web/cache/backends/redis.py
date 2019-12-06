@@ -93,8 +93,12 @@ class CacheBackend(base.CacheBackend):
             return want_bytes(value)
         return None
 
-    async def _set(self, key: str, value: bytes, timeout: float) -> None:
-        await self.client.setex(key, int(timeout), value)
+    async def _set(self, key: str, value: bytes,
+                   timeout: float = None) -> None:
+        if timeout is not None:
+            await self.client.setex(key, int(timeout), value)
+        else:
+            await self.client.set(key, value)
 
     async def _delete(self, key: str) -> None:
         await self.client.delete(key)

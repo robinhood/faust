@@ -44,9 +44,9 @@ from .types.topics import ChannelT, TopicT
 from .types.transports import ProducerT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from .app import App
+    from .app import App as _App
 else:
-    class App: ...   # noqa
+    class _App: ...   # noqa
 
 
 __all__ = ['Topic']
@@ -165,7 +165,8 @@ class Topic(SerializedChannel, TopicT):
                    callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic."""
-        if self.app._attachments.enabled and not force:
+        app = cast(_App, self.app)
+        if app._attachments.enabled and not force:
             event = current_event()
             if event is not None:
                 return cast(Event, event)._attach(
@@ -227,7 +228,7 @@ class Topic(SerializedChannel, TopicT):
         return fut
 
     async def put(self, event: EventT) -> None:
-        """Put even directly onto the underlying queue of this topic.
+        """Put event directly onto the underlying queue of this topic.
 
         This will only affect subscribers to a particular
         instance, in a particular process.

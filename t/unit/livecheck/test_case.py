@@ -190,7 +190,7 @@ class test_Case:
         case.consecutive_failures = failures
         case.on_suite_fail = AsyncMock()
         await case._set_test_error_state(state)
-        assert case.state == state
+        assert case.status == state
         assert case.consecutive_failures == failures + 1
         assert case.total_failures == 1
         assert case.total_by_state[state] == 1
@@ -216,9 +216,9 @@ class test_Case:
         case.runtime_history = deque([3.03] * case.max_history)
         runner.runtime = 300.0
         with self.seconds_since_last_fail(case, now=now, failed=failed):
-            case.state = initial_state
+            case.status = initial_state
             await case.on_test_pass(runner)
-            assert case.state == expected_state
+            assert case.status == expected_state
             assert len(case.runtime_history) == case.max_history
             assert case.runtime_history[-1] == 300.0
 
@@ -366,9 +366,9 @@ class test_Case:
         except SuiteFailed as e:
             exc = e
         with self.seconds_since_last_fail(case, now=now, failed=failed):
-            case.state = initial_state
+            case.status = initial_state
             await case.on_suite_fail(exc)
-            assert case.state == State.FAIL
+            assert case.status == State.FAIL
             assert case.last_fail == now
             if posts_report:
                 case.log.exception.assert_called_once_with(str(exc))
@@ -391,9 +391,9 @@ class test_Case:
     def test__maybe_recover_from_failed_state(
             self, initial_state, now, failed, expected_state, *, case):
         with self.seconds_since_last_fail(case, now=now, failed=failed):
-            case.state = initial_state
+            case.status = initial_state
             case._maybe_recover_from_failed_state()
-            assert case.state == expected_state
+            assert case.status == expected_state
 
     @pytest.mark.parametrize('now,failed,arg,expected', [
         (300.0, 100.0, 10.0, True),

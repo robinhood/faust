@@ -86,6 +86,8 @@ class ResourceOptions(NamedTuple):
 
 class CacheBackendT(ServiceT):
 
+    Unavailable: Type[BaseException]
+
     @abc.abstractmethod
     def __init__(self,
                  app: _AppT,
@@ -98,7 +100,7 @@ class CacheBackendT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def set(self, key: str, value: bytes, timeout: float) -> None:
+    async def set(self, key: str, value: bytes, timeout: float = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -108,7 +110,7 @@ class CacheBackendT(ServiceT):
 
 class CacheT(abc.ABC):
 
-    timeout: Seconds
+    timeout: Optional[Seconds]
     include_headers: bool
     key_prefix: str
     backend: Optional[Union[Type[CacheBackendT], str]]

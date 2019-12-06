@@ -201,9 +201,10 @@ class AIOKafkaConsumerThread(ConsumerThread):
     _pending_rebalancing_spans: Deque[opentracing.Span]
 
     def __post_init__(self) -> None:
+        consumer = cast(Consumer, self.consumer)
         self._partitioner: PartitionerT = (
             self.app.conf.producer_partitioner or DefaultPartitioner())
-        self._rebalance_listener = self.consumer.RebalanceListener(self)
+        self._rebalance_listener = consumer.RebalanceListener(self)
         self._pending_rebalancing_spans = deque()
 
     async def on_start(self) -> None:

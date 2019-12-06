@@ -391,14 +391,14 @@ class test_Agent:
         aref = agent(index=0, active_partitions=None)
         with patch('asyncio.Task') as Task:
             agent._slurp = Mock(name='_slurp')
-            agent._execute_task = Mock(name='_execute_task')
+            agent._execute_actor = Mock(name='_execute_actor')
             beacon = Mock(name='beacon', autospec=Node)
             ret = await agent._prepare_actor(aref, beacon)
             agent._slurp.assert_called()
             coro = agent._slurp()
-            agent._execute_task.assert_called_once_with(coro, aref)
+            agent._execute_actor.assert_called_once_with(coro, aref)
             Task.assert_called_once_with(
-                agent._execute_task(), loop=agent.loop)
+                agent._execute_actor(), loop=agent.loop)
             task = Task()
             assert task._beacon is beacon
             assert aref.actor_task is task
@@ -411,13 +411,13 @@ class test_Agent:
         asyncio.ensure_future(aref.it).cancel()  # silence warning
         return
         with patch('asyncio.Task') as Task:
-            agent2._execute_task = Mock(name='_execute_task')
+            agent2._execute_actor = Mock(name='_execute_actor')
             beacon = Mock(name='beacon', autospec=Node)
             ret = await agent2._prepare_actor(aref, beacon)
             coro = aref
-            agent2._execute_task.assert_called_once_with(coro, aref)
+            agent2._execute_actor.assert_called_once_with(coro, aref)
             Task.assert_called_once_with(
-                agent2._execute_task(), loop=agent2.loop)
+                agent2._execute_actor(), loop=agent2.loop)
             task = Task()
             assert task._beacon is beacon
             assert aref.actor_task is task
@@ -436,28 +436,28 @@ class test_Agent:
             )
 
     @pytest.mark.asyncio
-    async def test_execute_task(self, *, agent):
+    async def test_execute_actor(self, *, agent):
         coro = done_future()
-        await agent._execute_task(coro, Mock(name='aref', autospec=Actor))
+        await agent._execute_actor(coro, Mock(name='aref', autospec=Actor))
 
     @pytest.mark.asyncio
-    async def test_execute_task__cancelled_stopped(self, *, agent):
+    async def test_execute_actor__cancelled_stopped(self, *, agent):
         coro = FutureMock()
         coro.side_effect = asyncio.CancelledError()
         await agent.stop()
         with pytest.raises(asyncio.CancelledError):
-            await agent._execute_task(coro, Mock(name='aref', autospec=Actor))
+            await agent._execute_actor(coro, Mock(name='aref', autospec=Actor))
         coro.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_execute_task__cancelled_running(self, *, agent):
+    async def test_execute_actor__cancelled_running(self, *, agent):
         coro = FutureMock()
         coro.side_effect = asyncio.CancelledError()
-        await agent._execute_task(coro, Mock(name='aref', autospec=Actor))
+        await agent._execute_actor(coro, Mock(name='aref', autospec=Actor))
         coro.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_execute_task__raising(self, *, agent):
+    async def test_execute_actor__raising(self, *, agent):
         agent._on_error = AsyncMock(name='on_error')
         agent.log = Mock(name='log', autospec=CompositeLogger)
         aref = Mock(
@@ -468,7 +468,7 @@ class test_Agent:
         agent.supervisor = Mock(name='supervisor')
         coro = FutureMock()
         exc = coro.side_effect = KeyError('bar')
-        await agent._execute_task(coro, aref)
+        await agent._execute_actor(coro, aref)
         coro.assert_awaited()
 
         aref.crash.assert_called_once_with(exc)
@@ -476,7 +476,7 @@ class test_Agent:
         agent._on_error.assert_called_once_with(agent, exc)
 
         agent._on_error = None
-        await agent._execute_task(coro, aref)
+        await agent._execute_actor(coro, aref)
 
     @pytest.mark.asyncio
     async def test_slurp(self, *, agent, app):

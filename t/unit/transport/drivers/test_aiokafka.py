@@ -359,6 +359,8 @@ class test_AIOKafkaConsumerThread:
                 max_partition_fetch_bytes=conf.consumer_max_fetch_size,
                 fetch_max_wait_ms=1500,
                 request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
+                rebalance_timeout_ms=int(
+                    conf.broker_rebalance_timeout * 1000.0),
                 check_crcs=conf.broker_check_crcs,
                 session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
                 heartbeat_interval_ms=int(

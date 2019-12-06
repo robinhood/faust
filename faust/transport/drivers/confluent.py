@@ -348,6 +348,12 @@ class ConfluentConsumerThread(ConsumerThread):
                            ensure_created: bool = False) -> None:
         return  # XXX
 
+    def key_partition(self,
+                      topic: str,
+                      key: Optional[bytes],
+                      partition: int = None) -> Optional[int]:
+        raise NotImplementedError('TODO')  # TODO XXX
+
 
 class ProducerProduceFuture(asyncio.Future):
 
@@ -493,11 +499,9 @@ class Producer(base.Producer):
         """Call when producer is starting."""
         await self._producer_thread.start()
         await self.sleep(0.5)  # cannot remember why, necessary? [ask]
-        self._last_batch.clear()
 
     async def on_stop(self) -> None:
         """Call when producer is stopping."""
-        self._last_batch.clear()
         await self._producer_thread.stop()
 
     async def send(self, topic: str, key: Optional[bytes],

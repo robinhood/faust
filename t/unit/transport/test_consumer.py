@@ -1020,6 +1020,9 @@ class test_ConsumerThread:
 
     class MyConsumerThread(MockedConsumerAbstractMethods, ConsumerThread):
 
+        def close(self):
+            ...
+
         async def getmany(self, *args, **kwargs):
             yield None, None
 

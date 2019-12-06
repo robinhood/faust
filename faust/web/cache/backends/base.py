@@ -1,11 +1,10 @@
 """Cache backend - base implementation."""
 import abc
-from typing import Any, ClassVar, Optional, Tuple, Type, Union
+from typing import Any, AsyncGenerator, ClassVar, Optional, Tuple, Type, Union
 
 from mode import Service
 from mode.utils.contexts import asynccontextmanager
 from mode.utils.logging import get_logger
-from mode.utils.typing import AsyncContextManager
 from yarl import URL
 
 from faust.types import AppT
@@ -44,7 +43,8 @@ class CacheBackend(CacheBackendT, Service):
         ...
 
     @abc.abstractmethod
-    async def _set(self, key: str, value: bytes, timeout: float) -> None:
+    async def _set(self, key: str, value: bytes,
+                   timeout: float = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -56,9 +56,8 @@ class CacheBackend(CacheBackendT, Service):
         async with self._recovery_context(key):
             return await self._get(key)
 
-    async def set(self, key: str, value: bytes, timeout: float) -> None:
+    async def set(self, key: str, value: bytes, timeout: float = None) -> None:
         """Set cached-value by key."""
-        assert timeout is not None
         async with self._recovery_context(key):
             await self._set(key, value, timeout)
 
@@ -68,7 +67,7 @@ class CacheBackend(CacheBackendT, Service):
             await self._delete(key)
 
     @asynccontextmanager
-    async def _recovery_context(self, key: str) -> AsyncContextManager:
+    async def _recovery_context(self, key: str) -> AsyncGenerator:
         try:
             yield
         except self.irrecoverable_errors as exc:

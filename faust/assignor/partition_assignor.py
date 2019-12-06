@@ -198,6 +198,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             self,
             cluster: ClusterMetadata,
             member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
+        assert self.app.tracer is not None
         span = self.app.tracer.get_tracer('_faust').start_span(
             operation_name='coordinator_assignment',
             tags={'hostname': socket.gethostname()},

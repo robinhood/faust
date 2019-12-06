@@ -57,7 +57,7 @@ class Case(Service):
     active: bool = True
 
     #: Current state of this test.
-    state: State = State.INIT
+    status: State = State.INIT
 
     #: How often we execute the test using fake data
     #: (define Case.make_fake_request()).
@@ -286,7 +286,7 @@ class Case(Service):
         await self._set_test_error_state(State.TIMEOUT)
 
     async def _set_test_error_state(self, state: State) -> None:
-        self.state = state
+        self.status = state
         self.consecutive_failures += 1
         self.total_failures += 1
         self.total_by_state[state] += 1
@@ -301,14 +301,14 @@ class Case(Service):
 
     def _set_pass_state(self, state: State) -> None:
         assert state.is_ok()
-        self.state = state
+        self.status = state
         self.consecutive_failures = 0
         self.total_by_state[state] += 1
 
     async def on_test_pass(self, runner: TestRunner) -> None:
         """Call when a test execution passes."""
         test = runner.test
-        runtime = runner.runtime
+        runtime: float = runner.runtime or 0.0
         deque_pushpopmax(self.runtime_history, runtime, self.max_history)
         ts = test.timestamp.timestamp()
         last_fail = self.last_fail
@@ -327,6 +327,9 @@ class Case(Service):
                     freq, name=f'{self.name}_send'):
                 if self.app.is_leader():
                     await self.make_fake_request()
+
+    async def make_fake_request(self) -> None:
+        ...
 
     @Service.task
     async def _check_frequency(self) -> None:
@@ -364,8 +367,8 @@ class Case(Service):
         """Call when the suite fails."""
         assert isinstance(exc, SuiteFailed)
         delay = self.state_transition_delay
-        if self.state.is_ok() or self._failed_longer_than(delay):
-            self.state = new_state
+        if self.status.is_ok() or self._failed_longer_than(delay):
+            self.status = new_state
             self.last_fail = monotonic()
             self.log.exception(str(exc))
             await self.post_report(TestReport(
@@ -378,11 +381,11 @@ class Case(Service):
                 traceback='\n'.join(traceback.format_tb(exc.__traceback__)),
             ))
         else:
-            self.state = new_state
+            self.status = new_state
             self.last_fail = monotonic()
 
     def _maybe_recover_from_failed_state(self) -> None:
-        if self.state != State.PASS:
+        if self.status != State.PASS:
             if self._failed_longer_than(self.state_transition_delay):
                 self._set_pass_state(State.PASS)
 

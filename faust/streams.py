@@ -30,7 +30,8 @@ from typing import (
 from mode import Seconds, Service, get_logger, shortlabel, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import current_task, maybe_async, notify
-from mode.utils.objects import cached_property
+from mode.utils.queues import ThrowableQueue
+from mode.utils.typing import Deque
 from mode.utils.types.trees import NodeT
 
 from . import joins
@@ -650,7 +651,7 @@ class Stream(StreamT[T_co], Service):
             ValueError: if the stream channel is not a topic.
         """
         if isinstance(self.channel, TopicT):
-            return self.channel.derive_topic(
+            return cast(TopicT, self.channel).derive_topic(
                 topics=[name],
                 schema=schema,
                 key_type=key_type,
@@ -717,14 +718,6 @@ class Stream(StreamT[T_co], Service):
             value = await join_strategy.process(value)
         return value
 
-    async def send(self, value: T_contra) -> None:
-        """Send value into stream locally (bypasses topic)."""
-        if isinstance(self.channel, ChannelT):
-            await self.channel.put(value)
-        else:
-            raise NotImplementedError(
-                'Cannot send to non-topic channel stream.')
-
     async def on_start(self) -> None:
         """Signal called when the stream starts."""
         if self._on_start:
@@ -736,7 +729,7 @@ class Stream(StreamT[T_co], Service):
         """Stop this stream."""
         # Stop all related streams (created by .through/.group_by/etc.)
         for s in cast(Stream, self.get_root_stream())._iter_ll_forwards():
-            await Service.stop(s)
+            await Service.stop(cast(Service, s))
 
     async def on_stop(self) -> None:
         """Signal that the stream is stopping."""
@@ -769,7 +762,7 @@ class Stream(StreamT[T_co], Service):
                 value, sensor_state = await it.next()  # noqa: B305
                 try:
                     if value is not skipped_value:
-                        yield cast(T, value)
+                        yield value
                 finally:
                     event, self.current_event = self.current_event, None
                     it.after(event, do_ack, sensor_state)
@@ -811,10 +804,10 @@ class Stream(StreamT[T_co], Service):
             chan_quick_get = chan_queue.get_nowait
         else:
             chan_is_channel = False
-            chan_queue = None
-            chan_queue_empty = None
-            chan_errors = None
-            chan_quick_get = None
+            chan_queue = cast(ThrowableQueue, None)
+            chan_queue_empty = cast(Callable, None)
+            chan_errors = cast(Deque, None)
+            chan_quick_get = cast(Callable, None)
         chan_slow_get = channel.__anext__
         # Topic description -> processors
         processors = self._processors
@@ -828,9 +821,9 @@ class Stream(StreamT[T_co], Service):
         _current_event_contextvar = _current_event
 
         consumer: ConsumerT = self.app.consumer
-        unacked: Set[Message] = consumer._unacked_messages
+        unacked: Set[Message] = consumer.unacked
         add_unacked: Callable[[Message], None] = unacked.add
-        acking_topics: Set[str] = self.app.topics._acking_topics
+        acking_topics: Set[str] = self.app.topics.acking_topics
         on_message_in = self._on_message_in
         sleep = asyncio.sleep
         trace = self.app.trace
@@ -903,7 +896,7 @@ class Stream(StreamT[T_co], Service):
                         value = skipped_value
                 try:
                     if value is not skipped_value:
-                        yield cast(T, value)
+                        yield value
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:
@@ -971,7 +964,7 @@ class Stream(StreamT[T_co], Service):
     def _repr_channel(self) -> str:
         return reprlib.repr(self.channel)
 
-    @cached_property
+    @property
     def shortlabel(self) -> str:
         """Return short description of stream."""
         # used for shortlabel(stream), which is used by statsd to generate ids

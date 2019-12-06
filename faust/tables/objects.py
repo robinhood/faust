@@ -142,9 +142,11 @@ class ChangeloggedObjectManager(Store):
             self.storage[key] = self.data[key].as_stored_value()
         self._dirty.clear()
 
-    @Service.task(2.0)
+    @Service.task
     async def _periodic_flush(self) -> None:  # pragma: no cover
-        self.flush_to_storage()
+        async for sleep_time in self.itertimer(2.0, name='SetManager.flush'):
+            await self.sleep(sleep_time)
+            self.flush_to_storage()
 
     def reset_state(self) -> None:
         """Reset table local state."""
