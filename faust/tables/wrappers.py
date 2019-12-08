@@ -235,7 +235,7 @@ class WindowSet(WindowSetT[KT, VT]):
         table = cast(_Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
-    def __unauthorized_dict_operation(self, operation) -> typing.NoReturn:
+    def __unauthorized_dict_operation(self, operation: str) -> typing.NoReturn:
         raise NotImplementedError(
             f'Accessing {operation} on a WindowSet is not implemented. '
             'Try using the underlying table directly')
