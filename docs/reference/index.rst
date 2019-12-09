@@ -83,6 +83,7 @@ Models
     faust.models.base
     faust.models.fields
     faust.models.record
+    faust.models.tags
 
 Sensors
 =======
