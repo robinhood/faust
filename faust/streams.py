@@ -302,6 +302,9 @@ class Stream(StreamT[T_co], Service):
         """Buffer n values at a time and yield a list of buffered values.
 
         Arguments:
+            max_: Max number of messages to receive. When more than this
+                number of messages are received within the specified number of
+                seconds then we flush the buffer immediately.
             within: Timeout for when we give up waiting for another value,
                 and process the values we have.
                 Warning: If there's no timeout (i.e. `timeout=None`),
