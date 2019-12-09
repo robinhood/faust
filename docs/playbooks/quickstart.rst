@@ -50,8 +50,8 @@ By default Faust will use JSON serialization, so we specify ``value_serializer``
 here as ``raw`` to avoid deserializing incoming greetings.  For real
 applications you should define models (see :ref:`guide-models`).
 
-Here you defined a Kafka topic ``greetings`` and then iterated over the
-messages in the topic and printed each one of them.
+Here you defined a Kafka topic ``greetings`` and then an agent that
+iterates over the messages in the topic and prints each one of them.
 
 .. note::
 

@@ -19,7 +19,7 @@ other workers in the cluster to process them.
 
 To demonstrate this we implement a straightforward example where we
 elect one of our workers as the leader. This leader then periodically
-send out random greetings to be printed out by available workers.
+sends out random greetings to be printed out by available workers.
 
 Application
 -----------

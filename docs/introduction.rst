@@ -129,7 +129,7 @@ How do I use it?
 
     Some ideas based on the events mentioned above:
 
-    - Send email when an order is dispatches.
+    - Send email when an order is dispatched.
 
     - Find orders created with no corresponding dispatch event for
       more than three consecutive days.

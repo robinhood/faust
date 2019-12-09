@@ -23,7 +23,7 @@ Here's an example processing a stream of incoming orders:
     app = faust.App('myapp', broker='kafka://localhost')
 
     # Models describe how messages are serialized:
-    # {"account_id": "3fae-...", amount": 3}
+    # {"account_id": "3fae-...", "amount": 3}
     class Order(faust.Record):
         account_id: str
         amount: int
