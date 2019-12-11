@@ -1,1 +1,2 @@
 mypy>=0.750
+-r deps/mode.txt
