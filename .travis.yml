@@ -13,37 +13,37 @@ stages:
 
 matrix:
   include:
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=flake8
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=typecheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=apicheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=configcheck
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=docstyle
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=bandit
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.7.4
+  - python: 3.8.0
     env: TOXENV=spell USE_ENCHANT=y
     os: linux
     dist: xenial
@@ -123,17 +123,27 @@ matrix:
     os: linux
     dist: xenial
     stage: test
-  - python: 3.7.4
-    env: TOXENV=3.7 RUN_SUITE=y NO_CYTHON=y
+  - python: 3.7.5
+    env: TOXENV=3.7 IDENT="3.7.5" RUN_SUITE=y NO_CYTHON=y
+    os: linux
+    dist: xenial
+    stage: test
+  - python: 3.8.0
+    env: TOXENV=3.8 IDENT="3.8.0" RUN_SUITE=y NO_CYTHON=y
+    os: linux
+    dist: xenial
+    stage: test
+  - python: 3.8.0
+    env: TOXENV=3.8 RUN_SUITE=y NO_CYTHON=y
     os: windows
     stage: test
     language: sh
     before_install:
-        - choco install python --version=3.7.4
+        - choco install python --version=3.8.0
         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python -m pip install --upgrade pip wheel
-  - python: 3.7.4
-    env: TOXENV=3.7 IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
+  - python: 3.8.0
+    env: TOXENV=3.8 IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
     os: linux
     dist: xenial
     stage: cython
