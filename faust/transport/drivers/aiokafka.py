@@ -102,7 +102,8 @@ def server_list(urls: List[URL], default_port: int) -> List[str]:
     return [f'{u.host or default_host}:{u.port or default_port}' for u in urls]
 
 
-class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
+class ConsumerRebalanceListener(
+        aiokafka.abc.ConsumerRebalanceListener):  # type: ignore
     # kafka's ridiculous class based callback interface makes this hacky.
 
     def __init__(self, thread: ConsumerThread) -> None:

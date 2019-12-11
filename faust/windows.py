@@ -1,5 +1,6 @@
 """Window Types."""
 import os
+import typing
 
 from math import floor
 from typing import List, Type, cast
@@ -69,18 +70,20 @@ class _PyHoppingWindow(Window):
         return self.current(latest_timestamp - expires)[0]
 
 
-if not NO_CYTHON:  # pragma: no cover
-    try:
-        from ._cython.windows import HoppingWindow
-    except ImportError:
-        HoppingWindow = _PyHoppingWindow
-    else:
-        HoppingWindow = cast(Type[Window], HoppingWindow)
-        # isinstance(HoppingWindow, Window) is True
-        # isinstance(HoppingWindow, WindowT) is True
-        Window.register(HoppingWindow)
-else:  # pragma: no cover
+if typing.TYPE_CHECKING:
     HoppingWindow = _PyHoppingWindow
+else:
+    if not NO_CYTHON:  # pragma: no cover
+        try:
+            from ._cython.windows import HoppingWindow
+        except ImportError:
+            HoppingWindow = _PyHoppingWindow
+        else:
+            # isinstance(HoppingWindow, Window) is True
+            # isinstance(HoppingWindow, WindowT) is True
+            Window.register(HoppingWindow)
+    else:  # pragma: no cover
+        HoppingWindow = _PyHoppingWindow
 
 
 class TumblingWindow(HoppingWindow):

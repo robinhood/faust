@@ -55,7 +55,8 @@ CopartitionedGroups = MutableMapping[int, Iterable[Set[str]]]
 logger = get_logger(__name__)
 
 
-class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
+class PartitionAssignor(
+        AbstractPartitionAssignor, PartitionAssignorT):  # type: ignore
     """PartitionAssignor handles internal topic creation.
 
     Further, this assignor needs to be sticky and potentially redundant

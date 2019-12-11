@@ -38,7 +38,7 @@ __all__ = [
 
 _bytes = bytes
 
-_BPArg = SymbolArg[Type[BlueprintT]]
+_BPArg = SymbolArg[BlueprintT]
 _BPList = Iterable[Tuple[str, _BPArg]]
 
 DEFAULT_BLUEPRINTS: _BPList = [
@@ -148,7 +148,8 @@ class BlueprintManager:
         if not self.applied:
             self.applied = True
             for prefix, blueprint in self._enabled:
-                self._apply_blueprint(web, prefix, symbol_by_name(blueprint))
+                bp: BlueprintT = symbol_by_name(blueprint)
+                self._apply_blueprint(web, prefix, bp)
 
     def _apply_blueprint(self,
                          web: 'Web',

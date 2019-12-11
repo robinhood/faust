@@ -144,7 +144,7 @@ LOGLEVELS: Sequence[str] = (
 #    faust/__init__.py:119:
 #       error: Module 'faust.channels' has no attribute 'EventT'
 #   make: *** [typecheck] Error 1
-faust_version = symbol_by_name('faust:__version__')
+faust_version: str = symbol_by_name('faust:__version__')
 
 
 # Worker options moved from `faust worker` to toplevel

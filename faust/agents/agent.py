@@ -618,6 +618,7 @@ class Agent(AgentT, Service):
             stream=stream,
             channel=channel,
         )
+        assert beacon is not None
         return await self._prepare_actor(actor, beacon)
 
     async def _prepare_actor(self, aref: ActorRefT,
@@ -961,7 +962,9 @@ class Agent(AgentT, Service):
             reply_to: ReplyToArg) -> AsyncIterator[str]:  # pragma: no cover
         # map: send many tasks to agents
         # while trying to pop incoming results off.
-        async for key, value in aiter(items):
+        key: K
+        value: V
+        async for key, value in aiter(items):  # type: ignore
             correlation_id = str(uuid4())
             p = await self.ask_nowait(
                 key=key,

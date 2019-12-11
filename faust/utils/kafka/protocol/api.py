@@ -6,7 +6,7 @@ from kafka.protocol.struct import Struct
 from kafka.protocol.types import Schema
 
 
-class Response(Struct, metaclass=abc.ABCMeta):
+class Response(Struct, metaclass=abc.ABCMeta):  # type: ignore
     """API Response."""
 
     @property
@@ -28,7 +28,7 @@ class Response(Struct, metaclass=abc.ABCMeta):
         pass
 
 
-class Request(Struct, metaclass=abc.ABCMeta):
+class Request(Struct, metaclass=abc.ABCMeta):  # type: ignore
     """API Request."""
 
     @property
