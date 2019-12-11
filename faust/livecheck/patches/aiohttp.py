@@ -29,7 +29,7 @@ def patch_aiohttp_session() -> None:
     # monkeypatch to remove ridiculous "do not subclass" warning.
     def __init_subclass__() -> None:
         ...
-    client.ClientSession.__init_subclass__ = __init_subclass__  # type: ignore
+    client.ClientSession.__init_subclass__ = __init_subclass__
 
     async def _on_request_start(
             session: aiohttp.ClientSession,
@@ -39,7 +39,7 @@ def patch_aiohttp_session() -> None:
         if test is not None:
             params.headers.update(test.as_headers())
 
-    class ClientSession(client.ClientSession):
+    class ClientSession(client.ClientSession):  # type: ignore
 
         def __init__(self,
                      trace_configs: Optional[List[TraceConfig]] = None,
@@ -58,7 +58,7 @@ def patch_aiohttp_session() -> None:
             configs.append(trace_config)
             return configs
 
-    client.ClientSession = ClientSession  # type: ignore
+    client.ClientSession = ClientSession
 
 
 @web.middleware
