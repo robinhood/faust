@@ -618,8 +618,8 @@ class Agent(AgentT, Service):
             stream=stream,
             channel=channel,
         )
-        assert beacon is not None
-        return await self._prepare_actor(actor, beacon)
+        return await self._prepare_actor(
+            actor, beacon if beacon is not None else self.beacon)
 
     async def _prepare_actor(self, aref: ActorRefT,
                              beacon: NodeT) -> ActorRefT:
