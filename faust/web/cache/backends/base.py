@@ -1,10 +1,11 @@
 """Cache backend - base implementation."""
 import abc
-from typing import Any, AsyncGenerator, ClassVar, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, Optional, Tuple, Type, Union
 
 from mode import Service
 from mode.utils.contexts import asynccontextmanager
 from mode.utils.logging import get_logger
+from mode.utils.typing import AsyncGenerator
 from yarl import URL
 
 from faust.types import AppT
