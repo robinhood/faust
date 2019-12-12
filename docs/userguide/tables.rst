@@ -482,13 +482,14 @@ Table Serialization
 
 A table is a mapping with keys and values, serialized using JSON by default.
 
-If you want to use a different serialization mechanism you must configure
-that using the ``key_serializer`` and ``value_serializer`` arguments:
+If you want to use a different serialization mechanism you must provide
+the ``key_type`` and ``value_type`` arguments which could be ``bytes`` or ``model`` type (faust.Record):
+
 
 .. sourcecode:: python
 
     table = app.Table(
         'name',
-        key_serializer='pickle',
-        value_serializer='pickle',
+        key_type=Withdrawal,
+        value_type=Withdrawal,
     )
