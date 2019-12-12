@@ -4,6 +4,7 @@ import faust
 import pytest
 from faust import App, Channel, Record
 from faust.agents.actor import Actor
+
 from faust.agents.models import (
     ModelReqRepRequest,
     ModelReqRepResponse,
@@ -383,7 +384,7 @@ class test_Agent:
     async def test_start_task(self, *, agent):
         agent._prepare_actor = AsyncMock(name='_prepare_actor')
         ret = await agent._start_task(index=0)
-        agent._prepare_actor.assert_called_once_with(ANY, None)
+        agent._prepare_actor.assert_called_once_with(ANY, agent.beacon)
         assert ret is agent._prepare_actor.coro()
 
     @pytest.mark.asyncio
