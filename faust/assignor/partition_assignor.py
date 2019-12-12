@@ -252,7 +252,7 @@ class PartitionAssignor(
         self._update_member_urls(clients_metadata)
 
         # Initialize fresh assignment
-        assignments = {
+        assignments: ClientAssignmentMapping = {
             member_id: ClientAssignment(actives={}, standbys={})
             for member_id in member_metadata
         }
@@ -291,23 +291,25 @@ class PartitionAssignor(
 
     def _global_table_standby_assignments(
             self,
-            assignments: Mapping[str, ClientAssignment],
-    ) -> Mapping[str, ClientAssignment]:
+            assignments: ClientAssignmentMapping) -> ClientAssignmentMapping:
         # Ensures all members have access to all changelog partitions
         # as standbys, if not already as actives
         for table in self._table_manager.data.values():
             # Add changelog standbys only if global table
             if table.is_global:
                 changelog_topic_name = table._changelog_topic_name()
-                partitions = set(range(0, table.partitions))
-                for client in assignments:
-                    active_value = set(
-                        assignments[client].actives.get(
+                num_partitions = self.app.consumer.topic_partitions(
+                    changelog_topic_name)
+                assert num_partitions is not None
+                all_partitions = set(range(0, num_partitions))
+                for assignment in assignments.values():
+                    active_partitions = set(
+                        assignment.actives.get(
                             changelog_topic_name, []))
                     # Only add those partitions as standby which aren't active
-                    standbys = list(partitions - active_value)
-                    assignments[client].standbys[
-                        changelog_topic_name] = standbys
+                    standby_partitions = all_partitions - active_partitions
+                    assignment.standbys[
+                        changelog_topic_name] = list(standby_partitions)
         return assignments
 
     def _protocol_assignments(
