@@ -278,6 +278,9 @@ class PartitionAssignor(
                     assignments[client].add_copartitioned_assignment(
                         copart_assn)
 
+        # Add all changelogs of global tables as standby for all members
+        assignments = self._global_table_standby_assignments(assignments)
+
         changelog_distribution = self._get_changelog_distribution(assignments)
         res = self._protocol_assignments(
             assignments,
@@ -285,6 +288,27 @@ class PartitionAssignor(
             topic_to_group_id,
         )
         return res
+
+    def _global_table_standby_assignments(
+            self,
+            assignments: Mapping[str, ClientAssignment],
+    ) -> Mapping[str, ClientAssignment]:
+        # Ensures all members have access to all changelog partitions
+        # as standbys, if not already as actives
+        for table in self._table_manager.data.values():
+            # Add changelog standbys only if global table
+            if table.is_global:
+                changelog_topic_name = table._changelog_topic_name()
+                partitions = set(range(0, table.partitions))
+                for client in assignments:
+                    active_value = set(
+                        assignments[client].actives.get(
+                            changelog_topic_name, []))
+                    # Only add those partitions as standby which aren't active
+                    standbys = list(partitions - active_value)
+                    assignments[client].standbys[
+                        changelog_topic_name] = standbys
+        return assignments
 
     def _protocol_assignments(
             self,

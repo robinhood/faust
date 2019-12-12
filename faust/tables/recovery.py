@@ -17,7 +17,6 @@ from faust.types.tables import CollectionT, TableManagerT
 from faust.types.transports import ConsumerT
 from faust.utils import terminal
 from faust.utils.tracing import finish_span, traced_from_parent_span
-from faust.tables.globaltable import GlobalTable
 
 if typing.TYPE_CHECKING:
     from faust.app import App as _App
@@ -165,17 +164,6 @@ class Recovery(Service):
         self.standbys_for_table[table].add(tp)
         self._add(table, tp, self.standby_offsets)
 
-    def add_standbys_for_global_table(self,
-                                      gtable: CollectionT,
-                                      active_topic: TP,
-                                      topics: Set[TP]) -> None:
-        """Add standby topics for global table."""
-        for tp in topics:
-            table = self.tables._changelogs.get(tp.topic)
-            if table is gtable and tp != active_topic:
-                # No need to add table's own topic.
-                self.add_standby(gtable, tp)
-
     def _add(self, table: CollectionT, tp: TP, offsets: Counter[TP]) -> None:
         self.tp_to_table[tp] = table
         persisted_offset = table.persisted_offset(tp)
@@ -221,9 +209,6 @@ class Recovery(Service):
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
                 self.add_active(table, tp)
-                if isinstance(table, GlobalTable):
-                    self.add_standbys_for_global_table(
-                        table, tp, assigned_actives)
 
         active_offsets = {
             tp: offset
