@@ -214,7 +214,7 @@ develop: reqs develop-hooks setup-develop
 develop-hooks: hooks
 
 .PHONY:
-reqs: reqs-default reqs-test reqs-dist reqs-ci reqs-debug
+reqs: reqs-default reqs-test reqs-dist reqs-docs reqs-ci reqs-debug
 
 .PHONY:
 reqs-default:
@@ -223,6 +223,10 @@ reqs-default:
 .PHONY:
 reqs-test:
 	$(PIP) install -U -r requirements/test.txt
+
+.PHONY:
+reqs-docs:
+	$(PIP) install -U -r requirements/docs.txt
 
 .PHONY:
 reqs-dist:
@@ -241,15 +245,15 @@ reqs-ext: reqs-rocksdb reqs-fast reqs-uvloop
 
 .PHONY:
 reqs-rocksdb:
-	pip install --no-cache -U -r requirements/extras/rocksdb.txt
+	$(PIP) install --no-cache -U -r requirements/extras/rocksdb.txt
 
 .PHONY:
 reqs-fast:
-	pip install --no-cache -U -r requirements/extras/fast.txt
+	$(PIP) install --no-cache -U -r requirements/extras/fast.txt
 
 .PHONY:
 reqs-uvloop:
-	pip install --no-cache -U -r requirements/extras/uvloop.txt
+	$(PIP) install --no-cache -U -r requirements/extras/uvloop.txt
 
 .PHONY:
 setup-develop:
