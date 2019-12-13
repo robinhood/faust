@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # In this exapmple we have a function `publish_every_2secs` publishing a
-# message every 2 senconds to topic `hopping_topic`.
+# message every 2 seconds to topic `hopping_topic`.
 # We have created an agent `print_windowed_events` consuming events from
 # `hopping_topic` that mutates the windowed table `hopping_table`.
 
