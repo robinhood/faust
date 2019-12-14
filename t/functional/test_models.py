@@ -1,13 +1,14 @@
 import abc
 from datetime import datetime
 from decimal import Decimal
-from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple, Union
+from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from dateutil.parser import parse as parse_date
 import faust
 from faust.exceptions import SecurityError, ValidationError
 from faust.models import maybe_model
 from faust.models.fields import (
     BytesField,
+    DatetimeField,
     DecimalField,
     FieldDescriptor,
     FloatField,
@@ -15,10 +16,8 @@ from faust.models.fields import (
     StringField,
 )
 from mode.utils.logging import get_logger
-from faust.models.record import _is_of_type
 from faust.models.tags import Secret, Sensitive, _FrameLocal
 from faust.types import ModelT
-from faust.utils import iso8601
 from faust.utils import json
 import pytest
 
@@ -147,7 +146,7 @@ def test_datetimes():
         date: Optional[datetime]
 
     class TupleOfDate(Record, coerce=True):
-        dates: Tuple[datetime]
+        dates: Tuple[datetime, ...]
 
     class SetOfDate(Record, coerce=True):
         dates: Set[datetime]
@@ -163,6 +162,8 @@ def test_datetimes():
 
     class OptionalListOfDate2(Record, coerce=True):
         dates: Optional[List[datetime]]
+
+    assert isinstance(OptionalDate.date, DatetimeField)
 
     n1 = datetime.utcnow()
     assert Date.loads(Date(date=n1).dumps()).date == n1
@@ -188,7 +189,8 @@ def test_datetimes():
     assert MapOfDate.loads(MapOfDate(
         dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
 
-    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    datelist = ListOfDate.from_data({
+        'dates': [n1.isoformat(), n2.isoformat()]})
     assert isinstance(datelist.dates[0], datetime)
     assert isinstance(datelist.dates[1], datetime)
 
@@ -199,7 +201,7 @@ def test_datetimes__isodates_compat():
         date: datetime
 
     class TupleOfDate(Record, coerce=False, isodates=True):
-        dates: Tuple[datetime]
+        dates: Tuple[datetime, ...]
 
     class SetOfDate(Record, coerce=False, isodates=True):
         dates: Set[datetime]
@@ -238,7 +240,8 @@ def test_datetimes__isodates_compat():
     assert MapOfDate.loads(MapOfDate(
         dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
 
-    datelist = ListOfDate(dates=[n1.isoformat(), n2.isoformat()])
+    datelist = ListOfDate.from_data({
+        'dates': [n1.isoformat(), n2.isoformat()]})
     assert isinstance(datelist.dates[0], datetime)
     assert isinstance(datelist.dates[1], datetime)
 
@@ -258,7 +261,7 @@ def test_decimals():
         numbers: Optional[List[Decimal]]
 
     class TupleOfDecimal(Record, coerce=True, serializer='json'):
-        numbers: Tuple[Decimal]
+        numbers: Tuple[Decimal, ...]
 
     class SetOfDecimal(Record, coerce=True, serializer='json'):
         numbers: Set[Decimal]
@@ -288,7 +291,7 @@ def test_decimals():
     assert MapOfDecimal.loads(MapOfDecimal(
         numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
 
-    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    dlist = ListOfDecimal.from_data({'numbers': ['1.312341', '3.41569']})
     assert isinstance(dlist.numbers[0], Decimal)
     assert isinstance(dlist.numbers[1], Decimal)
 
@@ -320,7 +323,7 @@ def test_decimals_compat():
                          coerce=False,
                          decimals=True,
                          serializer='json'):
-        numbers: Tuple[Decimal]
+        numbers: Tuple[Decimal, ...]
 
     class SetOfDecimal(Record,
                        coerce=False,
@@ -356,7 +359,7 @@ def test_decimals_compat():
     assert MapOfDecimal.loads(MapOfDecimal(
         numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
 
-    dlist = ListOfDecimal(numbers=['1.312341', '3.41569'])
+    dlist = ListOfDecimal.from_data({'numbers': ['1.312341', '3.41569']})
     assert isinstance(dlist.numbers[0], Decimal)
     assert isinstance(dlist.numbers[1], Decimal)
 
@@ -399,7 +402,7 @@ def test_custom_coercion():
         foos: Optional[List[Foo]]
 
     class TupleOfFoo(CanFooModel):
-        foos: Tuple[Foo]
+        foos: Tuple[Foo, ...]
 
     class SetOfFoo(CanFooModel):
         foos: Set[Foo]
@@ -572,7 +575,12 @@ def test_ne(a, b):
 
 
 def test_json():
-    assert User(1, 2, Account(id=1, name=2)).__json__() == {
+    account = Account(id=1, name=2)
+    user = User(1, 2, account)
+
+    payload = json.dumps(user)
+    deser = json.loads(payload)
+    assert deser == {
         'id': 1,
         'username': 2,
         'account': {
@@ -583,6 +591,15 @@ def test_json():
         },
         '__faust': {'ns': User._options.namespace},
     }
+
+    assert user.__json__() == {
+        'id': 1,
+        'username': 2,
+        'account': account,
+        '__faust': {'ns': User._options.namespace},
+    }
+
+    assert User.from_data(deser) == user
 
 
 class test_FieldDescriptor:
@@ -658,7 +675,6 @@ def test_too_many_arguments_raises_TypeError():
     with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
     reason = str(einfo.value)
-    print(reason)
     assert '__init__() takes' in reason
 
 
@@ -1013,20 +1029,6 @@ def test_repr():
 
 def test_ident():
     assert Account.id.ident == 'Account.id'
-
-
-DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
-
-
-@pytest.mark.parametrize('input,expected', [
-    (None, None),
-    (DATETIME1, DATETIME1),
-    (DATETIME1.isoformat(), DATETIME1),
-
-])
-def test_parse_iso8601(input, expected):
-    assert Record._init_maybe_coerce(
-        iso8601.parse, datetime, input) == expected
 
 
 def test_list_field_refers_to_self():
@@ -1444,7 +1446,7 @@ def test_datetime_custom_date_parser():
         d: datetime
 
     date_string = 'Sat Jan 12 00:44:36 +0000 2019'
-    assert X(date_string).d == parse_date(date_string)
+    assert X.from_data({'d': date_string}).d == parse_date(date_string)
 
 
 def test_float_does_not_coerce():
@@ -1505,18 +1507,6 @@ def test_lazy_creation():
     assert LazyX._pending_finalizers is None
 
 
-@pytest.mark.parametrize('typ,input,expected', [
-    ('foo', int, False),
-    ('foo', str, True),
-    ('foo', Optional[str], True),
-    ('foo', Optional[Union[str, int]], True),
-    ('foo', Optional[Union[Union[float, str], int]], True),
-    ('foo', Optional[Union[Union[float, bytes], int]], False),
-])
-def test__is_of_type(typ, input, expected):
-    assert _is_of_type(typ, input) == expected
-
-
 def test_Sensitive(*, capsys):
 
     class Foo(Record):
@@ -1532,8 +1522,6 @@ def test_Sensitive(*, capsys):
         bar: List[Bar]
 
     x = Foo(name='Foo', phone_number='631-342-3412')
-
-    print(Foo.phone_number)
 
     assert Foo._options.has_sensitive_fields
     assert Foo._options.has_tagged_fields

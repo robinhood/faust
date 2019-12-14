@@ -1,14 +1,11 @@
 """Record - Dictionary Model."""
-from collections import deque
 from datetime import datetime
 from decimal import Decimal
-from functools import partial
 from typing import (
     Any,
     Callable,
     Dict,
     FrozenSet,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -21,26 +18,20 @@ from typing import (
 
 from mode.utils.objects import (
     annotations,
-    guess_polymorphic_type,
     is_optional,
     remove_optional,
 )
 from mode.utils.text import pluralize
 
 from faust.types.models import (
-    CoercionHandler,
     CoercionMapping,
     FieldDescriptorT,
     FieldMap,
     IsInstanceArgT,
     ModelOptions,
     ModelT,
-    TypeCoerce,
-    TypeInfo,
 )
 from faust.utils import codegen
-from faust.utils import iso8601
-from faust.utils.json import str_to_decimal
 
 from .base import Model
 from .fields import FieldDescriptor, field_for_type
@@ -66,145 +57,9 @@ follow default {fields} {default_names}
 
 _ReconFun = Callable[..., Any]
 
-# Models can refer to other models:
-#
-#   class M(Model):
-#     x: OtherModel
-#
-# but can also have List-of-X, Mapping-of-X, etc:
-#
-#  class M(Model):
-#    x: List[OtherModel]
-#    y: Mapping[KeyModel, ValueModel]
-#
-# in the source code we refer to a polymorphic type, in the example above
-# the polymorphic type for x would be `list`, and the polymorphic type
-# for y would be `dict`.
-
-__polymorphic_type_cache: Dict[Type, Tuple[Type, Optional[Type]]] = {}
-
-
-def _polymorphic_type(typ: Type) -> Tuple[Type, Optional[Type]]:
-    try:
-        polymorphic_type, cls = __polymorphic_type_cache[typ]
-    except KeyError:
-        val: Tuple[Type, Optional[Type]]
-        try:
-            val = guess_polymorphic_type(typ)
-        except TypeError:
-            val = (TypeError, None)
-        __polymorphic_type_cache[typ] = val
-        return val
-    if polymorphic_type is TypeError:
-        raise TypeError(typ)
-    return polymorphic_type, cls
-
-
-def _is_model(cls: Type) -> Tuple[bool, Type, Optional[Type]]:
-    # Returns (is_model, polymorphic_type).
-    # polymorphic type (if available) will be list if it's a list,
-    # dict if dict, etc, then that means it's a List[ModelType],
-    # Dict[ModelType] etc, so
-    # we have to deserialize them as such.
-    polymorphic_type = None
-    try:
-        polymorphic_type, cls = guess_polymorphic_type(cls)
-    except TypeError:
-        pass
-    member_type = remove_optional(cls)
-    try:
-        return issubclass(member_type, ModelT), member_type, polymorphic_type
-    except TypeError:  # typing.Any cannot be used with subclass
-        return False, cls, None
-
-
-def _field_callback(typ: Type, callback: _ReconFun, **kwargs: Any) -> Any:
-    try:
-        generic, subtyp = _polymorphic_type(typ)
-    except TypeError:
-        pass
-    else:
-        if generic is list:
-            return partial(_from_generic_list, subtyp, callback, **kwargs)
-        elif generic is tuple:
-            return partial(_from_generic_tuple, subtyp, callback, **kwargs)
-        elif generic is dict:
-            return partial(_from_generic_dict, subtyp, callback, **kwargs)
-        elif generic is set:
-            return partial(_from_generic_set, subtyp, callback, **kwargs)
-    return partial(callback, typ, **kwargs)
-
-
-def _from_generic_list(typ: Type,
-                       callback: _ReconFun,
-                       data: Iterable,
-                       **kwargs: Any) -> List:
-    return [callback(typ, v, **kwargs) for v in data]
-
-
-def _from_generic_tuple(typ: Type,
-                        callback: _ReconFun,
-                        data: Tuple,
-                        **kwargs: Any) -> Tuple:
-    return tuple(callback(typ, v, **kwargs) for v in data)
-
-
-def _from_generic_dict(typ: Type,
-                       callback: _ReconFun,
-                       data: Mapping,
-                       **kwargs: Any) -> Mapping:
-    return {k: callback(typ, v, **kwargs) for k, v in data.items()}
-
-
-def _from_generic_set(typ: Type,
-                      callback: _ReconFun,
-                      data: Set,
-                      **kwargs: Any) -> Set:
-    return {callback(typ, v, **kwargs) for v in data}
-
-
-def _to_model(typ: Type[ModelT], data: Any, **kwargs: Any) -> Optional[ModelT]:
-    # called everytime something needs to be converted into a model.
-    typ = remove_optional(typ)
-    if data is not None and not isinstance(data, typ):
-        model = typ.from_data(data, preferred_type=typ)
-        return model if model is not None else data
-    return data
-
-
-def _using_descriptor(typ: Type, data: Any, *,
-                      descr: FieldDescriptorT,
-                      **kwargs: Any) -> Any:
-    return descr.prepare_value(data)
-
 
 def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
     return val.to_representation() if val is not None else None
-
-
-def _is_of_type(value: Any, typ: Type) -> bool:
-    if is_optional(typ):
-        # Optional/Union can contain nested types, e.g:
-        #    Optional[Union[str, int, Optional[Foo]]]
-        #
-        # to avoid recursion we add new Union types to a stack
-        # and return False only when that stack is exhausted.
-        #
-        # NOTE: Optional[str] actually returns Union[str, type(None)]
-        stack = deque([typ])
-        while stack:
-            node = stack.popleft()
-            concrete_types = []
-            for subtype in node.__args__:
-                if is_optional(subtype):
-                    stack.append(subtype)
-                else:
-                    concrete_types.append(subtype)
-            if isinstance(value, tuple(concrete_types)):
-                return True
-        return False
-    else:
-        return isinstance(value, typ)
 
 
 class Record(Model, abstract=True):  # type: ignore
@@ -301,18 +156,6 @@ class Record(Model, abstract=True):  # type: ignore
                 isinstance(v, FieldDescriptor) and v.required)
         }
 
-        options.models = {}
-        options.polyindex = {}
-        modelattrs = options.modelattrs = {}
-
-        def _is_concrete_type(field: str,
-                              wanted: IsInstanceArgT) -> bool:
-            typeinfo = options.polyindex[field]
-            try:
-                return issubclass(typeinfo.member_type, wanted)
-            except TypeError:
-                return False
-
         # Raise error if non-defaults are mixed in with defaults
         # like namedtuple/dataclasses do.
         local_defaults = []
@@ -334,39 +177,12 @@ class Record(Model, abstract=True):  # type: ignore
                     ))
 
         for field, typ in fields.items():
-            is_model, member_type, generic_type = _is_model(typ)
-            options.polyindex[field] = TypeInfo(generic_type, member_type)
-            if is_model:
-                # Extract all model fields
-                options.models[field] = typ
-                # Create mapping of model fields to polymorphic types if
-                # available
-                modelattrs[field] = generic_type
             if is_optional(typ):
                 # Optional[X] also needs to be added to defaults mapping.
                 options.defaults.setdefault(field, None)
 
         # Create frozenset index of default fields.
         options.optionalset = frozenset(options.defaults)
-
-        # extract all fields that we want to coerce to a different type
-        # (decimals=True, isodates=True, coercions={MyClass: converter})
-        # Then move them to options.field_coerce, which is what the
-        # model.__init__ method uses to coerce any fields that need to
-        # be coerced.
-        options.field_coerce = {}
-        if options.isodates:
-            options.coercions.setdefault(DATE_TYPES, iso8601.parse)
-        if options.decimals:
-            options.coercions.setdefault(DECIMAL_TYPES, str_to_decimal)
-
-        for coerce_types, coerce_handler in options.coercions.items():
-            options.field_coerce.update({
-                field: TypeCoerce(typ, coerce_handler)
-                for field, typ in fields.items()
-                if (field not in modelattrs and
-                    _is_concrete_type(field, coerce_types))
-            })
 
     @classmethod
     def _contribute_methods(cls) -> None:
@@ -377,16 +193,6 @@ class Record(Model, abstract=True):  # type: ignore
 
         cls._input_translate_fields = \
             cls._BUILD_input_translate_fields()
-
-    @staticmethod
-    def _init_maybe_coerce(coerce: CoercionHandler,
-                           typ: Type,
-                           value: Any) -> Any:
-        if value is None:
-            return None
-        if _is_of_type(value, typ):
-            return value
-        return coerce(value)
 
     @classmethod
     def _contribute_field_descriptors(
@@ -445,9 +251,12 @@ class Record(Model, abstract=True):  # type: ignore
             except KeyError:
                 default, needed = None, True
             descr = getattr(target, field, None)
-            typeinfo = options.polyindex[field]
+            if is_optional(typ):
+                target_type = remove_optional(typ)
+            else:
+                target_type = typ
             if descr is None or not isinstance(descr, FieldDescriptorT):
-                DescriptorType, tag = field_for_type(typeinfo.member_type)
+                DescriptorType, tag = field_for_type(target_type)
                 if tag:
                     add_to_tagged_indices(field, tag)
                 descr = DescriptorType(
@@ -458,8 +267,6 @@ class Record(Model, abstract=True):  # type: ignore
                     default=default,
                     parent=parent,
                     coerce=coerce,
-                    generic_type=typeinfo.generic_type,
-                    member_type=typeinfo.member_type,
                     date_parser=date_parser,
                     tag=tag,
                 )
@@ -472,13 +279,12 @@ class Record(Model, abstract=True):  # type: ignore
                     default=default,
                     parent=parent,
                     coerce=coerce,
-                    generic_type=typeinfo.generic_type,
-                    member_type=typeinfo.member_type,
                 )
 
-            related_model = options.models.get(field)
-            if related_model:
-                add_related_to_tagged_indices(field, descr.member_type)
+            descr.on_model_attached()
+
+            for related_model in descr.related_models:
+                add_related_to_tagged_indices(field, related_model)
             setattr(target, field, descr)
             index[field] = descr
 
@@ -531,38 +337,14 @@ class Record(Model, abstract=True):  # type: ignore
         field_positions = options.fieldpos
         optional = options.optionalset
         needs_validation = options.validation
-        models = options.models
-        field_coerce = options.field_coerce
-        initfield = options.initfield = {}
         descriptors = options.descriptors
         has_post_init = hasattr(cls, '__post_init__')
         required = []
         opts = []
         setters = []
         for field in field_positions.values():
-            model = models.get(field)
-            coerce = field_coerce.get(field)
-            fieldval = f'{field}'
-            if model is not None:
-                initfield[field] = _field_callback(model, _to_model)
-                assert initfield[field] is not None
-                fieldval = f'self._init_field("{field}", {field})'
-            else:
-                field_type = fields[field]
-                descr = options.descriptors[field]
-                initfield[field] = _field_callback(
-                    field_type, _using_descriptor, descr=descr)
-                fieldval = f'self._init_field("{field}", {field})'
-            if coerce is not None:
-                coerce_type, coerce_handler = coerce
-                # Model reconstruction require two-arguments: typ, val.
-                # Regular coercion callbacks just takes one argument, so
-                # need to create an intermediate function to fix that.
-                initfield[field] = _field_callback(
-                    coerce_type,
-                    partial(cls._init_maybe_coerce, coerce_handler))
-                assert initfield[field] is not None
-                fieldval = f'self._init_field("{field}", {field})'
+            fieldval = (f'{field} if __strict__ '
+                        f'else self._init_field("{field}", {field})')
             if field in optional:
                 opts.append(f'{field}=None')
                 setters.extend([
@@ -646,10 +428,13 @@ class Record(Model, abstract=True):  # type: ignore
                                 locals=locals())
 
     def _init_field(self, field: str, value: Any) -> Any:
-        options = self._options
-        initfun = options.initfield.get(field)
-        if initfun:
-            value = initfun(value)
+        # init field from serialized data
+        # will convert e.g. List[Model] back to list of models.
+        # This is only called for Model.from_data(), not when
+        # you create objects in Python or set fields directly.
+        descriptor = self._options.descriptors.get(field)
+        if descriptor is not None:
+            value = descriptor.to_python(value)
         return value
 
     @classmethod
@@ -681,22 +466,7 @@ class Record(Model, abstract=True):  # type: ignore
 
     @classmethod
     def _BUILD_asdict_field(cls, name: str, field: FieldDescriptorT) -> str:
-        modelattrs = cls._options.modelattrs
-        is_model = name in modelattrs
-        if is_model:
-            generic = modelattrs[name]
-            if generic is list or generic is tuple:
-                return (f'[v.to_representation() for v in self.{name}] '
-                        f'if self.{name} is not None else None')
-            elif generic is set:
-                return f'self.{name}'
-            elif generic is dict:
-                return (f'{{k: v.to_representation() '
-                        f'  for k, v in self.{name}.items()}}')
-            else:
-                return f'_maybe_to_representation(self.{name})'
-        else:
-            return f'self.{name}'
+        return f'self.{name}'
 
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         data = self.asdict()

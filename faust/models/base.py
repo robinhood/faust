@@ -214,6 +214,14 @@ class Model(ModelT):
         return model.from_data(data) if model else data
 
     @classmethod
+    def _from_data_field(cls, data: Any) -> Optional['Model']:
+        if data is not None:
+            if cls.__is_abstract__:
+                return cls._maybe_reconstruct(data)
+            return cls.from_data(data, preferred_type=cls)
+        return None
+
+    @classmethod
     def loads(cls, s: bytes, *,
               default_serializer: CodecArg = None,  # XXX use serializer
               serializer: CodecArg = None) -> ModelT:

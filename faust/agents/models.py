@@ -2,7 +2,7 @@
 from typing import Any
 
 from faust.models import Record
-from faust.types import K, ModelT
+from faust.types import ModelT
 
 __all__ = ['ReqRepRequest', 'ReqRepResponse']
 
@@ -32,7 +32,7 @@ class ModelReqRepRequest(ReqRepRequest):
 class ReqRepResponse(Record, serializer='json', namespace='@ReqRepResponse'):
     """Request-Reply response."""
 
-    key: K
+    key: Any
     value: Any
     correlation_id: str
 
