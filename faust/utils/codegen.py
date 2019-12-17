@@ -40,6 +40,7 @@ def Function(name: str,
             return_type=return_type,
             argsep=argsep,
         ),
+        return_type=return_type,
         globals=globals,
         locals=locals,
     )
