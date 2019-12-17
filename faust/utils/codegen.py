@@ -1,5 +1,5 @@
 """Utilities for generating code at runtime."""
-from typing import Any, Callable, Dict, List, Mapping, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Tuple, cast
 
 __all__ = [
     'Function',
@@ -13,6 +13,8 @@ __all__ = [
     'LtMethod',
     'GeMethod',
     'GtMethod',
+    'build_function',
+    'build_function_source',
     'reprkwargs',
     'reprcall',
 ]
@@ -28,19 +30,48 @@ def Function(name: str,
              locals: Dict[str, Any] = None,
              return_type: Any = MISSING,
              argsep: str = ', ') -> Callable:
-    """Generate a function from Python."""
+    """Compile function code object from args and body."""
+    return build_function(
+        name=name,
+        source=build_function_source(
+            name=name,
+            args=args,
+            body=body,
+            return_type=return_type,
+            argsep=argsep,
+        ),
+        globals=globals,
+        locals=locals,
+    )
+
+
+def build_function(name: str, source: str,
+                   *,
+                   return_type: Any = MISSING,
+                   globals: Dict[str, Any] = None,
+                   locals: Dict[str, Any] = None) -> Callable:
+    """Generate function from Python from source code string."""
     assert locals is not None
-    return_annotation = ''
     if return_type is not MISSING:
         locals['_return_type'] = return_type
+    exec(source, globals, locals)
+    obj = locals[name]
+    obj.__sourcecode__ = source
+    return cast(Callable, obj)
+
+
+def build_function_source(name: str,
+                          args: List[str],
+                          body: List[str],
+                          *,
+                          return_type: Any = MISSING,
+                          argsep: str = ', ') -> str:
+    """Generate function source code from args and body."""
+    return_annotation = ''
+    if return_type is not MISSING:
         return_annotation = '->_return_type'
     bodys = '\n'.join(f'  {b}' for b in body)
-
-    src = f'def {name}({argsep.join(args)}){return_annotation}:\n{bodys}'
-    exec(src, globals, locals)
-    obj = locals[name]
-    obj.__sourcecode__ = src
-    return obj
+    return f'def {name}({argsep.join(args)}){return_annotation}:\n{bodys}'
 
 
 def Method(name: str,

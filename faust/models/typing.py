@@ -23,7 +23,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
 )
 from mode.utils.objects import (
     DICT_TYPES,
@@ -44,6 +43,7 @@ from faust.types.models import (
     IsInstanceArgT,
     ModelT,
 )
+from faust.utils import codegen
 from faust.utils.iso8601 import parse as parse_iso8601
 from faust.utils.json import str_to_decimal
 
@@ -615,7 +615,7 @@ class TypeExpression(RootNode):
         new_globals.update(self.extra_locals)
         if DEBUG:
             print(f'SOURCE FOR {self!r} ->\n{sourcecode}')
-        return self._build_function(
+        return codegen.build_function(
             name, sourcecode,
             locals={} if locals is None else locals,
             globals=new_globals,
@@ -625,7 +625,7 @@ class TypeExpression(RootNode):
                   name: str = 'expr',
                   argument_name: str = 'a') -> str:
         expression = self.as_comprehension(argument_name)
-        return self._build_function_source(
+        return codegen.build_function_source(
             name,
             args=[argument_name],
             body=[f'return {expression}'],
@@ -645,33 +645,6 @@ class TypeExpression(RootNode):
             return f'({res} if {var} is not None else None)'
         else:
             return res
-
-    def _build_function(self, name: str, source: str,
-                        *,
-                        return_type: Any = MISSING,
-                        globals: Dict[str, Any] = None,
-                        locals: Dict[str, Any] = None) -> Callable:
-        """Generate a function from Python."""
-        assert locals is not None
-        if return_type is not MISSING:
-            locals['_return_type'] = return_type
-        exec(source, globals, locals)
-        obj = locals[name]
-        obj.__sourcecode__ = source
-        return cast(Callable, obj)
-
-    def _build_function_source(self,
-                               name: str,
-                               args: List[str],
-                               body: List[str],
-                               *,
-                               return_type: Any = MISSING,
-                               argsep: str = ', ') -> str:
-        return_annotation = ''
-        if return_type is not MISSING:
-            return_annotation = '->_return_type'
-        bodys = '\n'.join(f'  {b}' for b in body)
-        return f'def {name}({argsep.join(args)}){return_annotation}:\n{bodys}'
 
     @property
     def has_models(self) -> bool:
