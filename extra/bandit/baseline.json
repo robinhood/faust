@@ -1,17 +1,17 @@
 {
   "errors": [],
-  "generated_at": "2019-05-10T21:00:00Z",
+  "generated_at": "2019-12-17T21:58:33Z",
   "metrics": {
     "_totals": {
-      "CONFIDENCE.HIGH": 12.0,
+      "CONFIDENCE.HIGH": 13.0,
       "CONFIDENCE.LOW": 1.0,
-      "CONFIDENCE.MEDIUM": 2.0,
+      "CONFIDENCE.MEDIUM": 0.0,
       "CONFIDENCE.UNDEFINED": 0.0,
       "SEVERITY.HIGH": 0.0,
       "SEVERITY.LOW": 9.0,
-      "SEVERITY.MEDIUM": 6.0,
+      "SEVERITY.MEDIUM": 5.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 22673,
+      "loc": 25261,
       "nosec": 0
     },
     "faust/__init__.py": {
@@ -23,7 +23,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 208,
+      "loc": 214,
       "nosec": 0
     },
     "faust/__main__.py": {
@@ -83,7 +83,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 864,
+      "loc": 890,
       "nosec": 0
     },
     "faust/agents/manager.py": {
@@ -119,7 +119,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 141,
+      "loc": 147,
       "nosec": 0
     },
     "faust/app/__init__.py": {
@@ -143,7 +143,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 124,
+      "loc": 128,
       "nosec": 0
     },
     "faust/app/base.py": {
@@ -155,7 +155,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 1438,
+      "loc": 1544,
       "nosec": 0
     },
     "faust/app/router.py": {
@@ -239,7 +239,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 315,
+      "loc": 336,
       "nosec": 0
     },
     "faust/auth.py": {
@@ -263,7 +263,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 406,
+      "loc": 553,
       "nosec": 0
     },
     "faust/cli/__init__.py": {
@@ -299,7 +299,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 767,
+      "loc": 792,
       "nosec": 0
     },
     "faust/cli/clean_versions.py": {
@@ -383,7 +383,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 60,
+      "loc": 61,
       "nosec": 0
     },
     "faust/cli/reset.py": {
@@ -431,7 +431,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 129,
+      "loc": 128,
       "nosec": 0
     },
     "faust/events.py": {
@@ -443,7 +443,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 217,
+      "loc": 226,
       "nosec": 0
     },
     "faust/exceptions.py": {
@@ -455,7 +455,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 45,
+      "loc": 69,
       "nosec": 0
     },
     "faust/fixups/__init__.py": {
@@ -491,7 +491,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 70,
+      "loc": 73,
       "nosec": 0
     },
     "faust/joins.py": {
@@ -527,7 +527,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 320,
+      "loc": 324,
       "nosec": 0
     },
     "faust/livecheck/case.py": {
@@ -539,7 +539,7 @@
       "SEVERITY.LOW": 1.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 375,
+      "loc": 377,
       "nosec": 0
     },
     "faust/livecheck/exceptions.py": {
@@ -569,10 +569,10 @@
     "faust/livecheck/models.py": {
       "CONFIDENCE.HIGH": 0.0,
       "CONFIDENCE.LOW": 0.0,
-      "CONFIDENCE.MEDIUM": 1.0,
+      "CONFIDENCE.MEDIUM": 0.0,
       "CONFIDENCE.UNDEFINED": 0.0,
       "SEVERITY.HIGH": 0.0,
-      "SEVERITY.LOW": 1.0,
+      "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
       "loc": 111,
@@ -599,7 +599,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 55,
+      "loc": 61,
       "nosec": 0
     },
     "faust/livecheck/runners.py": {
@@ -635,7 +635,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 11,
+      "loc": 13,
       "nosec": 0
     },
     "faust/models/base.py": {
@@ -647,7 +647,19 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 327,
+      "loc": 315,
+      "nosec": 0
+    },
+    "faust/models/fields.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 433,
       "nosec": 0
     },
     "faust/models/record.py": {
@@ -659,7 +671,31 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 417,
+      "loc": 436,
+      "nosec": 0
+    },
+    "faust/models/tags.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 126,
+      "nosec": 0
+    },
+    "faust/models/typing.py": {
+      "CONFIDENCE.HIGH": 1.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 1.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 536,
       "nosec": 0
     },
     "faust/sensors/__init__.py": {
@@ -683,7 +719,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 228,
+      "loc": 261,
       "nosec": 0
     },
     "faust/sensors/datadog.py": {
@@ -695,7 +731,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 314,
+      "loc": 329,
       "nosec": 0
     },
     "faust/sensors/monitor.py": {
@@ -707,7 +743,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 422,
+      "loc": 463,
       "nosec": 0
     },
     "faust/sensors/statsd.py": {
@@ -719,7 +755,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 208,
+      "loc": 224,
       "nosec": 0
     },
     "faust/serializers/__init__.py": {
@@ -731,7 +767,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 4,
+      "loc": 5,
       "nosec": 0
     },
     "faust/serializers/codecs.py": {
@@ -743,7 +779,7 @@
       "SEVERITY.LOW": 2.0,
       "SEVERITY.MEDIUM": 1.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 226,
+      "loc": 244,
       "nosec": 0
     },
     "faust/serializers/registry.py": {
@@ -755,7 +791,19 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 158,
+      "loc": 156,
+      "nosec": 0
+    },
+    "faust/serializers/schemas.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 146,
       "nosec": 0
     },
     "faust/stores/__init__.py": {
@@ -779,7 +827,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 187,
+      "loc": 190,
       "nosec": 0
     },
     "faust/stores/memory.py": {
@@ -803,7 +851,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 380,
+      "loc": 389,
       "nosec": 0
     },
     "faust/streams.py": {
@@ -815,7 +863,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 747,
+      "loc": 754,
       "nosec": 0
     },
     "faust/tables/__init__.py": {
@@ -827,7 +875,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 12,
+      "loc": 15,
       "nosec": 0
     },
     "faust/tables/base.py": {
@@ -839,7 +887,19 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 444,
+      "loc": 505,
+      "nosec": 0
+    },
+    "faust/tables/globaltable.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 4,
       "nosec": 0
     },
     "faust/tables/manager.py": {
@@ -851,7 +911,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 139,
+      "loc": 149,
       "nosec": 0
     },
     "faust/tables/objects.py": {
@@ -863,7 +923,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 143,
+      "loc": 145,
       "nosec": 0
     },
     "faust/tables/recovery.py": {
@@ -875,7 +935,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 538,
+      "loc": 548,
       "nosec": 0
     },
     "faust/tables/sets.py": {
@@ -887,7 +947,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 237,
+      "loc": 240,
       "nosec": 0
     },
     "faust/tables/table.py": {
@@ -899,7 +959,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 80,
+      "loc": 74,
       "nosec": 0
     },
     "faust/tables/wrappers.py": {
@@ -911,7 +971,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 432,
+      "loc": 417,
       "nosec": 0
     },
     "faust/topics.py": {
@@ -923,7 +983,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 482,
+      "loc": 442,
       "nosec": 0
     },
     "faust/transport/__init__.py": {
@@ -971,7 +1031,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 249,
+      "loc": 270,
       "nosec": 0
     },
     "faust/transport/consumer.py": {
@@ -983,7 +1043,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 924,
+      "loc": 973,
       "nosec": 0
     },
     "faust/transport/drivers/__init__.py": {
@@ -1007,7 +1067,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 790,
+      "loc": 890,
       "nosec": 0
     },
     "faust/transport/drivers/confluent.py": {
@@ -1019,7 +1079,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 483,
+      "loc": 486,
       "nosec": 0
     },
     "faust/transport/producer.py": {
@@ -1031,7 +1091,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 121,
+      "loc": 170,
       "nosec": 0
     },
     "faust/transport/utils.py": {
@@ -1055,17 +1115,17 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 82,
+      "loc": 83,
       "nosec": 0
     },
     "faust/types/_env.py": {
       "CONFIDENCE.HIGH": 0.0,
       "CONFIDENCE.LOW": 0.0,
-      "CONFIDENCE.MEDIUM": 1.0,
+      "CONFIDENCE.MEDIUM": 0.0,
       "CONFIDENCE.UNDEFINED": 0.0,
       "SEVERITY.HIGH": 0.0,
       "SEVERITY.LOW": 0.0,
-      "SEVERITY.MEDIUM": 1.0,
+      "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
       "loc": 35,
       "nosec": 0
@@ -1079,7 +1139,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 261,
+      "loc": 266,
       "nosec": 0
     },
     "faust/types/app.py": {
@@ -1091,7 +1151,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 390,
+      "loc": 461,
       "nosec": 0
     },
     "faust/types/assignor.py": {
@@ -1103,7 +1163,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 53,
+      "loc": 56,
       "nosec": 0
     },
     "faust/types/auth.py": {
@@ -1127,7 +1187,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 166,
+      "loc": 192,
       "nosec": 0
     },
     "faust/types/codecs.py": {
@@ -1151,7 +1211,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 49,
+      "loc": 51,
       "nosec": 0
     },
     "faust/types/enums.py": {
@@ -1175,7 +1235,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 58,
+      "loc": 63,
       "nosec": 0
     },
     "faust/types/fixups.py": {
@@ -1211,7 +1271,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 134,
+      "loc": 199,
       "nosec": 0
     },
     "faust/types/router.py": {
@@ -1235,7 +1295,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 101,
+      "loc": 115,
       "nosec": 0
     },
     "faust/types/serializers.py": {
@@ -1247,7 +1307,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 46,
+      "loc": 101,
       "nosec": 0
     },
     "faust/types/settings.py": {
@@ -1259,7 +1319,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 769,
+      "loc": 851,
       "nosec": 0
     },
     "faust/types/stores.py": {
@@ -1271,7 +1331,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 79,
+      "loc": 82,
       "nosec": 0
     },
     "faust/types/streams.py": {
@@ -1295,7 +1355,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 328,
+      "loc": 392,
       "nosec": 0
     },
     "faust/types/topics.py": {
@@ -1307,7 +1367,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 86,
+      "loc": 91,
       "nosec": 0
     },
     "faust/types/transports.py": {
@@ -1319,7 +1379,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 340,
+      "loc": 373,
       "nosec": 0
     },
     "faust/types/tuples.py": {
@@ -1343,7 +1403,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 139,
+      "loc": 140,
       "nosec": 0
     },
     "faust/types/windows.py": {
@@ -1391,7 +1451,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 1.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 109,
+      "loc": 153,
       "nosec": 0
     },
     "faust/utils/cron.py": {
@@ -1439,7 +1499,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 145,
+      "loc": 153,
       "nosec": 0
     },
     "faust/utils/kafka/__init__.py": {
@@ -1547,7 +1607,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 114,
+      "loc": 117,
       "nosec": 0
     },
     "faust/utils/urls.py": {
@@ -1610,6 +1670,18 @@
       "loc": 20,
       "nosec": 0
     },
+    "faust/web/apps/production_index.py": {
+      "CONFIDENCE.HIGH": 0.0,
+      "CONFIDENCE.LOW": 0.0,
+      "CONFIDENCE.MEDIUM": 0.0,
+      "CONFIDENCE.UNDEFINED": 0.0,
+      "SEVERITY.HIGH": 0.0,
+      "SEVERITY.LOW": 0.0,
+      "SEVERITY.MEDIUM": 0.0,
+      "SEVERITY.UNDEFINED": 0.0,
+      "loc": 12,
+      "nosec": 0
+    },
     "faust/web/apps/router.py": {
       "CONFIDENCE.HIGH": 0.0,
       "CONFIDENCE.LOW": 0.0,
@@ -1655,7 +1727,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 321,
+      "loc": 335,
       "nosec": 0
     },
     "faust/web/blueprints.py": {
@@ -1715,7 +1787,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 72,
+      "loc": 77,
       "nosec": 0
     },
     "faust/web/cache/backends/redis.py": {
@@ -1727,7 +1799,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 151,
+      "loc": 155,
       "nosec": 0
     },
     "faust/web/cache/cache.py": {
@@ -1739,7 +1811,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 2.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 130,
+      "loc": 131,
       "nosec": 0
     },
     "faust/web/cache/exceptions.py": {
@@ -1775,7 +1847,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 254,
+      "loc": 261,
       "nosec": 0
     },
     "faust/web/exceptions.py": {
@@ -1799,7 +1871,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 232,
+      "loc": 246,
       "nosec": 0
     },
     "faust/windows.py": {
@@ -1811,7 +1883,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 116,
+      "loc": 119,
       "nosec": 0
     },
     "faust/worker.py": {
@@ -1823,7 +1895,7 @@
       "SEVERITY.LOW": 0.0,
       "SEVERITY.MEDIUM": 0.0,
       "SEVERITY.UNDEFINED": 0.0,
-      "loc": 233,
+      "loc": 237,
       "nosec": 0
     }
   },
@@ -1871,85 +1943,71 @@
       "test_name": "blacklist"
     },
     {
-      "code": "24     INIT = 'INIT'\n25     PASS = 'PASS'\n26     FAIL = 'FAIL'\n",
-      "filename": "faust/livecheck/models.py",
-      "issue_confidence": "MEDIUM",
+      "code": "241     def random_identifier(self, n: int = 8) -> str:\n242         return ''.join(random.choice(string.ascii_letters) for _ in range(n))\n243 \n",
+      "filename": "faust/models/typing.py",
+      "issue_confidence": "HIGH",
       "issue_severity": "LOW",
-      "issue_text": "Possible hardcoded password: 'PASS'",
-      "line_number": 25,
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 242,
       "line_range": [
-        25
+        242
       ],
-      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b105_hardcoded_password_string.html",
-      "test_id": "B105",
-      "test_name": "hardcoded_password_string"
+      "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
     },
     {
-      "code": "160 \"\"\"\n161 import pickle as _pickle\n162 \n163 from base64 import b64decode, b64encode\n",
+      "code": "161 \"\"\"\n162 import pickle as _pickle\n163 \n164 from base64 import b64decode, b64encode\n",
       "filename": "faust/serializers/codecs.py",
       "issue_confidence": "HIGH",
       "issue_severity": "LOW",
       "issue_text": "Consider possible security implications associated with pickle module.",
-      "line_number": 161,
+      "line_number": 162,
       "line_range": [
-        161,
-        162
+        162,
+        163
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b403-import-pickle",
       "test_id": "B403",
       "test_name": "blacklist"
     },
     {
-      "code": "258     def _loads(self, s: bytes) -> Any:\n259         return _pickle.loads(s)\n260 \n",
+      "code": "281     def _loads(self, s: bytes) -> Any:\n282         return _pickle.loads(s)\n283 \n",
       "filename": "faust/serializers/codecs.py",
       "issue_confidence": "HIGH",
       "issue_severity": "MEDIUM",
       "issue_text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.",
-      "line_number": 259,
+      "line_number": 282,
       "line_range": [
-        259
+        282
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b301-pickle",
       "test_id": "B301",
       "test_name": "blacklist"
     },
     {
-      "code": "292     'json': json(),\n293     'pickle': pickle(),\n294     'binary': binary(),\n",
+      "code": "315     'json': json(),\n316     'pickle': pickle(),\n317     'binary': binary(),\n",
       "filename": "faust/serializers/codecs.py",
       "issue_confidence": "HIGH",
       "issue_severity": "LOW",
       "issue_text": "Consider possible security implications associated with pickle module.",
-      "line_number": 293,
+      "line_number": 316,
       "line_range": [
-        293
+        316
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b403-import-pickle",
       "test_id": "B403",
       "test_name": "blacklist"
     },
     {
-      "code": "50 WEB_PORT: int = int(_getenv('WEB_PORT', '6066'))\n51 WEB_BIND: str = _getenv('F_WEB_BIND', '0.0.0.0')\n52 WEB_TRANSPORT: URL = URL(_getenv('WEB_TRANSPORT', 'tcp://'))\n",
-      "filename": "faust/types/_env.py",
-      "issue_confidence": "MEDIUM",
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible binding to all interfaces.",
-      "line_number": 51,
-      "line_range": [
-        51
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b104_hardcoded_bind_all_interfaces.html",
-      "test_id": "B104",
-      "test_name": "hardcoded_bind_all_interfaces"
-    },
-    {
-      "code": "37     src = f'def {name}({argsep.join(args)}){return_annotation}:\\n{bodys}'\n38     exec(src, globals, locals)\n39     obj = locals[name]\n",
+      "code": "56         locals['_return_type'] = return_type\n57     exec(source, globals, locals)\n58     obj = locals[name]\n",
       "filename": "faust/utils/codegen.py",
       "issue_confidence": "HIGH",
       "issue_severity": "MEDIUM",
       "issue_text": "Use of exec detected.",
-      "line_number": 38,
+      "line_number": 57,
       "line_range": [
-        38
+        57
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b102_exec_used.html",
       "test_id": "B102",
@@ -2014,31 +2072,31 @@
       "test_name": "blacklist"
     },
     {
-      "code": "144         \"\"\"Build cache key from web request and environment.\"\"\"\n145         context = hashlib.md5(b''.join(\n146             want_bytes(k) + want_bytes(v)\n147             for k, v in headers.items())).hexdigest()\n148         url = hashlib.md5(iri_to_uri(str(\n",
+      "code": "145         \"\"\"Build cache key from web request and environment.\"\"\"\n146         context = hashlib.md5(b''.join(\n147             want_bytes(k) + want_bytes(v)\n148             for k, v in headers.items())).hexdigest()\n149         url = hashlib.md5(iri_to_uri(str(\n",
       "filename": "faust/web/cache/cache.py",
       "issue_confidence": "HIGH",
       "issue_severity": "MEDIUM",
       "issue_text": "Use of insecure MD2, MD4, MD5, or SHA1 hash function.",
-      "line_number": 145,
+      "line_number": 146,
       "line_range": [
-        145,
         146,
-        147
+        147,
+        148
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b303-md5",
       "test_id": "B303",
       "test_name": "blacklist"
     },
     {
-      "code": "147             for k, v in headers.items())).hexdigest()\n148         url = hashlib.md5(iri_to_uri(str(\n149             request.url)).encode('ascii')).hexdigest()\n150         return f'{self.ident}.{prefix}.{method}.{url}.{context}'\n",
+      "code": "148             for k, v in headers.items())).hexdigest()\n149         url = hashlib.md5(iri_to_uri(str(\n150             request.url)).encode('ascii')).hexdigest()\n151         return f'{self.ident}.{prefix}.{method}.{url}.{context}'\n",
       "filename": "faust/web/cache/cache.py",
       "issue_confidence": "HIGH",
       "issue_severity": "MEDIUM",
       "issue_text": "Use of insecure MD2, MD4, MD5, or SHA1 hash function.",
-      "line_number": 148,
+      "line_number": 149,
       "line_range": [
-        148,
-        149
+        149,
+        150
       ],
       "more_info": "https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b303-md5",
       "test_id": "B303",
