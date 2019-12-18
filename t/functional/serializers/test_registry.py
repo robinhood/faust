@@ -70,8 +70,9 @@ VALUE_TESTS = [
     Case(ACCOUNT1_EXTRA_FIELDS_JSON, None, 'json', ACCOUNT1),
     Case(ACCOUNT2_JSON, None, 'json', ACCOUNT2),
 
-    #   but unblessed record payload -> mapping
-    Case(ACCOUNT1_UNBLESSED_JSON, None, 'json', ACCOUNT1_UNBLESSED),
+    # user field in unblessed model still ends up being user
+    # because of the type annotation.
+    Case(ACCOUNT1_UNBLESSED_JSON, Account, 'json', ACCOUNT1),
 
     #   source json dict mapping -> mapping
     Case(json.dumps(NONFAUST), None, 'json', NONFAUST),
