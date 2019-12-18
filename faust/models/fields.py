@@ -251,8 +251,18 @@ class FieldDescriptor(FieldDescriptorT[T]):
         if instance is None:
             return self
 
-        # instance attribute accessed
-        return instance.__dict__[self.field]
+        field = self.field
+        instance_dict = instance.__dict__
+        to_python = self._to_python
+        value = instance_dict[field]
+        if self.lazy_coercion and to_python is not None:
+            evaluated_fields: Set[str]
+            evaluated_fields = instance.__evaluated_fields__
+            if field not in evaluated_fields:
+                if value is not None or self.required:
+                    value = instance_dict[field] = to_python(value)
+                evaluated_fields.add(field)
+        return value
 
     def should_coerce(self, value: Any, coerce: bool = None) -> bool:
         c = coerce if coerce is not None else self.coerce
@@ -296,6 +306,11 @@ class FieldDescriptor(FieldDescriptorT[T]):
     def related_models(self) -> Set[Type[ModelT]]:
         assert self._expr is not None
         return self._expr.found_types[NodeType.MODEL]
+
+    @cached_property
+    def lazy_coercion(self) -> bool:
+        assert self._expr is not None
+        return self._expr.has_generic_types or self._expr.has_models
 
 
 class BooleanField(FieldDescriptor[bool]):

@@ -383,6 +383,9 @@ def test_custom_coercion():
         def __json__(self):
             return self.value
 
+        def __repr__(self):
+            return f'<{type(self).__name__}: {self.value}>'
+
     class CanFooModel(Record,
                       abstract=True,
                       coercions={Foo: Foo},
@@ -1456,18 +1459,6 @@ def test_float_does_not_coerce():
     X.make_final()  # <-- just to test it still works for non-lazy creation
 
     assert X('3.14').f == '3.14'
-
-
-def test_model_init_field():
-    account = Account(id='id', name='name')
-    user = User(id='id', username='username', account=account)
-
-    acc2 = account.to_representation()
-    # init_field reconstructs account back into Model object.
-    assert user._init_field('account', acc2) == account
-
-    # init field missing (coverage)
-    assert user._init_field('foo', 123) == 123
 
 
 def test_payload_with_reserved_keyword():

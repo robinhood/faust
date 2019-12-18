@@ -134,6 +134,7 @@ base = abc.ABC if abc_compatible_with_init_subclass else object
 
 class ModelT(base):  # type: ignore
     __is_model__: ClassVar[bool] = True
+    __evaluated_fields__: Set[str] = cast(Set[str], None)
 
     _options: ClassVar[ModelOptions]
 
@@ -262,6 +263,11 @@ class FieldDescriptorT(Generic[T]):
     @cached_property
     @abc.abstractmethod
     def related_models(self) -> Set[Type[ModelT]]:
+        ...
+
+    @cached_property
+    @abc.abstractmethod
+    def lazy_coercion(self) -> bool:
         ...
 
 

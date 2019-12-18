@@ -333,7 +333,6 @@ class Record(Model, abstract=True):  # type: ignore
     def _BUILD_init(cls) -> Callable[[], None]:
         kwonlyargs = ['*', '__strict__=True', '__faust=None', '**kwargs']
         options = cls._options
-        fields = options.fields
         field_positions = options.fieldpos
         optional = options.optionalset
         needs_validation = options.validation
@@ -341,48 +340,89 @@ class Record(Model, abstract=True):  # type: ignore
         has_post_init = hasattr(cls, '__post_init__')
         required = []
         opts = []
-        setters = []
-        for field in field_positions.values():
-            fieldval = (f'{field} if __strict__ '
-                        f'else self._init_field("{field}", {field})')
+        preamble = [
+            'self.__evaluated_fields__ = set()',
+            '__defaults = self._options.defaults',
+        ]
+        _globals = {}
+
+        def generate_setter(field: str, getval: str, out: List[str]) -> bool:
+            """Generate code that sets attribute for field in class.
+
+            Arguments:
+                field: Name of field.
+                getval: Source code that initializes value for field,
+                    can be the field name itself for no inititalization
+                    or for example: ``f"self._prepare_value({field})"``.
+                out: Destination list where new source code lines are added.
+                """
             if field in optional:
-                opts.append(f'{field}=None')
-                setters.extend([
-                    f'if {field} is not None:',
-                    f'  self.{field} = {fieldval}',
-                    f'else:',
-                    f'  self.{field} = self._options.defaults["{field}"]',
+                out.extend([
+                    f'    if {field} is not None:',
+                    f'        self.{field} = {getval}',
+                    f'    else:',
+                    f'        self.{field} = __defaults["{field}"]',
                 ])
+                return True
+            else:
+                out.append(f'    self.{field} = {getval}')
+                return False
+
+        def generate_prepare_value(field: str) -> str:
+            descriptor = descriptors[field]
+            if descriptor.lazy_coercion:
+                return field  # no initialization
+            else:
+                # Call descriptor.to_python
+                field_init = f'_{field}_init_'
+                _globals[field_init] = descriptor.to_python
+                return f'{field_init}({field})'
+
+        data_setters = ['if __strict__:']
+        for field in field_positions.values():
+            is_optional = generate_setter(field, field, data_setters)
+            if is_optional:
+                opts.append(f'{field}=None')
             else:
                 required.append(field)
-                setters.append(f'self.{field} = {fieldval}')
 
-        rest = [
-            'if kwargs and __strict__:',
-            '    from mode.utils.text import pluralize',
-            '    message = "{} got unexpected {}: {}".format(',
-            '        self.__class__.__name__,',
-            '        pluralize(kwargs.__len__(), "argument"),',
-            '        ", ".join(map(str, sorted(kwargs))))',
-            '    raise TypeError(message)',
-            'self.__dict__.update(kwargs)',
+        data_rest = [
+            '    if kwargs:',
+            '        from mode.utils.text import pluralize',
+            '        message = "{} got unexpected {}: {}".format(',
+            '            self.__class__.__name__,',
+            '            pluralize(kwargs.__len__(), "argument"),',
+            '            ", ".join(map(str, sorted(kwargs))))',
+            '        raise TypeError(message)',
         ]
 
+        if field_positions:
+            init_setters = ['else:']
+            for field in field_positions.values():
+                fieldval = generate_prepare_value(field)
+                generate_setter(field, fieldval, init_setters)
+        else:
+            # if there are no fields we cannot generate
+            # the lines aboe as there will no be no code
+            # in the else block.
+            init_setters = []
+
+        init_rest = ['self.__dict__.update(kwargs)']
         if has_post_init:
-            rest.extend([
+            init_rest.extend([
                 'self.__post_init__()',
             ])
 
         if needs_validation:
-            rest.extend([
+            init_rest.extend([
                 'self.validate_or_raise()',
             ])
 
         return codegen.InitMethod(
             required + opts + kwonlyargs,
-            setters + rest,
-            globals=globals(),
-            locals=locals(),
+            preamble + data_setters + data_rest + init_setters + init_rest,
+            globals=_globals,
+            locals={},
         )
 
     @classmethod
@@ -426,16 +466,6 @@ class Record(Model, abstract=True):  # type: ignore
         return codegen.LeMethod(list(cls._options.fields),
                                 globals=globals(),
                                 locals=locals())
-
-    def _init_field(self, field: str, value: Any) -> Any:
-        # init field from serialized data
-        # will convert e.g. List[Model] back to list of models.
-        # This is only called for Model.from_data(), not when
-        # you create objects in Python or set fields directly.
-        descriptor = self._options.descriptors.get(field)
-        if descriptor is not None:
-            value = descriptor.to_python(value)
-        return value
 
     @classmethod
     def _BUILD_asdict(cls) -> Callable[..., Dict[str, Any]]:
@@ -496,7 +526,7 @@ class Record(Model, abstract=True):  # type: ignore
         # so doing {**self._options.defaults, **self.__dict__} does not work.
         attrs, defaults = self.__dict__, self._options.defaults.items()
         fields = {
-            **attrs,
+            **{k: v for k, v in attrs.items() if not k.startswith('__')},
             **{k: v
                for k, v in defaults if k not in attrs},
         }
