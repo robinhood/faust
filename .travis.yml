@@ -48,11 +48,6 @@ matrix:
     os: linux
     dist: xenial
     stage: lint
-  - python: 3.6.0
-    env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y NO_CYTHON=y
-    os: linux
-    dist: trusty
-    stage: test
   - python: 3.6.1
     env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y NO_CYTHON=y
     os: linux
