@@ -51,6 +51,7 @@ def build_closure_source(name: str,
                          body: List[str],
                          *,
                          outer_name: str = '__outer__',
+                         outer_args: List[str] = None,
                          closures: Dict[str, str],
                          return_type: Any = MISSING,
                          indentlevel: int = 0,
@@ -64,12 +65,12 @@ def build_closure_source(name: str,
         argsep=argsep,
     )
     closure_vars = [
-        f'{local_name}={global_name}'
+        f'{local_name} = {global_name}'
         for local_name, global_name in closures.items()
     ]
     outer_source = build_function_source(
         name=outer_name,
-        args=[],
+        args=outer_args or [],
         body=closure_vars + inner_source.split('\n') + [f'return {name}'],
         return_type=MISSING,
         indentlevel=indentlevel,
@@ -79,7 +80,7 @@ def build_closure_source(name: str,
     return outer_source
 
 
-def build_closure(outer_name: str, source: str,
+def build_closure(outer_name: str, source: str, *args: Any,
                   return_type: Any = MISSING,
                   globals: Dict[str, Any] = None,
                   locals: Dict[str, Any] = None) -> Callable:
@@ -87,7 +88,7 @@ def build_closure(outer_name: str, source: str,
     if return_type is not MISSING:
         locals['_return_type'] = return_type
     exec(source, globals, locals)
-    obj = locals[outer_name]()
+    obj = locals[outer_name](*args)
     obj.__sourcecode__ = source
     return cast(Callable, obj)
 

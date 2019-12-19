@@ -1,6 +1,7 @@
 """Record - Dictionary Model."""
 from datetime import datetime
 from decimal import Decimal
+from itertools import chain
 from typing import (
     Any,
     Callable,
@@ -16,6 +17,7 @@ from typing import (
     cast,
 )
 
+from mode.utils.compat import OrderedDict
 from mode.utils.objects import (
     annotations,
     is_optional,
@@ -331,23 +333,75 @@ class Record(Model, abstract=True):  # type: ignore
 
     @classmethod
     def _BUILD_init(cls) -> Callable[[], None]:
-        kwonlyargs = ['*', '__strict__=True', '__faust=None', '**kwargs']
+        # generate init function that set field values from arguments,
+        # and that load data from serialized form.
+        #
+        #
+        # The general template that we will be generating is
+        #
+        #    def __outer__(Model):   # create __init__ closure
+        #       __defaults__ = Model._options.defaults
+        #       __descr__ = Model._options.descriptors
+        #       {% for field in fields_with_defaults %}
+        #       _default_{{ field }}_ = __defaults__["{{ field }}"]
+        #       {% endfor %}
+        #       {% for field in fields_with_init %}
+        #       _init_{{ field }}_ = __descr__["{{ field }}"].to_python
+        #
+        #       def __init__(self, {{ sig }}, *, __strict__=True, **kwargs):
+        #          self.__evaluated_fields__ = set()
+        #          if __strict__:  # creating model from Python
+        #              {% for field in fields %}
+        #              self.{{ field }} = {{ field }}
+        #              {% endfor %}
+        #              if kwargs:
+        #                 # raise error for additional arguments
+        #          else:
+        #              {% for field in fields %}
+        #              {% if OPTIONAL_FIELD(field) %}
+        #              if {{ field }} is not None:
+        #                  self.{{ field }} = _init_{{ field }}({{ field }})
+        #              else:
+        #                  self.{{ field }} = _default_{{ field }}
+        #              {% else %}
+        #                  self.{{ field }} = _init_{{ field }}({{ field }}
+        #              # any additional kwargs are added as fields
+        #              # when loading from serialized data.
+        #              self.__dict__.update(kwargs)
+        #         self.__post_init__()
+        #     return __init__
+        #
         options = cls._options
         field_positions = options.fieldpos
         optional = options.optionalset
         needs_validation = options.validation
         descriptors = options.descriptors
         has_post_init = hasattr(cls, '__post_init__')
-        required = []
-        opts = []
-        preamble = [
-            'self.__evaluated_fields__ = set()',
-            '__defaults = self._options.defaults',
-        ]
-        _globals = {}
-        _closures = {}
 
-        def generate_setter(field: str, getval: str, out: List[str]) -> bool:
+        closures: Dict[str, str] = {
+            '__defaults__': 'Model._options.defaults',
+            '__descr__': 'Model._options.descriptors',
+        }
+
+        kwonlyargs = ['*', '__strict__=True', '__faust=None', '**kwargs']
+        # these are sets, but we care about order as we will
+        # be generating signature arguments in the correct order.
+        #
+        # The order is decided by the order of fields in the class):
+        #
+        #  class Foo(Record):
+        #      c: int
+        #      a: int
+        #
+        # becomes:
+        #
+        #   def __init__(self, c, a):
+        #       self.c = c
+        #       self.a = a
+        optional_fields: Dict[str, bool] = OrderedDict()
+        required_fields: Dict[str, bool] = OrderedDict()
+
+        def generate_setter(field: str, getval: str) -> str:
             """Generate code that sets attribute for field in class.
 
             Arguments:
@@ -358,36 +412,33 @@ class Record(Model, abstract=True):  # type: ignore
                 out: Destination list where new source code lines are added.
                 """
             if field in optional:
-                out.extend([
-                    f'    if {field} is not None:',
-                    f'        self.{field} = {getval}',
-                    f'    else:',
-                    f'        self.{field} = __defaults["{field}"]',
-                ])
-                return True
+                optional_fields[field] = True
+                default_var = f'_default_{field}_'
+                closures[default_var] = f'__defaults__["{field}"]'
+                return (f'    self.{field} = {getval} '
+                        f'if {field} is not None else {default_var}')
             else:
-                out.append(f'    self.{field} = {getval}')
-                return False
+                required_fields[field] = True
+                return f'    self.{field} = {getval}'
 
         def generate_prepare_value(field: str) -> str:
             descriptor = descriptors[field]
             if descriptor.lazy_coercion:
                 return field  # no initialization
             else:
-                # Call descriptor.to_python
-                local_field_init_name = f'_{field}_init_'
-                global_field_init_name = f'__{field}_init'
-                _globals[global_field_init_name] = descriptor.to_python
-                _closures[local_field_init_name] = global_field_init_name
-                return f'{local_field_init_name}({field})'
+                # call descriptor.to_python
+                init_field_var = f'_init_{field}_'
+                closures[init_field_var] = f'__descr__["{field}"].to_python'
+                return f'{init_field_var}({field})'
 
-        data_setters = ['if __strict__:']
-        for field in field_positions.values():
-            is_optional = generate_setter(field, field, data_setters)
-            if is_optional:
-                opts.append(f'{field}=None')
-            else:
-                required.append(field)
+        preamble = [
+            'self.__evaluated_fields__ = set()',
+        ]
+
+        data_setters = ['if __strict__:'] + [
+            generate_setter(field, field)
+            for field in field_positions.values()
+        ]
 
         data_rest = [
             '    if kwargs:',
@@ -399,53 +450,49 @@ class Record(Model, abstract=True):  # type: ignore
             '        raise TypeError(message)',
         ]
 
+        init_setters = ['else:']
         if field_positions:
-            init_setters = ['else:']
-            for field in field_positions.values():
-                fieldval = generate_prepare_value(field)
-                generate_setter(field, fieldval, init_setters)
-        else:
-            # if there are no fields we cannot generate
-            # the lines aboe as there will no be no code
-            # in the else block.
-            init_setters = []
+            init_setters.extend(
+                generate_setter(field, generate_prepare_value(field))
+                for field in field_positions.values()
+            )
+        init_setters.append('    self.__dict__.update(kwargs)')
 
-        init_rest = ['self.__dict__.update(kwargs)']
+        postamble = []
         if has_post_init:
-            init_rest.extend([
-                'self.__post_init__()',
-            ])
-
+            postamble.append('self.__post_init__()')
         if needs_validation:
-            init_rest.extend([
-                'self.validate_or_raise()',
-            ])
+            postamble.append('self.validate_or_raise()')
 
-        if _closures:
-            source = codegen.build_closure_source(
-                name='__init__',
-                args=['self'] + required + opts + kwonlyargs,
-                closures=_closures,
-                body=(
-                    preamble +
-                    data_setters +
-                    data_rest +
-                    init_setters +
-                    init_rest
-                ),
-            )
-            return codegen.build_closure(
-                '__outer__', source,
-                globals=_globals,
-                locals={},
-            )
-        else:
-            return codegen.InitMethod(
-                required + opts + kwonlyargs,
-                preamble + data_setters + data_rest + init_setters + init_rest,
-                globals=_globals,
-                locals={},
-            )
+        signature = list(chain(
+            ['self'],
+            [f'{field}' for field in required_fields],
+            [f'{field}=None' for field in optional_fields],
+            kwonlyargs,
+        ))
+
+        sourcecode = codegen.build_closure_source(
+            name='__init__',
+            args=signature,
+            body=list(chain(
+                preamble,
+                data_setters,
+                data_rest,
+                init_setters,
+                postamble,
+            )),
+            closures=closures,
+            outer_args=['Model'],
+        )
+
+        # TIP final sourcecode also available
+        # as .__sourcecode__ on returned method
+        # (print(Model.__init__.__sourcecode__)
+        return codegen.build_closure(
+            '__outer__', sourcecode, cls,
+            globals={},
+            locals={},
+        )
 
     @classmethod
     def _BUILD_hash(cls) -> Callable[[], None]:
