@@ -46,6 +46,52 @@ def Function(name: str,
     )
 
 
+def build_closure_source(name: str,
+                         args: List[str],
+                         body: List[str],
+                         *,
+                         outer_name: str = '__outer__',
+                         closures: Dict[str, str],
+                         return_type: Any = MISSING,
+                         indentlevel: int = 0,
+                         indentspaces: int = 4,
+                         argsep: str = ', ') -> str:
+    inner_source = build_function_source(
+        name, args, body,
+        return_type=return_type,
+        indentlevel=indentlevel,
+        indentspaces=indentspaces,
+        argsep=argsep,
+    )
+    closure_vars = [
+        f'{local_name}={global_name}'
+        for local_name, global_name in closures.items()
+    ]
+    outer_source = build_function_source(
+        name=outer_name,
+        args=[],
+        body=closure_vars + inner_source.split('\n') + [f'return {name}'],
+        return_type=MISSING,
+        indentlevel=indentlevel,
+        indentspaces=indentspaces,
+        argsep=argsep,
+    )
+    return outer_source
+
+
+def build_closure(outer_name: str, source: str,
+                  return_type: Any = MISSING,
+                  globals: Dict[str, Any] = None,
+                  locals: Dict[str, Any] = None) -> Callable:
+    assert locals is not None
+    if return_type is not MISSING:
+        locals['_return_type'] = return_type
+    exec(source, globals, locals)
+    obj = locals[outer_name]()
+    obj.__sourcecode__ = source
+    return cast(Callable, obj)
+
+
 def build_function(name: str, source: str,
                    *,
                    return_type: Any = MISSING,
@@ -66,13 +112,19 @@ def build_function_source(name: str,
                           body: List[str],
                           *,
                           return_type: Any = MISSING,
+                          indentlevel: int = 0,
+                          indentspaces: int = 4,
                           argsep: str = ', ') -> str:
     """Generate function source code from args and body."""
+    indent = ' ' * indentspaces
+    curindent = indent * indentlevel
+    nextindent = indent * (indentlevel + 1)
     return_annotation = ''
     if return_type is not MISSING:
         return_annotation = '->_return_type'
-    bodys = '\n'.join(f'  {b}' for b in body)
-    return f'def {name}({argsep.join(args)}){return_annotation}:\n{bodys}'
+    bodys = '\n'.join(f'{nextindent}{b}' for b in body)
+    return (f'{curindent}def {name}({argsep.join(args)}){return_annotation}:\n'
+            f'{bodys}')
 
 
 def Method(name: str,

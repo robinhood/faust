@@ -345,6 +345,7 @@ class Record(Model, abstract=True):  # type: ignore
             '__defaults = self._options.defaults',
         ]
         _globals = {}
+        _closures = {}
 
         def generate_setter(field: str, getval: str, out: List[str]) -> bool:
             """Generate code that sets attribute for field in class.
@@ -374,9 +375,11 @@ class Record(Model, abstract=True):  # type: ignore
                 return field  # no initialization
             else:
                 # Call descriptor.to_python
-                field_init = f'_{field}_init_'
-                _globals[field_init] = descriptor.to_python
-                return f'{field_init}({field})'
+                local_field_init_name = f'_{field}_init_'
+                global_field_init_name = f'__{field}_init'
+                _globals[global_field_init_name] = descriptor.to_python
+                _closures[local_field_init_name] = global_field_init_name
+                return f'{local_field_init_name}({field})'
 
         data_setters = ['if __strict__:']
         for field in field_positions.values():
@@ -418,12 +421,31 @@ class Record(Model, abstract=True):  # type: ignore
                 'self.validate_or_raise()',
             ])
 
-        return codegen.InitMethod(
-            required + opts + kwonlyargs,
-            preamble + data_setters + data_rest + init_setters + init_rest,
-            globals=_globals,
-            locals={},
-        )
+        if _closures:
+            source = codegen.build_closure_source(
+                name='__init__',
+                args=['self'] + required + opts + kwonlyargs,
+                closures=_closures,
+                body=(
+                    preamble +
+                    data_setters +
+                    data_rest +
+                    init_setters +
+                    init_rest
+                ),
+            )
+            return codegen.build_closure(
+                '__outer__', source,
+                globals=_globals,
+                locals={},
+            )
+        else:
+            return codegen.InitMethod(
+                required + opts + kwonlyargs,
+                preamble + data_setters + data_rest + init_setters + init_rest,
+                globals=_globals,
+                locals={},
+            )
 
     @classmethod
     def _BUILD_hash(cls) -> Callable[[], None]:

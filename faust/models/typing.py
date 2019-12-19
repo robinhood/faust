@@ -317,7 +317,7 @@ class DecimalNode(Node):
         self.root.found_types[self.type].add(self.expr)
 
     def build(self, var: Variable, *args: Type) -> str:
-        self.root.extra_locals.setdefault('_Decimal_', self._maybe_coerce)
+        self.root.add_closure('_Decimal_', '__Decimal__', self._maybe_coerce)
         return f'_Decimal_({var})'
 
     @staticmethod
@@ -337,8 +337,8 @@ class DatetimeNode(Node):
         self.root.found_types[self.type].add(self.expr)
 
     def build(self, var: Variable, *args: Type) -> str:
-        self.root.extra_locals.setdefault(
-            '_iso8601_parse_', self._maybe_coerce)
+        self.root.add_closure(
+            '_iso8601_parse_', '__iso8601_parse__', self._maybe_coerce)
         return f'_iso8601_parse_({var})'
 
     def _maybe_coerce(
@@ -365,7 +365,7 @@ class NamedTupleNode(Node):
         return None
 
     def build(self, var: Variable, *args: Type) -> str:
-        self.root.extra_locals.setdefault(self.local_name, self.expr)
+        self.root.add_closure(self.local_name, self.global_name, self.expr)
         tup = self.expr
         fields = ', '.join(
             '{0}={1}'.format(
@@ -381,6 +381,10 @@ class NamedTupleNode(Node):
     @cached_property
     def local_name(self) -> str:
         return self.next_namedtuple_name(self.expr)
+
+    @cached_property
+    def global_name(self) -> str:
+        return '_' + self.local_name + '_'
 
 
 class TupleNode(Node):
@@ -499,10 +503,12 @@ class ModelNode(Node):
         except AttributeError:
             # abstract model
             model_name = '_Model_'
-            self.root.extra_locals.setdefault(model_name, self.Model)
+            model_global_name = '__Model__'
+            self.root.add_closure(model_name, model_global_name, self.Model)
         else:
             model_name = qualname_to_identifier(namespace)
-            self.root.extra_locals.setdefault(model_name, self.expr)
+            model_global_name = '__' + model_name + '__'
+            self.root.add_closure(model_name, model_global_name, self.expr)
         return model_name
 
     @cached_property
@@ -522,6 +528,7 @@ class UserNode(Node):
         super().__init__(expr, root)
         self.handler: CoercionHandler = handler
         self.handler_name = qualname_to_identifier(qualname(self.handler))
+        self.handler_global_name = '__' + self.handler_name + '__'
 
     def __post_init__(self) -> None:
         self.root.found_types[self.type].add(self.expr)
@@ -534,8 +541,8 @@ class UserNode(Node):
         return value
 
     def build(self, var: Variable, *args: Type) -> str:
-        self.root.extra_locals.setdefault(
-            self.handler_name, self._maybe_coerce)
+        self.root.add_closure(
+            self.handler_name, self.handler_global_name, self._maybe_coerce)
         return f'{self.handler_name}({var})'
 
 
@@ -545,7 +552,8 @@ class RootNode(Node):
     type = NodeType.ROOT
     type_stats: Counter[NodeType]
     user_types: CoercionMapping
-    extra_locals: Dict[str, Any]
+    globals: Dict[str, Any]
+    closures: Dict[str, str]
 
     found_types: Dict[NodeType, Set[Type]]
 
@@ -553,13 +561,18 @@ class RootNode(Node):
     def _register(cls) -> None:
         ...  # we do not register root nodes.
 
+    def add_closure(self, local_name: str, global_name: str, obj: Any) -> None:
+        self.globals[global_name] = obj
+        self.closures[local_name] = global_name
+
     def __init__(self, expr: Type, root: 'RootNode' = None, *,
                  user_types: CoercionMapping = None,
                  date_parser: Callable[[Any], datetime] = None) -> None:
         assert self.type == NodeType.ROOT
         self.type_stats = Counter()
         self.user_types = user_types or {}
-        self.extra_locals = {}
+        self.globals = {}
+        self.closures = {}
         self.date_parser: Callable[[Any], datetime]
         if date_parser is not None:
             self.date_parser = date_parser
@@ -612,11 +625,11 @@ class TypeExpression(RootNode):
             globals = frame.f_globals if globals is None else globals
             locals = frame.f_locals if locals is None else locals
         new_globals = dict(globals or {})
-        new_globals.update(self.extra_locals)
+        new_globals.update(self.globals)
         if DEBUG:
             print(f'SOURCE FOR {self!r} ->\n{sourcecode}')
-        return codegen.build_function(
-            name, sourcecode,
+        return codegen.build_closure(
+            '__outer__', sourcecode,
             locals={} if locals is None else locals,
             globals=new_globals,
         )
@@ -625,10 +638,11 @@ class TypeExpression(RootNode):
                   name: str = 'expr',
                   argument_name: str = 'a') -> str:
         expression = self.as_comprehension(argument_name)
-        return codegen.build_function_source(
+        return codegen.build_closure_source(
             name,
             args=[argument_name],
             body=[f'return {expression}'],
+            closures=self.closures,
         )
 
     def as_comprehension(self, argument_name: str = 'a') -> str:
