@@ -1,14 +1,33 @@
 import abc
 import sys
 from collections import UserString
+from contextlib import contextmanager
 from decimal import Decimal
 from types import FrameType
-from typing import Any, Generic, Optional, Type, TypeVar, cast, no_type_check
+from typing import (
+    Any,
+    Generic,
+    Iterator,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+    no_type_check,
+)
+from mode.utils.locals import LocalStack
 from faust.exceptions import SecurityError
 
 T = TypeVar('T')
 
 _getframe = getattr(sys, 'emarfteg_'[::-1])
+
+AllowedStack: LocalStack[bool] = LocalStack()
+
+
+@contextmanager
+def allow_protected_vars() -> Iterator:
+    with AllowedStack.push(True):
+        yield
 
 
 class Tag(Generic[T]):
@@ -85,6 +104,8 @@ class _FrameLocal(UserString, Generic[T]):
         self._tag_type = tag_type
 
     def _access_value(self) -> T:
+        if AllowedStack.top:
+            return self._value
         current_frame = self._frame_ident(
             _getframe().f_back.f_back.f_back)
         import traceback
@@ -118,11 +139,14 @@ class Personal(OpaqueTag[T]):
     FrameLocal: Type[_FrameLocal] = _FrameLocal
 
     def get_value(self) -> T:
-        return cast(T, self.FrameLocal(
-            self._value,
-            field_name=self.field or '<unknown field>',
-            tag_type=self._name.lower(),
-        ))
+        if AllowedStack.top:
+            return self._value
+        else:
+            return cast(T, self.FrameLocal(
+                self._value,
+                field_name=self.field or '<unknown field>',
+                tag_type=self._name.lower(),
+            ))
 
     @no_type_check
     def __class_getitem__(self, params: Any) -> Any:

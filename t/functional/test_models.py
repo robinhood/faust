@@ -16,7 +16,12 @@ from faust.models.fields import (
     StringField,
 )
 from mode.utils.logging import get_logger
-from faust.models.tags import Secret, Sensitive, _FrameLocal
+from faust.models.tags import (
+    Secret,
+    Sensitive,
+    _FrameLocal,
+    allow_protected_vars,
+)
 from faust.types import ModelT
 from faust.utils import json
 import pytest
@@ -1556,6 +1561,9 @@ def test_Sensitive(*, capsys):
 
     with pytest.raises(SecurityError):
         upper(x.phone_number.get_value())
+
+    with allow_protected_vars():
+        assert upper(x.phone_number.get_value()) == '631-342-3412'
 
 
 def test_Secret(*, caplog):
