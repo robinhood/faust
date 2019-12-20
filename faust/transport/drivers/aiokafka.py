@@ -252,6 +252,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
+            api_version=conf.consumer_api_version,
             client_id=conf.broker_client_id,
             group_id=conf.id,
             bootstrap_servers=server_list(

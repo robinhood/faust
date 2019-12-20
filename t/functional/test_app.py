@@ -63,6 +63,7 @@ class test_settings:
         assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
         assert conf.processing_guarantee == settings.PROCESSING_GUARANTEE
+        assert conf.broker_api_version == settings.BROKER_API_VERSION
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
@@ -75,6 +76,7 @@ class test_settings:
         assert (conf.broker_commit_livelock_soft_timeout ==
                 settings.BROKER_LIVELOCK_SOFT)
         assert conf.broker_check_crcs
+        assert conf.consumer_api_version == settings.BROKER_API_VERSION
         assert conf.timezone is settings.TIMEZONE
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
         assert conf.table_key_index_size == settings.TABLE_KEY_INDEX_SIZE
@@ -85,7 +87,7 @@ class test_settings:
         assert conf.producer_partitioner is None
         assert (conf.producer_request_timeout ==
                 settings.PRODUCER_REQUEST_TIMEOUT)
-        assert conf.producer_api_version == 'auto'
+        assert conf.producer_api_version == settings.BROKER_API_VERSION
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
         assert conf.stream_wait_empty
@@ -187,6 +189,7 @@ class test_settings:
                                  datadir=str(DATADIR),
                                  tabledir=str(TABLEDIR),
                                  processing_guarantee='exactly_once',
+                                 broker_api_version='0.1',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
                                  broker_session_timeout=30303.30,
@@ -197,6 +200,7 @@ class test_settings:
                                  broker_check_crcs=False,
                                  broker_producer='moo://',
                                  broker_consumer='zoo://',
+                                 consumer_api_version='0.4',
                                  producer_partitioner=_dummy_partitioner,
                                  producer_request_timeout=2.66,
                                  producer_api_version='0.10',
@@ -256,6 +260,7 @@ class test_settings:
             datadir=datadir,
             tabledir=tabledir,
             processing_guarantee=processing_guarantee,
+            broker_api_version=broker_api_version,
             broker_request_timeout=broker_request_timeout,
             broker_session_timeout=broker_session_timeout,
             broker_rebalance_timeout=broker_rebalance_timeout,
@@ -266,6 +271,7 @@ class test_settings:
             broker_check_crcs=broker_check_crcs,
             broker_max_poll_records=broker_max_poll_records,
             broker_max_poll_interval=broker_max_poll_interval,
+            consumer_api_version=consumer_api_version,
             producer_partitioner=producer_partitioner,
             producer_request_timeout=producer_request_timeout,
             producer_api_version=producer_api_version,
@@ -316,6 +322,7 @@ class test_settings:
         else:
             assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
         assert conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
+        assert conf.broker_api_version == broker_api_version
         assert conf.broker_request_timeout == broker_request_timeout
         assert conf.broker_heartbeat_interval == broker_heartbeat_interval
         assert conf.broker_session_timeout == broker_session_timeout
@@ -325,6 +332,7 @@ class test_settings:
         assert (conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
         assert conf.broker_check_crcs == broker_check_crcs
+        assert conf.consumer_api_version == consumer_api_version
         assert conf.producer_partitioner is producer_partitioner
         assert conf.producer_request_timeout == producer_request_timeout
         assert conf.producer_api_version == producer_api_version
@@ -439,6 +447,22 @@ class test_settings:
         assert url.scheme == settings.DEFAULT_BROKER_SCHEME
         assert url.host == 'example.com'
         assert url.port == 3123
+
+    def test_consumer_api_version__defaults_to_broker(self):
+        expected_broker_version = '0.3333'
+        app = self.App(
+            broker_api_version=expected_broker_version,
+            consumer_api_version=None,
+        )
+        assert app.conf.consumer_api_version == expected_broker_version
+
+    def test_producer_api_version__defaults_to_broker(self):
+        expected_broker_version = '0.3333'
+        app = self.App(
+            broker_api_version=expected_broker_version,
+            producer_api_version=None,
+        )
+        assert app.conf.producer_api_version == expected_broker_version
 
 
 class test_BootStrategy:

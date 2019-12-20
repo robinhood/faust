@@ -642,6 +642,35 @@ producing and consuming separately.
 
 If not set the value found in :setting:`broker` will be used.
 
+.. setting:: broker_api_version
+
+``broker_api_version``
+----------------------
+
+.. versionadded:: 1.10
+
+:type: ``str``
+:default: ``"auto"``
+
+This setting is also the default for :setting:`consumer_api_version`, and
+:setting:`producer_api_version`.
+
+Negotiate producer protocol version.
+
+The default value - "auto" means use the latest version supported by both
+client and server.
+
+Any other version set means you are requesting a specific version of the
+protocol.
+
+Example Kafka uses:
+
+Disable sending headers for all messages produced
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Kafka headers support was added in Kafka 0.11, so you can specify
+``broker_api_version="0.10"`` to remove the headers from messages.
+
 .. setting:: broker_client_id
 
 ``broker_client_id``
@@ -817,6 +846,19 @@ See `KIP-62`_ for technical details.
 Advanced Consumer Settings
 ==========================
 
+.. setting:: consumer_api_version
+
+``consumer_api_version``
+------------------------
+
+.. versionadded:: 1.10
+
+:type: :class:`str`
+:default: :setting:`broker_api_version`
+
+Configures the broker API version to use for consumers.
+See :setting:`broker_api_version` for more information.
+
 .. setting:: consumer_max_fetch_size
 
 ``consumer_max_fetch_size``
@@ -965,23 +1007,10 @@ expire and will no longer be retried.
 .. versionadded:: 1.5.3
 
 :type: :class:`str`
-:default: ``"auto"``
+:default: :setting:`broker_api_version`
 
-Negotiate producer protocol version.
-
-The default value - "auto" means use the latest version supported by both
-client and server.
-
-Any other version set means you are requesting a specific version of the
-protocol.
-
-Example Kafka uses:
-
-Disable sending headers for all messages produced
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Kafka headers support was added in Kafka 0.11, so you can specify
-``api_version="0.10"`` to remove the headers from messages.
+Configures the broker API version to use for producers.
+See :setting:`broker_api_version` for more information.
 
 .. setting:: producer_partitioner
 

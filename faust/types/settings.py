@@ -172,6 +172,13 @@ HTTP_CLIENT_TYPE = 'aiohttp.client:ClientSession'
 #: Path to Monitor sensor class, providing the default for :setting:`Monitor`.
 MONITOR_TYPE = 'faust.sensors:Monitor'
 
+#: Default broker API version.
+#: Used as default for
+#:     + :setting:`broker_api_version`,
+#:     + :setting:`consumer_api_version`,
+#:     + :setting:`producer_api_version',
+BROKER_API_VERSION = 'auto'
+
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
@@ -315,6 +322,7 @@ class Settings(abc.ABC):
     debug: bool = False
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
+    broker_api_version: str = BROKER_API_VERSION
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     broker_max_poll_interval: float = BROKER_MAX_POLL_INTERVAL
@@ -343,7 +351,6 @@ class Settings(abc.ABC):
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
-    producer_api_version: str = 'auto'
     consumer_max_fetch_size: int = CONSUMER_MAX_FETCH_SIZE
     consumer_auto_offset_reset: str = CONSUMER_AUTO_OFFSET_RESET
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
@@ -379,6 +386,8 @@ class Settings(abc.ABC):
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
+    _consumer_api_version: Optional[str] = None
+    _producer_api_version: Optional[str] = None
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: float = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
@@ -440,6 +449,7 @@ class Settings(abc.ABC):
             debug: bool = None,
             version: int = None,
             broker: Union[str, URL, List[URL]] = None,
+            broker_api_version: str = None,
             broker_client_id: str = None,
             broker_request_timeout: Seconds = None,
             broker_credentials: CredentialsArg = None,
@@ -497,6 +507,7 @@ class Settings(abc.ABC):
             producer_partitioner: SymbolArg[PartitionerT] = None,
             producer_request_timeout: Seconds = None,
             producer_api_version: str = None,
+            consumer_api_version: str = None,
             consumer_max_fetch_size: int = None,
             consumer_auto_offset_reset: str = None,
             web_bind: str = None,
@@ -554,6 +565,8 @@ class Settings(abc.ABC):
                 ProcessingGuarantee, processing_guarantee)
         if autodiscover is not None:
             self.autodiscover = autodiscover
+        if broker_api_version is not None:
+            self.broker_api_version = broker_api_version
         if broker_client_id is not None:
             self.broker_client_id = broker_client_id
         if canonical_url:
@@ -650,6 +663,8 @@ class Settings(abc.ABC):
                 float, producer_request_timeout)
         if producer_api_version is not None:
             self.producer_api_version = producer_api_version
+        if consumer_api_version is not None:
+            self.consumer_api_version = consumer_api_version
         if consumer_max_fetch_size is not None:
             self.consumer_max_fetch_size = consumer_max_fetch_size
         if consumer_auto_offset_reset is not None:
@@ -951,6 +966,30 @@ class Settings(abc.ABC):
     @broker_max_poll_records.setter
     def broker_max_poll_records(self, value: Optional[int]) -> None:
         self._broker_max_poll_records = value
+
+    @property
+    def consumer_api_version(self) -> str:
+        consumer_api_version = self._consumer_api_version
+        if consumer_api_version is None:
+            return self.broker_api_version
+        else:
+            return consumer_api_version
+
+    @consumer_api_version.setter
+    def consumer_api_version(self, version: str) -> None:
+        self._consumer_api_version = version
+
+    @property
+    def producer_api_version(self) -> str:
+        producer_api_version = self._producer_api_version
+        if producer_api_version is None:
+            return self.broker_api_version
+        else:
+            return producer_api_version
+
+    @producer_api_version.setter
+    def producer_api_version(self, version: str) -> None:
+        self._producer_api_version = version
 
     @property
     def producer_partitioner(self) -> Optional[PartitionerT]:
