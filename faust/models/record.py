@@ -580,8 +580,9 @@ class Record(Model, abstract=True):  # type: ignore
         """
         # Convert known fields to mapping of ``{field: value}``.
         payload = self.asdict()
-        if self._options.include_metadata:
-            payload['__faust'] = {'ns': self._options.namespace}
+        options = self._options
+        if options.include_metadata:
+            payload['__faust'] = {'ns': options.namespace}
         return payload
 
     def asdict(self) -> Dict[str, Any]:  # pragma: no cover

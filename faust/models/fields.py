@@ -287,10 +287,10 @@ class FieldDescriptor(FieldDescriptorT[T]):
     def __set__(self, instance: Any, value: T) -> None:
         value = cast(T, self.prepare_value(value))
         if self.tag:
-            store_value = cast(T, self.tag(value, field=self.field))
+            value = cast(T, self.tag(value, field=self.field))
         else:
-            store_value = value
-        instance.__dict__[self.field] = store_value
+            value = value
+        instance.__dict__[self.field] = value
 
     def __repr__(self) -> str:
         default = '' if self.required else f' = {self.default!r}'
