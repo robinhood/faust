@@ -32,3 +32,9 @@ def app(event_loop, request):
 @pytest.fixture()
 def web(app):
     return app.web
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        'markers', 'conf: Faust app configuration marker',
+    )

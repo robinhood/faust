@@ -274,3 +274,22 @@ def tasks_not_lingering(request, loop, event_loop, _recorded_tasks_at_startup):
                         'Left over tasks',
                         os.environ.get('PYTEST_CURRENT_TEST'),
                         _compare_eq_set(tasks_now, tasks_then, verbose=2))
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        'markers',
+        'allow_lingering_tasks: Allow test to start background tasks',
+    )
+    config.addinivalue_line(
+        'markers',
+        'allow_lingering_tasks: Allow test to start background tasks',
+    )
+    config.addinivalue_line(
+        'markers',
+        'time: Set the current time',
+    )
+    config.addinivalue_line(
+        'markers',
+        'http_session: Set mock aiohttp session result',
+    )

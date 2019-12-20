@@ -115,3 +115,12 @@ def mocked_redis(*, event_loop, monkeypatch):
     client_cls.storage = storage
     monkeypatch.setattr('aredis.StrictRedis', client_cls)
     return client_cls
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        'markers', 'app: App instance to use for tests',
+    )
+    config.addinivalue_line(
+        'markers', 'logging: Configure logging setup to use for tests',
+    )
