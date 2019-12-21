@@ -347,6 +347,7 @@ class test_AIOKafkaConsumerThread:
             max_poll_interval = conf.broker_max_poll_interval
             AIOKafkaConsumer.assert_called_once_with(
                 loop=loop,
+                api_version=app.conf.consumer_api_version,
                 client_id=conf.broker_client_id,
                 group_id=conf.id,
                 bootstrap_servers=server_list(
