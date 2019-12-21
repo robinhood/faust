@@ -95,6 +95,16 @@ def find_settings_in_rst(rst_path: Path,
                          ignore_settings: Set[str] = ignore_settings):
     setting: str = None
     default: Any = None
+    app = faust.App('_verify_doc_defaults')
+    _globals = dict(globals())
+    # Add setting default to globals
+    # so that defaults referencing another setting work.
+    # E.g.:
+    #   :default: :setting:`broker_api_version`
+    _globals.update({
+        name: getattr(app.conf, name)
+        for name in app.conf.setting_names()
+    })
     local_ns: Dict[str, Any] = {**builtin_locals, **(locals or {})}
     for line in rst_path.read_text().splitlines():
         if line.startswith('.. setting::'):
@@ -107,7 +117,7 @@ def find_settings_in_rst(rst_path: Path,
             default = line.split(':default:')[-1].strip()
             default = default.strip('`')
             default = RE_REF.sub('', default)
-            default_value = eval(default, globals(), local_ns)
+            default_value = eval(default, _globals, local_ns)
             if setting not in ignore_settings:
                 yield setting, default_value
 
