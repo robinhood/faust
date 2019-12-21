@@ -1,4 +1,4 @@
-.. _changelog-1.8:
+.. _changelog-1.9:
 
 ==============================
  Change history for Faust 1.9

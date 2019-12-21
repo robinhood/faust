@@ -21,7 +21,7 @@ please visit the :ref:`history` section.
 
     + Now depends on :ref:`Mode 4.1.6 <mode:version-4.1.6>`.
 
-.. _v110-news:
+.. _v1_10-news:
 
 News
 ----
@@ -108,15 +108,13 @@ News
     Faust json serializer will automatically handle models and call
     ``Model.__json__()`` on them as needed.
 
-    Removed attributes
-    ~~~~~~~~~~~~~~~~~~
+    **Removed attributes**
 
     The following attributes have been removed from ``Model._options``,
     and :class:`~faust.types.FieldDescriptorT`, as they are no longer needed,
     or no longer make sense when supporting arbitrarily nested structures.
 
-    :class:`Model._options <faust.types.models.ModelOptions>`
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    *:class:`Model._options <faust.types.models.ModelOptions>`*
 
     - ``.models``
 
@@ -125,13 +123,11 @@ News
         related models now.  You can generate this index using the
         statement:
 
-        ```py
+        .. sourcecode:: python
 
             {field: field.related_models
                 for field in model._options.descriptors
                 if field.related_models}
-
-        ```
 
     - ``.modelattrs``
 
@@ -141,8 +137,7 @@ News
 
     - ``.polyindex``
 
-    :class:`~faust.types.FieldDescriptorT`
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    *:class:`~faust.types.FieldDescriptorT`*
 
     - ``generic_type``
     - ``member_type``

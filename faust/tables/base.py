@@ -286,10 +286,9 @@ class Collection(Service, CollectionT):
 
     def partition_for_key(self, key: Any) -> Optional[int]:
         """Return partition number for table key.
-c
-        Note:
-            If :attr:`use_partitioner` is enabled this always returns
-            :const:`None`.
+
+        Always returns :const:`None` when :attr:`use_partitioner`
+        is enabled.
 
         Returns:
             Optional[int]: specific partition or :const:`None` if

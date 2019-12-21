@@ -997,9 +997,6 @@ Serialization/Deserialization
     .. autoattribute:: optionalset
         :noindex:
 
-    .. autoattribute:: models
-        :noindex:
-
     .. autoattribute:: coercions
         :noindex:
 
