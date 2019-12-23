@@ -407,7 +407,7 @@ class Record(Model, abstract=True):  # type: ignore
             Arguments:
                 field: Name of field.
                 getval: Source code that initializes value for field,
-                    can be the field name itself for no inititalization
+                    can be the field name itself for no initialization
                     or for example: ``f"self._prepare_value({field})"``.
                 out: Destination list where new source code lines are added.
                 """
