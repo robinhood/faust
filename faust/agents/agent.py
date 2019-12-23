@@ -435,7 +435,7 @@ class Agent(AgentT, Service):
             'channel': self.channel,
             'concurrency': self.concurrency,
             'help': self.help,
-            'sinks': self._sinks,
+            'sink': self._sinks,
             'on_error': self._on_error,
             'supervisor_strategy': self.supervisor_strategy,
             'isolated_partitions': self.isolated_partitions,

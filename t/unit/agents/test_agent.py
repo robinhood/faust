@@ -361,7 +361,7 @@ class test_Agent:
             'channel': agent.channel,
             'concurrency': agent.concurrency,
             'help': agent.help,
-            'sinks': agent._sinks,
+            'sink': agent._sinks,
             'on_error': agent._on_error,
             'supervisor_strategy': agent.supervisor_strategy,
             'isolated_partitions': agent.isolated_partitions,
@@ -898,3 +898,15 @@ class test_Agent:
 
     def test_label(self, *, agent):
         assert label(agent)
+
+    async def test_context_calls_sink(self, *, agent):
+        class SinkCalledException(Exception):
+            pass
+
+        def dummy_sink(_):
+            raise SinkCalledException()
+
+        agent.add_sink(dummy_sink)
+        async with agent.test_context() as agent_mock:
+            with pytest.raises(SinkCalledException):
+                await agent_mock.put('hello')
