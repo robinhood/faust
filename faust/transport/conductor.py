@@ -227,29 +227,25 @@ class Conductor(ConductorT, Service):
         # streams.  This way we won't have N subscription requests at the
         # start.
         await self.sleep(2.0)
+        ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         if not self.should_stop:
             # tell the consumer to subscribe to the topics.
             await self.app.consumer.subscribe(await self._update_indices())
-            notify(self._subscription_done)
-
-            # Now we wait for changes
-            ev = self._subscription_changed = asyncio.Event(loop=self.loop)
+            # Notify the subscription as done
+            # only if no new topics get added
+            if not ev.is_set():
+                notify(self._subscription_done)
         while not self.should_stop:
             # Wait for something to add/remove topics from subscription.
             await ev.wait()
-            if self.app.rebalancing:
-                # we do not want to perform a resubscribe if the application
-                # is rebalancing.
-                ev.clear()
-            else:
-                # The change could be in reaction to something like "all agents
-                # restarting", in that case it would be bad if we resubscribe
-                # over and over, so we wait for 45 seconds to make sure any
-                # further subscription requests will happen during the same
-                # rebalance.
-                await self.sleep(self._resubscribe_sleep_lock_seconds)
-                subscribed_topics = await self._update_indices()
-                await self.app.consumer.subscribe(subscribed_topics)
+            # The change could be in reaction to something like "all agents
+            # restarting", in that case it would be bad if we resubscribe
+            # over and over, so we wait for 45 seconds to make sure any
+            # further subscription requests will happen during the same
+            # rebalance.
+            await self.sleep(self._resubscribe_sleep_lock_seconds)
+            subscribed_topics = await self._update_indices()
+            await self.app.consumer.subscribe(subscribed_topics)
 
             # clear the subscription_changed flag, so we can wait on it again.
             ev.clear()
@@ -269,7 +265,7 @@ class Conductor(ConductorT, Service):
     async def _update_indices(self) -> Iterable[str]:
         self._topic_name_index.clear()
         self._tp_to_callback.clear()
-        for channel in self._topics:
+        for channel in self._topics.copy():
             if channel.internal:
                 await channel.maybe_declare()
             for topic in channel.topics:
@@ -288,7 +284,7 @@ class Conductor(ConductorT, Service):
 
     async def on_client_only_start(self) -> None:
         tp_index = self._tp_index
-        for topic in self._topics:
+        for topic in self._topics.copy():
             for subtopic in topic.topics:
                 tp = TP(topic=subtopic, partition=0)
                 tp_index[tp].add(topic)
@@ -297,7 +293,7 @@ class Conductor(ConductorT, Service):
     def _update_tp_index(self, assigned: Set[TP]) -> None:
         assignmap = tp_set_to_map(assigned)
         tp_index = self._tp_index
-        for topic in self._topics:
+        for topic in self._topics.copy():
             if topic.active_partitions is not None:
                 # Isolated Partitions: One agent per partition.
                 if topic.active_partitions:
