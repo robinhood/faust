@@ -300,7 +300,7 @@ class Stream(StreamT[T_co], Service):
     async def take(self, max_: int,
                    within: Seconds,
                    yield_events: bool = False,
-                   ) -> AsyncIterable[Union[EventT, Sequence[T_co]]]:
+                   ) -> AsyncIterable[Union[Sequence[EventT], Sequence[T_co]]]:
         """Buffer n values at a time and yield a list of buffered values.
 
         Arguments:
