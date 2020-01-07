@@ -14,7 +14,7 @@ globals().update(conf.build_config(
     canonical_url='http://faust.readthedocs.io',
     webdomain='',
     github_project='robinhood/faust',
-    copyright='2017-2019',
+    copyright='2017-2020',
     html_logo='images/logo.png',
     html_favicon='images/favicon.ico',
     html_prepend_sidebars=[],
