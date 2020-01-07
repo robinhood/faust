@@ -31,8 +31,7 @@ def connect_kafka_producer():
     except Exception as ex:
         print('Exception while connecting Kafka')
         print(ex)
-    finally:
-        return _producer
+    return _producer
 
 
 if __name__ == '__main__':
