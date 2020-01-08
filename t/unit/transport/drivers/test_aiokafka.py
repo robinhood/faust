@@ -3,6 +3,9 @@ import aiokafka
 import faust
 import opentracing
 import pytest
+import random
+import string
+
 from aiokafka.errors import CommitFailedError, IllegalStateError, KafkaError
 from aiokafka.structs import OffsetAndMetadata, TopicPartition
 from opentracing.ext import tags
@@ -16,6 +19,7 @@ from faust.transport.drivers.aiokafka import (
     ConsumerStoppedError,
     Producer,
     ProducerSendError,
+    TOPIC_LENGTH_MAX,
     Transport,
     credentials_to_aiokafka_auth,
     server_list,
@@ -243,8 +247,10 @@ class test_AIOKafkaConsumerThread:
                 tracer=tobj,
                 context=opentracing.SpanContext(),
             )
-            span.operation_name = operation_name
-            assert span.operation_name == operation_name
+
+            if operation_name is not None:
+                span.operation_name = operation_name
+                assert span.operation_name == operation_name
             return span
 
         tobj.start_span = start_span
@@ -440,6 +446,14 @@ class test_AIOKafkaConsumerThread:
 
         cthread.flush_spans()
         assert not pending
+
+    def test_span_without_operation_name(self, *, cthread):
+        span = opentracing.Span(
+            tracer=Mock('tobj'),
+            context=opentracing.SpanContext(),
+        )
+
+        assert cthread._on_span_cancelled_early(span) is None
 
     def test_transform_span_lazy_no_consumer(self, *, cthread, app, tracer):
         cthread._consumer = Mock(name='_consumer')
@@ -774,6 +788,17 @@ class test_AIOKafkaConsumerThread:
                 deleting=deleting,
                 ensure_created=ensure_created,
             )
+
+    @pytest.mark.asyncio
+    async def test_create_topic_invalid_name(self, cthread, _consumer):
+        topic = ''.join(random.choices(
+            string.ascii_uppercase, k=TOPIC_LENGTH_MAX + 1))
+        cthread._consumer = _consumer
+
+        msg = f'Topic name {topic!r} is too long (max={TOPIC_LENGTH_MAX})'
+        with pytest.raises(ValueError):
+            await cthread.create_topic(topic, 1, 1)
+            pytest.fail(msg)
 
     def test_key_partition(self, *, cthread, _consumer):
         cthread._consumer = _consumer

@@ -287,8 +287,8 @@ class LiveCheck(faust.App):
             try:
                 if issubclass(actual_type, BaseSignal):
                     yield attr_name, attr_type
-            except TypeError:
-                pass
+            except TypeError:  # pragma: no cover
+                pass  # pragma: no cover
 
     def add_case(self, case: _Case) -> _Case:
         """Add and register new test case."""

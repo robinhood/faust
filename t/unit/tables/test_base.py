@@ -192,6 +192,7 @@ class test_Collection:
             ('boo', (1.1, 1.4)): 'BOO',
             ('moo', (1.4, 1.6)): 'MOO',
             ('faa', (1.9, 2.0)): 'FAA',
+            ('bar', (4.1, 4.2)): 'BAR',
         }
         table._partition_timestamps = {
             TP1: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
@@ -202,23 +203,36 @@ class test_Collection:
                 ('moo', (1.4, 1.6)),
                 ('faa', (1.9, 2.0)),
             ],
+            (TP1, 5.0): [
+                ('bar', (4.1, 4.2)),
+            ],
         }
 
-        def is_stale(timestamp, latest_timestamp):
-            return timestamp < 4.0
+        def get_stale(limit):
+            def is_stale(timestamp, latest_timestamp):
+                return timestamp < limit
+            return is_stale
 
-        table.window.stale.side_effect = is_stale
+        table.window.stale.side_effect = get_stale(4.0)
 
         table._del_old_keys()
 
-        assert table._partition_timestamps[TP1] == [4.0, 5.0, 6.0, 7.0]
-        assert not table.data
+        assert table._partition_timestamps[TP1] == [
+            4.0, 5.0, 6.0, 7.0]
+        assert table.data == {('bar', (4.1, 4.2)): 'BAR'}
 
         on_window_close.assert_has_calls([
             call(('boo', (1.1, 1.4)), 'BOO'),
             call(('moo', (1.4, 1.6)), 'MOO'),
             call(('faa', (1.9, 2.0)), 'FAA'),
         ])
+
+        table.last_closed_window = 8.0
+        table.window.stale.side_effect = get_stale(6.0)
+
+        table._del_old_keys()
+
+        assert not table.data
 
     def test_on_window_close__default(self, *, table):
         assert table._on_window_close is None

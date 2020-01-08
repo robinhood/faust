@@ -10,7 +10,6 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
-    Optional,
     Set,
     Tuple,
     Type,
@@ -60,11 +59,7 @@ follow default {fields} {default_names}
 _ReconFun = Callable[..., Any]
 
 
-def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
-    return val.to_representation() if val is not None else None
-
-
-class Record(Model, abstract=True):  # type: ignore
+class Record(Model, abstract=True):
     """Describes a model type that is a record (Mapping).
 
     Examples:
