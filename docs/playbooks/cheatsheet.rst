@@ -26,7 +26,7 @@
             product_id: str
             amount: float
             price: float
-            date_created: datatime = None
+            date_created: datetime = None
             date_updated: datetime = None
 
         orders_topic = app.topic('orders', value_type=Order)
@@ -47,7 +47,7 @@
             session = aiohttp.ClientSession()
             async for order in orders:
                 async with session.get(f'http://e.com/api/{order.id}/') as resp:
-                    product_info = await request.text()
+                    product_info = await resp.text()
                     await session.post(
                         f'http://cache/{order.id}/', data=product_info)
 

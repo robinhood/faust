@@ -7,7 +7,7 @@
 Faust is a stream processor, so what does it have in common with Celery?
 
 If you've used tools such as Celery in the past, you can think of Faust as being able
-to, not only run tasks, but for tasks to keep history of everything that has
+to not only run tasks, but for tasks to keep a history of everything that has
 happened so far. That is tasks ("agents" in Faust) can keep state, and also
 replicate that state to a cluster of Faust worker instances.
 
