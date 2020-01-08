@@ -220,5 +220,9 @@ Fixes
 
     Contributed by DhruvaPatil98 (:github_user:`DhruvaPatil98`).
 
+- Agents: Fixed ``Agent.test_context()`` sink support (Issue #495).
+
+    Fix contributed by Denis Kovalev (:github_user:`aikikode`).
+
 - aiokafka: Fixes crash in ``on_span_cancelled_early`` when tracing disabled.
 
