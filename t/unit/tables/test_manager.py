@@ -74,7 +74,7 @@ class test_Manager:
             tables.add(table)  # already exists
 
     def test_add__when_recovery_started_raises(self, *, tables):
-        tables._recovery_started.set()
+        tables._tables_finalized.set()
         with pytest.raises(RuntimeError):
             tables.add(Mock(name='table'))
 
@@ -102,14 +102,18 @@ class test_Manager:
         app.consumer = Mock(name='consumer')
         app.consumer.assignment.return_value = set()
         await tables._update_channels()
+        tables._tables_finalized.clear()
+
         app.topics = Mock(name='topics')
         table1 = Mock(name='table', maybe_start=AsyncMock())
         tables.add(table1)
         await tables._update_channels()
+        tables._tables_finalized.clear()
 
         table1.maybe_start.assert_called_once_with()
         assert tables._channels[table1]
         await tables._update_channels()
+        assert tables._tables_finalized.is_set()
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, tables, app):
