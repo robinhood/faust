@@ -195,12 +195,16 @@ News
 
 - New :setting:`broker_rebalance_timeout` setting.
 
+- Test improvements
+
+    Contributed by Marcos Schroh (:github_user:`marcosschroh`).
+
 - Documentation improvements by:
 
     - Bryant Biggs (:github_user:`bryantbiggs`).
     - Christoph Deil (:github_user:`cdeil`).
     - Tim Gates (:github_user:`timgates42`).
-    - :github_user:`marcosschroh`.
+    - Marcos Schroh (:github_user:`marcosschroh`).
 
 Fixes
 -----
