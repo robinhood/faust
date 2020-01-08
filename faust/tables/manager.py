@@ -28,6 +28,11 @@ class TableManager(Service, TableManagerT):
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
+    #: event that when set we cannot add any more tables.
+    _tables_finalized: asyncio.Event
+    #: event set when all tables have been registered
+    _tables_registed: asyncio.Event
+    #: event set when table recovery has started.
     _recovery_started: asyncio.Event
     _changelog_queue: Optional[ThrowableQueue]
     _pending_persisted_offsets: MutableMapping[TP, Tuple[StoreT, int]]
@@ -41,6 +46,8 @@ class TableManager(Service, TableManagerT):
         self._changelog_queue = None
         self._channels = {}
         self._changelogs = {}
+        self._tables_finalized = asyncio.Event(loop=self.loop)
+        self._tables_registered = asyncio.Event(loop=self.loop)
         self._recovery_started = asyncio.Event(loop=self.loop)
 
         self.actives_ready = False
@@ -120,7 +127,7 @@ class TableManager(Service, TableManagerT):
 
     def add(self, table: CollectionT) -> CollectionT:
         """Add table to be managed by this table manager."""
-        if self._recovery_started.is_set():
+        if self._tables_finalized.is_set():
             raise RuntimeError('Too late to add tables at this point')
         assert table.name is not None
         if table.name in self:
@@ -136,7 +143,12 @@ class TableManager(Service, TableManagerT):
             await self._update_channels()
             await self.recovery.start()
 
+    async def wait_until_tables_registered(self) -> None:
+        if not self.app.producer_only and not self.app.client_only:
+            await self.wait_for_stopped(self._tables_registered)
+
     async def _update_channels(self) -> None:
+        self._tables_finalized.set()
         for table in self.values():
             if table not in self._channels:
                 chan = table.changelog_topic.clone_using_queue(
@@ -148,6 +160,7 @@ class TableManager(Service, TableManagerT):
             tp for tp in self.app.consumer.assignment()
             if tp.topic in self._changelogs
         })
+        self._tables_registered.set()
 
     async def on_stop(self) -> None:
         """Call when table manager is stopping."""

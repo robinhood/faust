@@ -8,6 +8,7 @@ from weakref import WeakSet
 from mode import Service
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
+from mode.utils.locks import Event
 
 from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
@@ -24,6 +25,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self.app = app
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
+        self._agents_started = Event()
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
@@ -31,6 +33,10 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self.update_topic_index()
         for agent in self.values():
             await agent.maybe_start()
+        self._agents_started.set()
+
+    async def wait_until_agents_started(self) -> None:
+        await self.wait_for_stopped(self._agents_started)
 
     def service_reset(self) -> None:
         """Reset service state on restart."""

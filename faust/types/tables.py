@@ -283,6 +283,10 @@ class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
         ...
 
     @abc.abstractmethod
+    async def wait_until_tables_registered(self) -> None:
+        ...
+
+    @abc.abstractmethod
     async def wait_until_recovery_completed(self) -> bool:
         ...
 

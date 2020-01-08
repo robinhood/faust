@@ -485,7 +485,7 @@ class Topic(SerializedChannel, TopicT):
             # When the worker starts, the consumer
             # will use ``list(app.topics)`` to know what topics
             # to subscribe to.
-            self.app.topics.add(channel)
+            self.app.topics.add(cast(TopicT, channel))
             return channel
 
     def __str__(self) -> str:

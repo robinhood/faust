@@ -28,7 +28,7 @@ from mode import Seconds, ServiceT
 from yarl import URL
 
 from .core import HeadersArg
-from .channels import ChannelT
+from .topics import TopicT
 from .tuples import FutureMessage, Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
@@ -414,7 +414,7 @@ class ConsumerT(ServiceT):
         ...
 
 
-class ConductorT(ServiceT, MutableSet[ChannelT]):
+class ConductorT(ServiceT, MutableSet[TopicT]):
 
     # The topic conductor delegates messages from the Consumer
     # to the various Topic instances subscribed to a topic.

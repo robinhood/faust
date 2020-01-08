@@ -273,6 +273,10 @@ class AgentManagerT(ServiceT, ManagedUserDict[str, AgentT]):
     app: _AppT
 
     @abc.abstractmethod
+    async def wait_until_agents_started(self) -> None:
+        ...
+
+    @abc.abstractmethod
     async def on_rebalance(self,
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
