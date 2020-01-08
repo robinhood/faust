@@ -742,6 +742,7 @@ class Producer(base.Producer):
             deleting=deleting,
             ensure_created=ensure_created,
         )
+        await producer.client.force_metadata_update()  # Fixes #499
 
     def _ensure_producer(self) -> aiokafka.BaseProducer:
         if self._producer is None:
