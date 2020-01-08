@@ -59,7 +59,7 @@ follow default {fields} {default_names}
 _ReconFun = Callable[..., Any]
 
 
-class Record(Model, abstract=True):
+class Record(Model, abstract=True):  # type: ignore
     """Describes a model type that is a record (Mapping).
 
     Examples:
