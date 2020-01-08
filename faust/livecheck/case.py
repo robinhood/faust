@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Type,
     Union,
+    cast,
 )
 
 from aiohttp import ClientError, ClientTimeout
@@ -416,8 +417,9 @@ class Case(Service):
                           **kwargs: Any) -> Optional[bytes]:
         """Perform URL request using HTTP client."""
         timeout = ClientTimeout(
-            total=self.url_timeout_total,
-            connect=self.url_timeout_connect,
+            # mypy thinks this must be float, but it can be None.
+            total=cast(float, self.url_timeout_total),
+            connect=cast(float, self.url_timeout_connect),
         )
         error_delay = self.url_error_delay_min
         try:
