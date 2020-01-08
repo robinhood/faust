@@ -235,6 +235,20 @@ class WindowSet(WindowSetT[KT, VT]):
         table = cast(_Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
+    def __unauthorized_dict_operation(self, operation: str) -> typing.NoReturn:
+        raise NotImplementedError(
+            f'Accessing {operation} on a WindowSet is not implemented. '
+            'Try using the underlying table directly')
+
+    def keys(self) -> typing.NoReturn:
+        self.__unauthorized_dict_operation('keys')
+
+    def items(self) -> typing.NoReturn:
+        self.__unauthorized_dict_operation('items')
+
+    def values(self) -> typing.NoReturn:
+        self.__unauthorized_dict_operation('values')
+
     def __getitem__(self, w: KT) -> VT:  # noqa
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
