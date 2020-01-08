@@ -19,12 +19,26 @@ please visit the :ref:`history` section.
 
     + Now depends on :pypi:`robinhood-aiokafka` 1.1.3
 
-    + Now depends on :ref:`Mode 4.1.6 <mode:version-4.1.6>`.
+    + Now depends on :ref:`Mode 4.1.8 <mode:version-4.1.8>`.
+
 
 .. _v1_10-news:
 
 News
 ----
+
+- Agents: ``use_reply_headers`` is now enabled by default (Issue #469).
+
+    This affects users of ``Agent.ask``, ``.cast``, ``.map``, ``.kvmap``,
+    and ``.join`` only.
+
+    This requires a Kafka broker with headers support. If you want
+    to avoid making this change you can disable it manually
+    by passing the ``use_reply_headers`` argument to the agent decorator:
+
+    .. sourcecode:: python
+
+        @app.agent(use_reply_headers=False)
 
 - Models: Support fields with arbitrarily nested type expressions.
 
@@ -142,6 +156,28 @@ News
     - ``generic_type``
     - ``member_type``
 
+- Tables: Fixed behavior of global tables.
+
+    Contributed by DhruvaPatil98 (:github_user:`DhruvaPatil98`).
+
+- Tables: Added ability to iterate through all keys in a global table.
+
+    Contributed by DhruvaPatil98 (:github_user:`DhruvaPatil98`).
+
+- Tables: Attempting to call ``keys()``/``items()``/``values()`` on
+  a windowset now raises an exception.
+
+    This change was added to avoid unexpected behavior.
+
+    Contributed by Sergej Herbert (:github_user:`fr-ser`).
+
+- Models: Added new bool field type :class:`~faust.models.fields.BooleanField`.
+
+    Thanks to John Heinnickel.
+
+- aiokafka: Now raises an exception when topic name length exceeds 249
+  characters (Issue #411).
+
 - New :setting:`broker_api_version` setting.
 
     The new setting acts as default for both the new
@@ -156,3 +192,29 @@ News
 - New :setting:`consumer_api_version` setting.
 
     See above.
+
+- New :setting:`broker_rebalance_timeout` setting.
+
+- Documentation improvements by:
+
+    - Bryant Biggs (:github_user:`bryantbiggs`).
+    - Christoph Deil (:github_user:`cdeil`).
+    - Tim Gates (:github_user:`timgates42`).
+    - :github_user:`marcosschroh`.
+
+Fixes
+-----
+
+- Consumer: Properly wait for all agents and the table manager to
+  start and subscribe to topics before sending subscription list to Kafka.
+  (Issue #501).
+
+    This fixes a race condition where the subscription list is sent
+    before all agents have started subscribing to the topics they need.
+    At worst this result ended in a crash at startup (set
+    size changed during iteration).
+
+    Contributed by DhruvaPatil98 (:github_user:`DhruvaPatil98`).
+
+- aiokafka: Fixes crash in ``on_span_cancelled_early`` when tracing disabled.
+
