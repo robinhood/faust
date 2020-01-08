@@ -474,6 +474,7 @@ class Topic(SerializedChannel, TopicT):
                     deleting=self.deleting,
                     retention=self.retention,
                 )
+            await producer._producer.client.force_metadata_update()
 
     def __aiter__(self) -> ChannelT:
         if self.is_iterator:

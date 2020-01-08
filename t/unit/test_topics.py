@@ -393,7 +393,7 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_declare(self, *, topic):
         topic.app.conf.topic_allow_declare = True
-        producer = Mock(create_topic=AsyncMock())
+        producer = Mock(create_topic=AsyncMock(), _producer=AsyncMock())
         topic._get_producer = AsyncMock(return_value=producer)
         topic.partitions = 101
         topic.replicas = 202
@@ -423,7 +423,7 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_declare__defaults(self, *, topic):
         topic.app.conf.topic_allow_declare = True
-        producer = Mock(create_topic=AsyncMock())
+        producer = Mock(create_topic=AsyncMock(), _producer=AsyncMock())
         topic._get_producer = AsyncMock(return_value=producer)
         topic.partitions = None
         topic.replicas = None
