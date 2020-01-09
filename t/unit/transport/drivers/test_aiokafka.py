@@ -1024,6 +1024,9 @@ class test_Producer:
 
     @pytest.mark.asyncio
     async def test_create_topic(self, *, producer, _producer):
+        _producer.client = Mock(
+            force_metadata_update=AsyncMock(),
+        )
         producer.transport = Mock(
             _create_topic=AsyncMock(),
         )
