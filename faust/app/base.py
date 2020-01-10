@@ -1116,7 +1116,7 @@ class App(AppT, Service):
                 self,
                 name=name,
                 default=default,
-                beacon=self.beacon,
+                beacon=self.tables.beacon,
                 partitions=partitions,
                 help=help,
                 **kwargs))
@@ -1154,7 +1154,7 @@ class App(AppT, Service):
                 self,
                 name=name,
                 default=default,
-                beacon=self.beacon,
+                beacon=self.tables.beacon,
                 partitions=partitions,
                 # we want to apply standby changes
                 # as they come min (using 1 buffer size).
@@ -1178,7 +1178,7 @@ class App(AppT, Service):
             self.conf.SetTable(
                 self,
                 name=name,
-                beacon=self.beacon,
+                beacon=self.tables.beacon,
                 partitions=partitions,
                 start_manager=start_manager,
                 help=help,
@@ -1198,7 +1198,7 @@ class App(AppT, Service):
             self.conf.SetGlobalTable(
                 self,
                 name=name,
-                beacon=self.beacon,
+                beacon=self.tables.beacon,
                 partitions=partitions,
                 start_manager=start_manager,
                 help=help,
