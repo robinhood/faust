@@ -28,6 +28,9 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self._agents_started = Event()
         Service.__init__(self, **kwargs)
 
+    def __hash__(self) -> int:
+        return object.__hash__(self)
+
     async def on_start(self) -> None:
         """Call when agents are being started."""
         self.update_topic_index()
