@@ -871,6 +871,9 @@ class App(AppT, Service):
                 help=fun.__doc__,
                 **kwargs)
             self.agents[agent.name] = agent
+            # This connects the agent to the topic conductor
+            # to make the graph more pretty.
+            self.topics.beacon.add(agent)
             venusian.attach(agent, category=SCAN_AGENT)
             return agent
 
