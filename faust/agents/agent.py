@@ -234,7 +234,7 @@ class Agent(AgentT, Service):
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         """Return list of services dependencies required to start agent."""
         # Agent service is now a child of app.
-        self.beacon.reattach(self.app.beacon)
+        self.beacon.reattach(self.app.agents.beacon)
         return []
 
     async def _start_one(self,
@@ -594,6 +594,7 @@ class Agent(AgentT, Service):
             loop=self.loop,
             active_partitions=active_partitions,
             prefix=self.name,
+            beacon=self.beacon,
             **kwargs)
         return s
 
