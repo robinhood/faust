@@ -1021,7 +1021,7 @@ class test_App:
         )
         fetcher = app._fetcher
         app.transport.Fetcher.assert_called_once_with(
-            app, loop=app.loop, beacon=app.beacon,
+            app, loop=app.loop, beacon=app.consumer.beacon,
         )
         assert fetcher is app.transport.Fetcher()
 
