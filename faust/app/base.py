@@ -1892,7 +1892,7 @@ class App(AppT, Service):
     def _fetcher(self) -> _Fetcher:
         """Fetcher helps Kafka Consumer retrieve records in topics."""
         return cast(Type[_Fetcher], self.transport.Fetcher)(
-            self, loop=self.loop, beacon=self.beacon)
+            self, loop=self.loop, beacon=self.consumer.beacon)
 
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
