@@ -573,6 +573,11 @@ class App(AppT, Service):
     async def on_start(self) -> None:
         """Call every time app start/restarts."""
         self.finalize()
+
+        # This makes it so that the topic conductor is a child
+        # of consumer in the (pretty) dependency graph.
+        self.topics.beacon.reattach(self.consumer.beacon)
+
         if self.conf.debug:
             logger.warning(
                 '!!! DEBUG is enabled -- disable for production environments')
@@ -1669,7 +1674,7 @@ class App(AppT, Service):
         )
 
     def _new_conductor(self) -> ConductorT:
-        return self.transport.create_conductor(beacon=self.beacon)
+        return self.transport.create_conductor(beacon=None)
 
     def _new_transport(self) -> TransportT:
         return transport.by_url(self.conf.broker_consumer[0])(
