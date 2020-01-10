@@ -58,6 +58,9 @@ class Store(StoreT[KT, VT], Service):
         self.value_serializer = value_serializer
         self.options = options
 
+    def __hash__(self) -> int:
+        return object.__hash__(self)
+
     def persisted_offset(self, tp: TP) -> Optional[int]:
         """Return the persisted offset for this topic and partition."""
         raise NotImplementedError('In-memory store only, does not persist.')
