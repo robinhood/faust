@@ -112,7 +112,7 @@ class Store(StoreT[KT, VT], Service):
     @property
     def label(self) -> str:
         """Return short description of this store."""
-        return f'{type(self).__name__}: {self.url} table={self.table_name}'
+        return f'{type(self).__name__}: {self.url}'
 
 
 class _SerializedStoreKeysView(KeysView):
