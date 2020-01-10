@@ -215,6 +215,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
     async def on_thread_stop(self) -> None:
         """Call when consumer thread is stopping."""
+        # super stops thread method queue (QueueServiceThread.method_queue)
+        await super().on_thread_stop()
+        # when method queue is stopped, we can stop the consumer
         if self._consumer is not None:
             await self._consumer.stop()
 
