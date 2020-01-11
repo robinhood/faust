@@ -44,6 +44,7 @@ from faust.types.models import (
     ModelT,
 )
 from faust.utils import codegen
+from faust.utils.functional import translate
 from faust.utils.iso8601 import parse as parse_iso8601
 from faust.utils.json import str_to_decimal
 
@@ -65,13 +66,16 @@ DEBUG = bool(os.environ.get('TYPEXPR_DEBUG', False))
 
 _getframe: Callable[[int], FrameType] = getattr(sys, '_getframe')  # noqa
 
+QUALNAME_TRANSLATION_TABLE = {
+    '.': '__',
+    '@': '__',
+    '>': '',
+    '<': '',
+}
+
 
 def qualname_to_identifier(s: str) -> str:
-    return s.replace(
-        '.', '__').replace(
-            '@', '__').replace(
-                '>', '').replace(
-                    '<', '')
+    return translate(QUALNAME_TRANSLATION_TABLE, s)
 
 
 class NodeType(Enum):
