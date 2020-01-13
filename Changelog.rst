@@ -12,14 +12,14 @@ please visit the :ref:`history` section.
 
 1.10.0
 ======
-:release-date: TBA
+:release-date: 2020-01-13 11:32 P.M PST
 :release-by: Ask Solem (:github_user:`ask`)
 
 - **Requirements**
 
     + Now depends on :pypi:`robinhood-aiokafka` 1.1.3
 
-    + Now depends on :ref:`Mode 4.1.8 <mode:version-4.1.8>`.
+    + Now depends on :ref:`Mode 4.1.9 <mode:version-4.1.9>`.
 
 
 .. _v1_10-news:
