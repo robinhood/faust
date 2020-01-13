@@ -1,3 +1,11 @@
+"""Parsing Type Expressions.
+
+This module contains tools for parsing type expressions such as
+``List[Mapping[str, Tuple[int, Tuple[str, str]]]]``,
+then converting that to a generator expression that can be used
+to deserialize such a structure.
+
+"""
 import abc
 import os
 import random
@@ -51,8 +59,14 @@ from faust.utils.json import str_to_decimal
 __all__ = ['NodeType', 'TypeExpression']
 
 T = TypeVar('T')
+
+#: Used to denote an argument that is not present.
 MISSING: Final = object()
+
+#: Used to generate unique variable names.
 TUPLE_NAME_COUNTER = count(0)
+
+#: Tuple of types that are native to JSON.
 JSON_TYPES: IsInstanceArgT = (  # XXX FIXME
     str,
     list,
@@ -61,11 +75,14 @@ JSON_TYPES: IsInstanceArgT = (  # XXX FIXME
     float,
     Decimal,
 )
+
+#: Tuple of built-in scalar types.
 LITERAL_TYPES: IsInstanceArgT = (str, bytes, float, int)
+
 DEBUG = bool(os.environ.get('TYPEXPR_DEBUG', False))
 
-_getframe: Callable[[int], FrameType] = getattr(sys, '_getframe')  # noqa
-
+#: Mapping of characters that are illegal in variable names
+#: to a suitable replacement.
 QUALNAME_TRANSLATION_TABLE = {
     '.': '__',
     '@': '__',
@@ -75,7 +92,11 @@ QUALNAME_TRANSLATION_TABLE = {
 
 
 def qualname_to_identifier(s: str) -> str:
+    """Translate `qualname(s)` to suitable variable name."""
     return translate(QUALNAME_TRANSLATION_TABLE, s)
+
+# we don't want linters/Python to complain that we are using this.
+_getframe: Callable[[int], FrameType] = getattr(sys, '_getframe')  # noqa
 
 
 class NodeType(Enum):
@@ -94,6 +115,7 @@ class NodeType(Enum):
     USER = 'USER'
 
 
+#: Set of user node types.
 USER_TYPES = frozenset({
     NodeType.DATETIME,
     NodeType.DECIMAL,
@@ -101,6 +123,7 @@ USER_TYPES = frozenset({
     NodeType.MODEL,
 })
 
+#: Set of generic node types (lists/dicts/etc.).
 GENERIC_TYPES = frozenset({
     NodeType.TUPLE,
     NodeType.SET,
@@ -109,6 +132,7 @@ GENERIC_TYPES = frozenset({
     NodeType.NAMEDTUPLE,
 })
 
+#: Set of types that don't have a field descriptor class.
 NONFIELD_TYPES = frozenset({
     NodeType.NAMEDTUPLE,
     NodeType.MODEL,
