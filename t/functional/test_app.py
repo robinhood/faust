@@ -84,6 +84,8 @@ class test_settings:
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
         assert conf.stream_recovery_delay == settings.STREAM_RECOVERY_DELAY
+        assert conf.stream_processing_timeout == (
+            settings.STREAM_PROCESSING_TIMEOUT)
         assert conf.producer_partitioner is None
         assert (conf.producer_request_timeout ==
                 settings.PRODUCER_REQUEST_TIMEOUT)
@@ -219,6 +221,7 @@ class test_settings:
                                  stream_wait_empty=True,
                                  stream_publish_on_commit=False,
                                  stream_recovery_delay=69.3,
+                                 stream_processing_timeout=73.03,
                                  web_bind='localhost',
                                  web_port=6069,
                                  web_host='localhost',
@@ -290,6 +293,7 @@ class test_settings:
             stream_wait_empty=stream_wait_empty,
             stream_publish_on_commit=stream_publish_on_commit,
             stream_recovery_delay=stream_recovery_delay,
+            stream_processing_timeout=stream_processing_timeout,
             timezone=timezone,
             web_bind=web_bind,
             web_port=web_port,
@@ -350,6 +354,7 @@ class test_settings:
         assert conf.stream_wait_empty == stream_wait_empty
         assert conf.stream_publish_on_commit == stream_publish_on_commit
         assert conf.stream_recovery_delay == stream_recovery_delay
+        assert conf.stream_processing_timeout == stream_processing_timeout
         assert conf.timezone is timezone
         assert conf.web_bind == web_bind
         assert conf.web_port == web_port

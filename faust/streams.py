@@ -7,6 +7,7 @@ import weakref
 
 from asyncio import CancelledError
 from contextvars import ContextVar
+from time import monotonic
 from typing import (
     Any,
     AsyncIterable,
@@ -103,6 +104,9 @@ class Stream(StreamT[T_co], Service):
     logger = logger
     # Service starting/stopping logs use severity DEBUG in this class.
     mundane_level = 'debug'
+
+    #: Number of events processed by this instance so far.
+    events_total: int = 0
 
     _processors: MutableSequence[Processor]
     _anext_started = False
@@ -765,6 +769,7 @@ class Stream(StreamT[T_co], Service):
                 value, sensor_state = await it.next()  # noqa: B305
                 try:
                     if value is not skipped_value:
+                        self.events_total += 1
                         yield value
                 finally:
                     event, self.current_event = self.current_event, None
@@ -897,9 +902,12 @@ class Stream(StreamT[T_co], Service):
                         value = await on_merge(value)
                     except Skip:
                         value = skipped_value
+
+                if value is skipped_value:
+                    continue
+                self.events_total += 1
                 try:
-                    if value is not skipped_value:
-                        yield value
+                    yield value
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:
@@ -923,6 +931,24 @@ class Stream(StreamT[T_co], Service):
             return
         finally:
             self._channel_stop_iteration(channel)
+
+    @Service.task
+    async def _timeout_check(self):
+        timeout = self.app.conf.stream_processing_timeout
+        wakeup_freq = 10.0
+        if timeout is not None:
+            time_start = monotonic()
+            current_total = self.events_total
+            async for sleep_time in self.itertimer(wakeup_freq,
+                                                   name='stream-timeout'):
+                time_now = monotonic()
+                if self.events_total and time_now - time_start > timeout:
+                    if self.events_total == current_total:
+                        self.log.error(
+                            'Stream timed-out during processing of event '
+                            'event=%r', self.current_event)
+                    current_total = self.events_total
+                    time_start = time_now
 
     async def __anext__(self) -> T:  # pragma: no cover
         ...

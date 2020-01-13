@@ -248,6 +248,43 @@ STREAM_RECOVERY_DELAY = 0.0
 #: is added in a later version.
 STREAM_PUBLISH_ON_COMMIT = False
 
+#: Timeout (in seconds) for processing events in the stream.
+#: If processing of a single event exceeds this time we log an error,
+#: but do not stop processing.
+#:
+#: If you are seeing a warning like this you should either
+#: 1) increase this timeout to allow events to take longer, or
+#: 2) add a timeout to the operation so that stream processing
+#:    always completed before the timeout.
+#:
+#: The latter is preferred for network operations such as web requests.
+#: If a network service you depend on is temporarily offline you should
+#: consider doing retries (sent to a separate topic).
+#:
+#:
+#: main_topic = app.topic('main')
+#: deadletter_topic = app.topic('main_deadletter')
+#:
+#: async def send_request(value, timeout: float = None) -> None:
+#:     await app.http_client.get('http://foo.com', timeout=timeout)
+#:
+#: @app.agent(main_topic)
+#: async def main(stream):
+#:    async for value in stream:
+#:        try:
+#:            await send_request(value, timeout=5)
+#:        except asyncio.TimeoutError:
+#:            await deadletter_topic.send(value)
+#:
+#:
+#: @app.agent(deadletter_topic)
+#: async def main_deadletter(stream):
+#:     async for value in stream:
+#:         # wait for 30 seconds before retrying.
+#:         await stream.sleep(30)
+#:         await send_request(value)
+STREAM_PROCESSING_TIMEOUT = 5 * 60.0
+
 #: Maximum size of a request in bytes in the consumer.
 #: Used as the default value for :setting:`max_fetch_size`.
 CONSUMER_MAX_FETCH_SIZE = 4 * 1024 ** 2
@@ -391,6 +428,7 @@ class Settings(abc.ABC):
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: float = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
+    _stream_processing_timeout: float = STREAM_PROCESSING_TIMEOUT
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
     _web_transport: URL = WEB_TRANSPORT
@@ -499,6 +537,7 @@ class Settings(abc.ABC):
             stream_ack_exceptions: bool = None,
             stream_publish_on_commit: bool = None,
             stream_recovery_delay: Seconds = None,
+            stream_processing_timeout: Seconds = None,
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
@@ -646,6 +685,9 @@ class Settings(abc.ABC):
             self.stream_publish_on_commit = stream_publish_on_commit
         if stream_recovery_delay is not None:
             self.stream_recovery_delay = cast(float, stream_recovery_delay)
+        if stream_processing_timeout is not None:
+            self.stream_processing_timeout = cast(
+                float, stream_processing_timeout)
         if producer_linger_ms is not None:
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
@@ -1031,6 +1073,14 @@ class Settings(abc.ABC):
     @stream_recovery_delay.setter
     def stream_recovery_delay(self, delay: Seconds) -> None:
         self._stream_recovery_delay = want_seconds(delay)
+
+    @property
+    def stream_processing_timeout(self) -> float:
+        return self._stream_processing_timeout
+
+    @stream_processing_timeout.setter
+    def stream_processing_timeout(self, timeout: Seconds) -> None:
+        self._stream_processing_timeout = want_seconds(timeout)
 
     @property
     def agent_supervisor(self) -> Type[SupervisorStrategyT]:

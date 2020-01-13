@@ -1165,6 +1165,50 @@ that event again.
 By default we will wait for the currently active tasks, but if your
 streams are idempotent you can disable it using this setting.
 
+.. setting:: stream_processing_timeout
+
+``stream_processing_timeout``
+-----------------------------
+
+:type: ``Union[float, datetime.timedelta]``
+:default: ``300.0`` (5 minutes)
+
+Timeout (in seconds) for processing events in the stream.
+If processing of a single event exceeds this time we log an error,
+but do not stop processing.
+
+If you are seeing a warning like this you should either
+1) increase this timeout to allow events to take longer, or
+2) add a timeout to the operation so that stream processing
+   always completed before the timeout.
+
+The latter is preferred for network operations such as web requests.
+If a network service you depend on is temporarily offline you should
+consider doing retries (sent to a separate topic):
+
+.. sourcecode:: python
+
+    main_topic = app.topic('main')
+    deadletter_topic = app.topic('main_deadletter')
+
+    async def send_request(value, timeout: float = None) -> None:
+        await app.http_client.get('http://foo.com', timeout=timeout)
+
+    @app.agent(main_topic)
+    async def main(stream):
+        async for value in stream:
+        try:
+            await send_request(value, timeout=5)
+        except asyncio.TimeoutError:
+            await deadletter_topic.send(value)
+
+    @app.agent(deadletter_topic)
+        async def main_deadletter(stream):
+            async for value in stream:
+            # wait for 30 seconds before retrying.
+            await stream.sleep(30)
+            await send_request(value)
+
 .. setting:: stream_publish_on_commit
 
 ``stream_publish_on_commit``
