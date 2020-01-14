@@ -933,7 +933,7 @@ class Stream(StreamT[T_co], Service):
             self._channel_stop_iteration(channel)
 
     @Service.task
-    async def _timeout_check(self):
+    async def _timeout_check(self) -> None:
         timeout = self.app.conf.stream_processing_timeout
         wakeup_freq = 10.0
         if timeout is not None:
