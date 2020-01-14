@@ -39,7 +39,8 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self._agents_started.set()
 
     async def wait_until_agents_started(self) -> None:
-        await self.wait_for_stopped(self._agents_started)
+        if not self.app.producer_only and not self.app.client_only:
+            await self.wait_for_stopped(self._agents_started)
 
     def service_reset(self) -> None:
         """Reset service state on restart."""
