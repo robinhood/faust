@@ -2,6 +2,7 @@
 from typing import AsyncIterable
 import faust
 from faust import StreamT
+from faust.cli import argument
 
 
 app = faust.App('RPC99', reply_create_topic=True)
@@ -33,7 +34,7 @@ async def _sender() -> None:
         print(f'RECEIVED REPLY: {value!r}')
 
 
-@app.command(faust.cli.argument('x'))
+@app.command(argument('x'))
 async def x100(self, x):
     res = await mul.ask(float(x))
     print(f'{x} * 100 = {res}')
