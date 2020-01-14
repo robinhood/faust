@@ -258,12 +258,14 @@ class PartitionAssignor(
         }
 
         topic_to_group_id = {}
+        partitions_by_topic = {}
 
         for group_id, (num_partitions, topic_groups) in enumerate(sorted(
                 copartitioned_groups.items())):
             for topics in topic_groups:
                 for topic in topics:
                     topic_to_group_id[topic] = group_id
+                    partitions_by_topic[topic] = num_partitions
                 assert len(topics) > 0 and num_partitions > 0
                 # Get assignment for unique copartitioned group
                 assgn = cluster_assgn.copartitioned_assignments(topics)
@@ -279,7 +281,8 @@ class PartitionAssignor(
                         copart_assn)
 
         # Add all changelogs of global tables as standby for all members
-        assignments = self._global_table_standby_assignments(assignments)
+        assignments = self._global_table_standby_assignments(
+            assignments, partitions_by_topic)
 
         changelog_distribution = self._get_changelog_distribution(assignments)
         res = self._protocol_assignments(
@@ -291,15 +294,15 @@ class PartitionAssignor(
 
     def _global_table_standby_assignments(
             self,
-            assignments: ClientAssignmentMapping) -> ClientAssignmentMapping:
+            assignments: ClientAssignmentMapping,
+            partitions_by_topic: Mapping[str, int]) -> ClientAssignmentMapping:
         # Ensures all members have access to all changelog partitions
         # as standbys, if not already as actives
         for table in self._table_manager.data.values():
             # Add changelog standbys only if global table
             if table.is_global:
                 changelog_topic_name = table._changelog_topic_name()
-                num_partitions = self.app.consumer.topic_partitions(
-                    changelog_topic_name)
+                num_partitions = partitions_by_topic[changelog_topic_name]
                 assert num_partitions is not None
                 all_partitions = set(range(0, num_partitions))
                 for assignment in assignments.values():
