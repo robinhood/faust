@@ -226,10 +226,13 @@ class Conductor(ConductorT, Service):
         # to give agents a chance to start up and register their
         # streams.  This way we won't have N subscription requests at the
         # start.
-        self.log.info('Waiting for agents to start...')
-        await self.app.agents.wait_until_agents_started()
-        self.log.info('Waiting for tables to be registered...')
-        await self.app.tables.wait_until_tables_registered()
+        if self.app.client_only or self.app.producer_only:
+            self.log.info('Not waiting for agent/table startups...')
+        else:
+            self.log.info('Waiting for agents to start...')
+            await self.app.agents.wait_until_agents_started()
+            self.log.info('Waiting for tables to be registered...')
+            await self.app.tables.wait_until_tables_registered()
         if not self.should_stop:
             # tell the consumer to subscribe to the topics.
             await self.app.consumer.subscribe(await self._update_indices())
