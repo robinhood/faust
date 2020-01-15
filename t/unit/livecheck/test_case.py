@@ -230,16 +230,18 @@ class test_Case:
         case.app.post_report.assert_called_once_with(report)
 
     @pytest.mark.asyncio
-    async def test__send_frequency__first_stop(self, *, case):
+    async def test__send_frequency__first_stop(self, *, case, loop):
         case.frequency = 0.1
         case.sleep = AsyncMock()
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4]
+        with patch('mode.services.itertimer') as ti:
 
-            def on_ti(*args, **kwargs):
+            async def on_itertimer(*args, **kwargs):
                 case._stopped.set()
-                return ti.return_value
-            ti.side_effect = on_ti
+                yield 0.1
+                yield 0.2
+                yield 0.3
+                yield 0.4
+            ti.side_effect = on_itertimer
 
             await case._send_frequency(case)
 
@@ -248,8 +250,14 @@ class test_Case:
         case.frequency = 0.1
         case.sleep = AsyncMock()
         case.app.is_leader = Mock(return_value=False)
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4]
+        with patch('mode.services.itertimer') as ti:
+
+            async def on_itertimer(*args, **kwargs):
+                for val in [0.1, 0.2, 0.3, 0.4]:
+                    await case.sleep(val)
+                    yield val
+
+            ti.side_effect = on_itertimer
 
             async def on_sleep(secs, **kwargs):
                 if case.sleep.call_count >= 2:
@@ -268,8 +276,11 @@ class test_Case:
         case.sleep = AsyncMock()
         case.frequency = 10.0
         case.app.is_leader = Mock(return_value=False)
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4]
+        with patch('mode.services.itertimer') as ti:
+            async def on_itertimer(*args, **kwargs):
+                for val in [0.1, 0.2, 0.3, 0.4]:
+                    yield val
+            ti.side_effect = on_itertimer
             await case._send_frequency(case)
 
     @pytest.mark.asyncio
@@ -295,8 +306,12 @@ class test_Case:
 
     @pytest.mark.asyncio
     async def test__check_frequency(self, *, case):
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
+        with patch('mode.services.itertimer') as ti:
+
+            async def on_itertimer(*args, **kwargs):
+                for val in [0.1, 0.2, 0.3, 0.4, 0.5]:
+                    yield val
+            ti.side_effect = on_itertimer
             case.sleep = AsyncMock()
             await case._check_frequency(case)
 
@@ -305,39 +320,45 @@ class test_Case:
         frozen_monotonic.return_value = 600.0
         case.warn_stalled_after = 10.0
         case.on_suite_fail = AsyncMock()
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
-            case.sleep = AsyncMock()
+        with patch('mode.services.itertimer') as ti:
 
-            def on_ti(*args, **kwargs):
+            async def on_itertimer(*args, **kwargs):
                 case.last_test_received = 10.0
-                return ti.return_value
-            ti.side_effect = on_ti
+                for val in [0.1, 0.2, 0.3, 0.4, 0.5]:
+                    yield val
+            ti.side_effect = on_itertimer
+            case.sleep = AsyncMock()
 
             await case._check_frequency(case)
         case.on_suite_fail.assert_called_once_with(ANY, State.STALL)
 
     @pytest.mark.asyncio
     async def test__check_frequency__should_stop1(self, *, case):
-        with patch('mode.services.timer_intervals') as ti:
-            ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
+        with patch('mode.services.itertimer') as ti:
 
-            def do_stop(*args, **kwargs):
+            async def on_itertimer(*args, **kwargs):
                 case._stopped.set()
-                return ti.return_value
-
-            ti.side_effect = do_stop
+                yield 0.1
+                yield 0.2
+                yield 0.3
+                yield 0.4
+                yield 0.5
+            ti.side_effect = on_itertimer
 
             case.sleep = AsyncMock()
             await case._check_frequency(case)
 
     @pytest.mark.asyncio
     async def test__check_frequency__last_stop(self, *, case):
-        with patch('mode.services.timer_intervals') as ti:
+        with patch('mode.services.itertimer') as ti:
             case._stopped.clear()
             assert not case.should_stop
-            ti.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
 
+            async def on_itertimer(*args, **kwargs):
+                for val in [0.1, 0.2, 0.3, 0.4, 0.5]:
+                    await case.sleep(val)
+                    yield val
+            ti.side_effect = on_itertimer
             case.sleep = AsyncMock()
 
             async def on_sleep(arg, **kwargs):

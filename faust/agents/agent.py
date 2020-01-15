@@ -1058,6 +1058,10 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
         self.sent_offset = 0
         self.processed_offset = 0
 
+    async def on_stop(self) -> None:
+        await self._stream.stop()
+        await super().on_stop()
+
     def stream(self, *args: Any, **kwargs: Any) -> StreamT:
         return self._stream.get_active_stream()
 

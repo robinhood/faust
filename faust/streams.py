@@ -113,6 +113,7 @@ class Stream(StreamT[T_co], Service):
     _passive = False
     _finalized = False
     _passive_started: asyncio.Event
+    _timeout_check_future: Optional[asyncio.Future] = None
 
     def __init__(self,
                  channel: AsyncIterator[T_co],
@@ -731,6 +732,7 @@ class Stream(StreamT[T_co], Service):
             await self._on_start()
         if self._passive:
             await self._passive_started.wait()
+        self._timeout_check_future = self.add_future(self._timeout_check())
 
     async def stop(self) -> None:
         """Stop this stream."""
@@ -740,6 +742,9 @@ class Stream(StreamT[T_co], Service):
 
     async def on_stop(self) -> None:
         """Signal that the stream is stopping."""
+        if self._timeout_check_future is not None:
+            await self._timeout_check_future
+            self._timeout_check_future = None
         self._passive = False
         self._passive_started.clear()
         for table_or_stream in self.combined:
@@ -761,7 +766,7 @@ class Stream(StreamT[T_co], Service):
         self.log.dev('Using Cython optimized __aiter__')
         skipped_value = self._skipped_value
         self._finalized = True
-        await self.maybe_start()
+        started_by_aiter = await self.maybe_start()
         it = _CStreamIterator(self)
         try:
             while not self.should_stop:
@@ -785,6 +790,9 @@ class Stream(StreamT[T_co], Service):
             return
         finally:
             self._channel_stop_iteration(self.channel)
+            if started_by_aiter:
+                await self.stop()
+                self.service_reset()
 
     def _set_current_event(self, event: EventT = None) -> None:
         if event is None:
@@ -796,7 +804,7 @@ class Stream(StreamT[T_co], Service):
     async def _py_aiter(self) -> AsyncIterator[T_co]:
         self._finalized = True
         loop = self.loop
-        await self.maybe_start()
+        started_by_aiter = await self.maybe_start()
         on_merge = self.on_merge
         on_stream_event_out = self._on_stream_event_out
         on_message_out = self._on_message_out
@@ -931,8 +939,13 @@ class Stream(StreamT[T_co], Service):
             return
         finally:
             self._channel_stop_iteration(channel)
+            if started_by_aiter:
+                # if `async for` called Stream.start()
+                # we need to stop it before ending iteration.
+                await self.stop()
+                # reset to allow calling .start again on next `async for`
+                self.service_reset()
 
-    @Service.task
     async def _timeout_check(self) -> None:
         timeout = self.app.conf.stream_processing_timeout
         wakeup_freq = 10.0

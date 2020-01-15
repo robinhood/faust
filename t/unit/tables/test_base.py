@@ -277,8 +277,7 @@ class test_Collection:
 
         table._del_old_keys.assert_called_once_with()
         table.sleep.assert_called_with(
-            pytest.approx(table.app.conf.table_cleanup_interval, rel=1e-1),
-            loop=None)
+            pytest.approx(table.app.conf.table_cleanup_interval, rel=1e-1))
 
     def test_should_expire_keys(self, *, table):
         table.window = None
