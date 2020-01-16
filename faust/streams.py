@@ -742,9 +742,14 @@ class Stream(StreamT[T_co], Service):
 
     async def on_stop(self) -> None:
         """Signal that the stream is stopping."""
-        if self._timeout_check_future is not None:
-            await self._timeout_check_future
-            self._timeout_check_future = None
+        timeout_check_fut, self._timeout_check_future = (
+            self._timeout_check_future, None)
+        if timeout_check_fut is not None and not timeout_check_fut.done():
+            timeout_check_fut.cancel()
+            try:
+                await timeout_check_fut
+            except asyncio.CancelledError:
+                pass
         self._passive = False
         self._passive_started.clear()
         for table_or_stream in self.combined:

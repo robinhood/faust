@@ -207,20 +207,21 @@ async def test_stream_filter(app):
 
 @pytest.mark.asyncio
 async def test_events(app):
-    stream = new_stream(app)
-    for i in range(100):
-        await stream.channel.deliver(message(key=i, value=i * 2))
-        await stream.channel.queue.put(i)  # no associated event
-    i = 0
-    events = []
-    async for event in stream.events():
-        assert event.key == i
-        assert event.value == i * 2
-        events.append(mock_event_ack(event))
-        i += 1
-        if i > 99:
-            break
-    await stream.stop()
+    async with new_stream(app) as stream:
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i * 2))
+            await stream.channel.queue.put(i)  # no associated event
+        i = 0
+        events = []
+        async for event in stream.events():
+            print(event, i)
+            assert event.key == i
+            assert event.value == i * 2
+            events.append(mock_event_ack(event))
+            i += 1
+            if i > 99:
+                break
+    await stream.stop()  # stop twice
     await asyncio.sleep(0)  # have to sleep twice here for all events to be
     await asyncio.sleep(0.5)  # acked for some reason
     assert_events_acked(events)
