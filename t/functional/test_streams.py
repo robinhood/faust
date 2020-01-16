@@ -50,82 +50,82 @@ async def test_simple(app, loop):
 
 @pytest.mark.asyncio
 async def test_async_iterator(app):
-    stream = new_stream(app)
-    for i in range(100):
-        await stream.channel.deliver(message(key=i, value=i))
-    received = 0
-    async for value in stream:
-        assert value == received
-        received += 1
-        if received >= 100:
-            break
-    assert await channel_empty(stream.channel)
+    async with new_stream(app) as stream:
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i))
+        received = 0
+        async for value in stream:
+            assert value == received
+            received += 1
+            if received >= 100:
+                break
+        assert await channel_empty(stream.channel)
 
 
 @pytest.mark.asyncio
 async def test_throw(app):
-    stream = new_stream(app)
-    streamit = aiter(stream)
-    await stream.channel.deliver(message(key='key', value='val'))
-    assert await anext(streamit) == 'val'
-    await stream.throw(KeyError('foo'))
-    with pytest.raises(KeyError):
-        await anext(streamit)
+    async with new_stream(app) as stream:
+        streamit = aiter(stream)
+        await stream.channel.deliver(message(key='key', value='val'))
+        assert await anext(streamit) == 'val'
+        await stream.throw(KeyError('foo'))
+        with pytest.raises(KeyError):
+            await anext(streamit)
 
 
 @pytest.mark.asyncio
 async def test_enumerate(app):
-    stream = new_stream(app)
-    for i in range(100):
-        await stream.channel.deliver(message(key=i, value=i * 4))
-    async for i, value in stream.enumerate():
-        current_event = stream.current_event
-        assert i == current_event.key
-        assert value == i * 4
-        if i >= 99:
-            break
-    assert await channel_empty(stream.channel)
+    async with new_stream(app) as stream:
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i * 4))
+        async for i, value in stream.enumerate():
+            current_event = stream.current_event
+            assert i == current_event.key
+            assert value == i * 4
+            if i >= 99:
+                break
+        assert await channel_empty(stream.channel)
 
 
 @pytest.mark.asyncio
 async def test_items(app):
-    stream = new_stream(app)
-    for i in range(100):
-        await stream.channel.deliver(message(key=i, value=i * 2))
-    i = 0
-    async for key, value in stream.items():
-        assert key == i
-        assert value == i * 2
-        i += 1
-        if i > 99:
-            break
-    assert await channel_empty(stream.channel)
+    async with new_stream(app) as stream:
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i * 2))
+        i = 0
+        async for key, value in stream.items():
+            assert key == i
+            assert value == i * 2
+            i += 1
+            if i > 99:
+                break
+        assert await channel_empty(stream.channel)
 
 
 @pytest.mark.asyncio
 async def test_through(app):
     app._attachments.enabled = False
-    orig = new_stream(app)
-    channel = app.channel(loop=app.loop)
-    stream = orig.through(channel)
-    for i in range(100):
-        await orig.channel.deliver(message(key=i, value=i * 2))
+    async with new_stream(app) as orig:
+        channel = app.channel(loop=app.loop)
+        stream = orig.through(channel)
+        for i in range(100):
+            await orig.channel.deliver(message(key=i, value=i * 2))
 
-    assert stream.get_root_stream() is orig
-    assert orig._passive
-    # noop
-    orig._enable_passive(orig.channel)
+        assert stream.get_root_stream() is orig
+        assert orig._passive
+        # noop
+        orig._enable_passive(orig.channel)
 
-    events = []
-    async for i, value in stream.enumerate():
-        assert value == i * 2
-        assert stream.current_event
-        events.append(mock_event_ack(stream.current_event))
-        if i >= 99:
-            break
-    await orig.stop()
-    await stream.stop()
-    assert_events_acked(events)
+        events = []
+        async for i, value in stream.enumerate():
+            assert value == i * 2
+            assert stream.current_event
+            events.append(mock_event_ack(stream.current_event))
+            if i >= 99:
+                break
+        await orig.stop()
+        await stream.stop()
+        assert_events_acked(events)
 
 
 def test_through_with_concurrency_index(app):
@@ -362,84 +362,84 @@ async def _start_stop_stream(stream):
 
 @pytest.mark.asyncio
 async def test_ack(app):
-    s = new_stream(app)
-    assert s.get_active_stream() is s
-    await s.channel.send(value=1)
-    await s.channel.send(value=2)
-    event = None
-    i = 1
-    async for value in s:
-        assert value == i
-        i += 1
-        last_to_ack = value == 2
-        event = mock_stream_event_ack(s, return_value=last_to_ack)
-        if value == 2:
-            break
-    assert event
-    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
-    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
-    await asyncio.sleep(0)  # needed for some reason
-    await asyncio.sleep(0)  # needed for some reason
-    if not event.ack.called:
-        assert event.message.acked
-        assert not event.message.refcount
+    async with new_stream(app) as s:
+        assert s.get_active_stream() is s
+        await s.channel.send(value=1)
+        await s.channel.send(value=2)
+        event = None
+        i = 1
+        async for value in s:
+            assert value == i
+            i += 1
+            last_to_ack = value == 2
+            event = mock_stream_event_ack(s, return_value=last_to_ack)
+            if value == 2:
+                break
+        assert event
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        if not event.ack.called:
+            assert event.message.acked
+            assert not event.message.refcount
 
 
 @pytest.mark.asyncio
 async def test_noack(app):
-    s = new_stream(app)
-    new_s = s.noack()
-    assert new_s is not s
-    assert s.get_active_stream() is new_s
-    await new_s.channel.send(value=1)
-    event = None
-    async for value in new_s:
-        assert value == 1
-        event = mock_stream_event_ack(new_s)
-        break
-    assert event
-    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
-    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
-    await asyncio.sleep(0)  # needed for some reason
-    await asyncio.sleep(0)  # needed for some reason
-    event.ack.assert_not_called()
+    async with new_stream(app) as s:
+        new_s = s.noack()
+        assert new_s is not s
+        assert s.get_active_stream() is new_s
+        await new_s.channel.send(value=1)
+        event = None
+        async for value in new_s:
+            assert value == 1
+            event = mock_stream_event_ack(new_s)
+            break
+        assert event
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        event.ack.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_acked_when_raising(app):
-    s = new_stream(app)
-    await s.channel.send(value=1)
-    await s.channel.send(value=2)
+    async with new_stream(app) as s:
+        await s.channel.send(value=1)
+        await s.channel.send(value=2)
 
-    event1 = None
-    with pytest.raises(RuntimeError):
-        async for value in s:
-            event1 = mock_stream_event_ack(s)
-            assert value == 1
-            raise RuntimeError
-    assert event1
-    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
-    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
-    await asyncio.sleep(0)  # needed for some reason
-    await asyncio.sleep(0)  # needed for some reason
-    if not event1.ack.called:
-        assert event1.message.acked
-        assert not event1.message.refcount
+        event1 = None
+        with pytest.raises(RuntimeError):
+            async for value in s:
+                event1 = mock_stream_event_ack(s)
+                assert value == 1
+                raise RuntimeError
+        assert event1
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        if not event1.ack.called:
+            assert event1.message.acked
+            assert not event1.message.refcount
 
-    event2 = None
-    with pytest.raises(RuntimeError):
-        async for value in s:
-            event2 = mock_stream_event_ack(s)
-            assert value == 2
-            raise RuntimeError
-    assert event2
-    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
-    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
-    await asyncio.sleep(0)  # needed for some reason
-    await asyncio.sleep(0)  # needed for some reason
-    if not event2.ack.called:
-        assert event2.message.acked
-        assert not event2.message.refcount
+        event2 = None
+        with pytest.raises(RuntimeError):
+            async for value in s:
+                event2 = mock_stream_event_ack(s)
+                assert value == 2
+                raise RuntimeError
+        assert event2
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        if not event2.ack.called:
+            assert event2.message.acked
+            assert not event2.message.refcount
 
 
 @pytest.mark.asyncio
