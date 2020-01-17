@@ -1,4 +1,6 @@
 """RocksDB storage."""
+import asyncio
+import gc
 import math
 import shutil
 import typing
@@ -331,13 +333,15 @@ class Store(base.SerializedStore):
             tps: Set of topic partitions that we should no longer
                 be serving data for.
         """
+        dbs_closed = 0
         for tp in tps:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
                 if db is not None:
                     del(db)
-        import gc
-        gc.collect()  # XXX RocksDB has no .close() method :X
+                    dbs_closed += 1
+        if dbs_closed:
+            gc.collect()  # XXX RocksDB has no .close() method :X
 
     async def assign_partitions(self,
                                 table: CollectionT,
@@ -354,6 +358,7 @@ class Store(base.SerializedStore):
         for tp in tps:
             if tp.topic in my_topics and tp not in standby_tps:
                 await self._try_open_db_for_partition(tp.partition)
+                await asyncio.sleep(0)
 
     async def _try_open_db_for_partition(self, partition: int,
                                          max_retries: int = 5,
