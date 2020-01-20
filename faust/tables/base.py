@@ -254,7 +254,8 @@ class Collection(Service, CollectionT):
                        key: Any,
                        value: Any,
                        key_serializer: CodecArg = None,
-                       value_serializer: CodecArg = None) -> FutureMessage:
+                       value_serializer: CodecArg = None,
+                       on_table_key_change: Callable = None) -> FutureMessage:
         """Send modification event to changelog topic."""
         if key_serializer is None:
             key_serializer = self.key_serializer
@@ -269,7 +270,7 @@ class Collection(Service, CollectionT):
             callback=self._on_changelog_sent,
             # Ensures final partition number is ready in ret.message.partition
             eager_partitioning=True,
-        )
+            on_table_key_change=on_table_key_change)
 
     def _send_changelog(self,
                         event: Optional[EventT],

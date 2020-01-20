@@ -16,6 +16,8 @@ from mode.utils.mocks import (
     patch,
 )
 
+from faust.types import FutureMessage, PendingMessage
+
 sentinel = object()
 
 
@@ -293,3 +295,25 @@ def pytest_configure(config):
         'markers',
         'http_session: Set mock aiohttp session result',
     )
+
+
+@pytest.fixture()
+def future_message():
+    def future(topic):
+        callback = Mock(name='callback')
+        headers = {'k': 'v'}
+        return FutureMessage(
+            PendingMessage(
+                topic,
+                key='foo',
+                value='bar',
+                partition=130,
+                timestamp=312.5134,
+                headers=headers,
+                key_serializer='json',
+                value_serializer='json',
+                callback=callback,
+            ),
+        )
+
+    return future

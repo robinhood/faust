@@ -239,7 +239,7 @@ class Channel(ChannelT[T]):
         """
         raise NotImplementedError()
 
-    def as_future_message(
+    async def as_future_message(
             self,
             key: K = None,
             value: V = None,
@@ -250,17 +250,22 @@ class Channel(ChannelT[T]):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            eager_partitioning: bool = False) -> FutureMessage:
+            eager_partitioning: bool = False,
+            on_table_key_change: Callable = None) -> FutureMessage:
         """Create promise that message will be transmitted."""
         open_headers = self.prepare_headers(headers)
-        final_key, open_headers = self.prepare_key(
+        final_key, open_headers = await self.prepare_key(
             key, key_serializer, schema, open_headers)
-        final_value, open_headers = self.prepare_value(
+        final_value, open_headers = await self.prepare_value(
             value, value_serializer, schema, open_headers)
         if partition is None and eager_partitioning:
             # Note: raises NotImplementedError if used on unnamed channel.
             partition = self.app.producer.key_partition(
                 self.get_topic_name(), final_key).partition
+
+            if on_table_key_change:
+                on_table_key_change(key, partition)
+
         return FutureMessage(
             PendingMessage(
                 self,
@@ -298,7 +303,7 @@ class Channel(ChannelT[T]):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
-            self.as_future_message(
+            await self.as_future_message(
                 key, value, partition, timestamp, headers,
                 schema, key_serializer, value_serializer, callback))
 
@@ -356,7 +361,7 @@ class Channel(ChannelT[T]):
         """
         ...
 
-    def prepare_key(
+    async def prepare_key(
             self,
             key: K,
             key_serializer: CodecArg,
@@ -369,7 +374,7 @@ class Channel(ChannelT[T]):
         """
         return key, headers
 
-    def prepare_value(
+    async def prepare_value(
             self,
             value: V,
             value_serializer: CodecArg,
@@ -632,7 +637,7 @@ class SerializedChannel(Channel[T]):
             },
         }
 
-    def prepare_key(
+    async def prepare_key(
             self,
             key: K,
             key_serializer: CodecArg,
@@ -642,12 +647,13 @@ class SerializedChannel(Channel[T]):
         if key is not None:
             schema = schema or self.schema
             assert schema is not None
-            return schema.dumps_key(self.app, key,
-                                    serializer=key_serializer,
-                                    headers=headers)
+            return await schema.dumps_key(
+                self.app, key,
+                serializer=key_serializer,
+                headers=headers)
         return None, headers
 
-    def prepare_value(
+    async def prepare_value(
             self,
             value: V,
             value_serializer: CodecArg,
@@ -656,6 +662,7 @@ class SerializedChannel(Channel[T]):
         """Serialize value to format suitable for transport."""
         schema = schema or self.schema
         assert schema is not None
-        return schema.dumps_value(self.app, value,
-                                  serializer=value_serializer,
-                                  headers=headers)
+
+        return await schema.dumps_value(self.app, value,
+                                        serializer=value_serializer,
+                                        headers=headers)

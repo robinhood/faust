@@ -97,12 +97,33 @@ class Registry(RegistryT):
         serializer = self._serializer(typ, serializer, self.value_serializer)
         try:
             payload = self._loads(serializer, value)
-            return cast(V, self._prepare_payload(typ, payload))
+            return self.loads_from_payload(typ, payload)
         except MemoryError:
             raise
         except Exception as exc:
             raise ValueDecodeError(str(exc)).with_traceback(
                 sys.exc_info()[2]) from exc
+
+    def loads_from_payload(self, typ: Optional[ModelArg], payload: Any):
+        """
+        Return a specific instance according to the payload and type received.
+
+        Arguments:
+            typ (optional): Model to use for deserialization.
+            payload (Any): python object.
+
+        Example:
+
+            class Point(Record, serializer='json'):
+                x: int
+                y: int
+
+            typ = Point
+            payload = {"x": 10, "y": 100}
+
+            point_instance = self.loads_from_payload(paylaod)
+        """
+        return cast(V, self._prepare_payload(typ, payload))
 
     def _prepare_payload(self, typ: Optional[ModelArg], value: Any) -> Any:
         if typ is None:  # (autodetect)
