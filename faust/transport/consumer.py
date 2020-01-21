@@ -1018,10 +1018,14 @@ class Consumer(Service, ConsumerT):
         commit_every = self._commit_every
         acks_enabled_for = self.app.topics.acks_enabled_for
 
+        yield_every = 500
+        num_since_yield = 0
+        sleep = asyncio.sleep
+
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
-                ait = cast(AsyncIterator, getmany(timeout=5.0))
+                ait = cast(AsyncIterator, getmany(timeout=1.0))
                 last_batch = self._last_batch
 
                 # Sleeping because sometimes getmany is called in a loop
@@ -1029,6 +1033,11 @@ class Consumer(Service, ConsumerT):
                 await self.sleep(0)
                 if not self.should_stop:
                     async for tp, message in ait:
+                        num_since_yield += 1
+                        if num_since_yield > yield_every:
+                            await sleep(0)
+                            num_since_yield = 0
+
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         committed_offset = get_commit_offset(tp)
