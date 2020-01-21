@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, IO, Iterable, Mapping, Optional, Set, Union
 
 import mode
+from aiokafka.structs import TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.logging import Severity, formatter
 
@@ -34,6 +35,8 @@ __all__ = ['Worker']
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
 
+TP_TYPES = (TP, TopicPartition)
+
 logger = get_logger(__name__)
 
 
@@ -47,27 +50,28 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
         if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
             return '\n' + terminal.logtable(
-                list(arg.items()),
+                sorted(arg.items()),
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )
         # Mapping where values are TopicPartition tuples are changed
         # to a terminal table.
-        elif isinstance(first_v, TP):
+        elif isinstance(first_v, TP_TYPES):
             return '\n' + terminal.logtable(
-                [(k.topic, k.partition, v) for k, v in arg.items()],
+                [(k.topic, k.partition, v)
+                 for k, v in sorted(arg.items())],
                 title='Topic Partition Map',
                 headers=['topic', 'partition', 'offset'],
             )
     elif arg and isinstance(arg, (set, list)):
         # Sets/Lists of TopicPartition are converted to terminal table.
-        if isinstance(next(iter(arg)), TP):
+        if isinstance(next(iter(arg)), TP_TYPES):
             topics: Dict[str, Set[int]] = defaultdict(set)
             for tp in arg:
                 topics[tp.topic].add(tp.partition)
 
             return '\n' + terminal.logtable(
-                [(k, repr(v)) for k, v in topics.items()],
+                [(k, repr(v)) for k, v in sorted(topics.items())],
                 title='Topic Partition Set',
                 headers=['topic', 'partitions'],
             )
