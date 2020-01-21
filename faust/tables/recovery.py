@@ -205,10 +205,12 @@ class Recovery(Service):
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
                 self.add_standby(table, tp)
+        await asyncio.sleep(0)
         for tp in assigned_actives:
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
                 self.add_active(table, tp)
+        await asyncio.sleep(0)
 
         active_offsets = {
             tp: offset
@@ -217,6 +219,8 @@ class Recovery(Service):
         }
         self.active_offsets.clear()
         self.active_offsets.update(active_offsets)
+
+        await asyncio.sleep(0)
 
         rebalancing_span = cast(_App, self.app)._rebalancing_span
         if app.tracer and rebalancing_span:

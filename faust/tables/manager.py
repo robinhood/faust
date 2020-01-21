@@ -185,7 +185,9 @@ class TableManager(Service, TableManagerT):
         for table in self.values():
             await T(table.on_rebalance)(assigned, revoked, newly_assigned)
 
+        await asyncio.sleep(0)
         await T(self._update_channels)()
+        await asyncio.sleep(0)
         await T(self.recovery.on_rebalance)(assigned, revoked, newly_assigned)
 
     async def wait_until_recovery_completed(self) -> bool:
