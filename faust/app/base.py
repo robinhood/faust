@@ -1622,6 +1622,7 @@ class App(AppT, Service):
         self.unassigned = not assigned
 
         revoked, newly_assigned = self._update_assignment(assigned)
+        await asyncio.sleep(0)
 
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             consumer = self.consumer
@@ -1643,6 +1644,7 @@ class App(AppT, Service):
                     await T(consumer.transactions.on_rebalance)(
                         assigned, revoked, newly_assigned)
                 on_timeout.info('tables.on_rebalance()')
+                await asyncio.sleep(0)
                 await T(self.tables.on_rebalance)(
                     assigned, revoked, newly_assigned)
                 on_timeout.info('+send signal: on_partitions_assigned')
