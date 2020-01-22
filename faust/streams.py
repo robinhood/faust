@@ -962,9 +962,10 @@ class Stream(StreamT[T_co], Service):
                 time_now = monotonic()
                 if self.events_total and time_now - time_start > timeout:
                     if self.events_total == current_total:
-                        self.log.error(
-                            'Stream timed-out during processing of event '
-                            'event=%r', self.current_event)
+                        self.log.info(
+                            'Stream is not moving. '
+                            'If there is no lag then ignore this.'
+                            'current_event=%r', self.current_event)
                     current_total = self.events_total
                     time_start = time_now
 
