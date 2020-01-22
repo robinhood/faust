@@ -8,6 +8,53 @@ This document contain change notes for bugfix releases in
 the Faust 1.10 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.10.1:
+
+1.10.1
+======
+:release-date: 2020-01-22 5:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+  + Now depends on :ref:`Mode 4.3.0 <mode:version-4.3.0>`.
+
+- Consumer: Default for the :setting:`consumer_max_fetch_size` setting
+  is now 1MB.
+
+    Make sure to consider the total number of partitions a worker node
+    can be assigned when tweaking this value.
+
+    If an app is subscribing to 4 topics, that have 100 partitions
+    each, and only a single worker is running, this will mean
+    the maximum fetch size at this point is 4 * 100MB.
+
+    When the worker is rebalancing it needs to flush any current
+    fetch requests before continuing, and if that much data is left
+    in the socket buffer it can cause another rebalance to happen,
+    then another, then another, ending up in a rebalancing loop.
+
+- Worker: Fixed problem of timers waking up too late.
+
+    Turns out some parts of the worker were blocking the event loop
+    causing timers to wake up too late.
+
+    We have found a way to identify such blocking and have
+    added some carefully placed ``asyncio.sleep(0)`` statements
+    to minimize blocking.
+
+- Worker: Emit more beautiful logs by converting lists of topic partitions
+  to ANSI tables.
+
+- Stream: Fixed race condition where stopping a stream twice would
+  cause it to wait indefinitely.
+
+- Tables: Fixes hang at startup when using global table (Issue #507)
+
+- Agents: Fixed RPC hanging in clients (Issue #509).
+
+    Contributed by Jonathan A. Booth (:github_user:`jbooth-mastery`).
+
 .. _version-1.10.0:
 
 1.10.0
