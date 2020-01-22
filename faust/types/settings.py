@@ -287,7 +287,13 @@ STREAM_PROCESSING_TIMEOUT = 5 * 60.0
 
 #: Maximum size of a request in bytes in the consumer.
 #: Used as the default value for :setting:`max_fetch_size`.
-CONSUMER_MAX_FETCH_SIZE = 4 * 1024 ** 2
+#: Note: This is PER PARTITION, so a limit of 1Mb when your
+#: workers consume from 10 topics having 100 partitions each
+#: means a fetch request can be 10 * 100 * 1Mb.
+#: This limit being effectively too high will cause
+#: rebalancing issues, so keep it low enough to account
+#: for many partitions.
+CONSUMER_MAX_FETCH_SIZE = 1024 ** 2
 
 #: Where the consumer should start reading offsets when there is no initial
 #: offset, or the stored offset no longer exists, e.g. when starting a new

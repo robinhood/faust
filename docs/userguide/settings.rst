@@ -867,10 +867,21 @@ See :setting:`broker_api_version` for more information.
 .. versionadded:: 1.4
 
 :type: :class:`int`
-:default: ``4*1024**2``
+:default: ``1048576`` (one megabyte per partition).
 
 The maximum amount of data per-partition the server will return. This size
 must be at least as large as the maximum message size.
+
+Note: This is PER PARTITION, so a limit of 1Mb when your
+workers consume from 10 topics having 100 partitions each,
+means a fetch request can be up to a gigabyte (10 * 100 * 1Mb),
+This limit being too generous may cause
+rebalancing issues: if the amount of time required
+to flush pending data stuck in socket buffers exceed
+the rebalancing timeout.
+
+You must keep this limit low enough to account
+for many partitions being assigned to a single node.
 
 .. setting:: consumer_auto_offset_reset
 
