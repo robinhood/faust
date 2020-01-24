@@ -43,7 +43,11 @@ from mode.utils.objects import (
     qualname,
 )
 from mode.utils.typing import Counter
-from typing_extensions import Final
+
+try:
+    from typing import Final
+except ImportError:
+    Final = object
 
 from faust.types.models import (
     CoercionHandler,
