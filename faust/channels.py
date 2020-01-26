@@ -229,7 +229,9 @@ class Channel(ChannelT[T]):
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
                   force: bool = False,
-                  eager_partitioning: bool = False) -> FutureMessage:
+                  eager_partitioning: bool = False,
+                  on_table_key_change: Callable = None,
+                  ) -> Awaitable[FutureMessage]:
         """Produce message by adding to buffer.
 
         This method is only supported by :class:`~faust.Topic`.

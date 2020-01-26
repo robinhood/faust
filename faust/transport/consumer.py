@@ -284,7 +284,7 @@ class TransactionManager(Service, TransactionManagerT):
             transactional_id=transactional_id,
         )
 
-    def send_soon(self, fut: FutureMessage) -> None:
+    def send_soon(self, fut: Awaitable[FutureMessage]) -> None:
         raise NotImplementedError()
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],

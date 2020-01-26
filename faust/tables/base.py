@@ -9,6 +9,7 @@ from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any,
+    Awaitable,
     Callable,
     Iterable,
     Iterator,
@@ -255,7 +256,8 @@ class Collection(Service, CollectionT):
                        value: Any,
                        key_serializer: CodecArg = None,
                        value_serializer: CodecArg = None,
-                       on_table_key_change: Callable = None) -> FutureMessage:
+                       on_table_key_change: Callable = None,
+                       ) -> Awaitable[FutureMessage]:
         """Send modification event to changelog topic."""
         if key_serializer is None:
             key_serializer = self.key_serializer

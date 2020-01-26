@@ -24,7 +24,7 @@ class ProducerBuffer(Service, ProducerBufferT):
     def __post_init__(self) -> None:
         self.pending = asyncio.Queue()
 
-    def put(self, fut: FutureMessage) -> None:
+    def put(self, fut: Awaitable[FutureMessage]) -> None:
         """Add message to buffer.
 
         The message will be eventually produced, you can await
@@ -144,7 +144,7 @@ class Producer(Service, ProducerT):
         """Schedule message to be sent by producer."""
         raise NotImplementedError()
 
-    def send_soon(self, fut: FutureMessage) -> None:
+    def send_soon(self, fut: Awaitable[FutureMessage]) -> None:
         self.buffer.put(fut)
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],

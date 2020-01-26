@@ -164,7 +164,11 @@ class test_Topic:
         app._attachments.enabled = True
         callback = Mock(name='callback')
         schema = Mock(name='schema')
-        with patch('faust.topics.current_event') as current_event:
+
+        event = Mock('current_event', _attach=AsyncMock())
+
+        with patch('faust.topics.current_event',
+                   return_value=event) as current_event:
             await topic.send(
                 key='k',
                 value='v',

@@ -52,11 +52,6 @@ class test_ProducerBuffer:
         await buf._handle_pending(buf)
         buf._send_pending.assert_called_with(message)
 
-        # buf._send_pending.assert_has_calls([
-        #     call(buf.pending.get.coro.return_value),
-        #     call(buf.pending.get.coro.return_value),
-        # ])
-
     @pytest.mark.asyncio
     async def test_wait_until_ebb(self, *, buf):
         buf.max_messages = 10

@@ -104,7 +104,7 @@ class Registry(RegistryT):
             raise ValueDecodeError(str(exc)).with_traceback(
                 sys.exc_info()[2]) from exc
 
-    def loads_from_payload(self, typ: Optional[ModelArg], payload: Any):
+    def loads_from_payload(self, typ: Optional[ModelArg], payload: Any) -> Any:
         """
         Return a specific instance according to the payload and type received.
 

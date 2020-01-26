@@ -169,7 +169,7 @@ class Topic(SerializedChannel, TopicT):
         if app._attachments.enabled and not force:
             event = current_event()
             if event is not None:
-                return cast(Event, event)._attach(
+                return await cast(Event, event)._attach(
                     self,
                     key,
                     value,
@@ -206,7 +206,8 @@ class Topic(SerializedChannel, TopicT):
                   callback: MessageSentCallback = None,
                   force: bool = False,
                   eager_partitioning: bool = False,
-                  on_table_key_change: Callable = None) -> Awaitable:
+                  on_table_key_change: Callable = None,
+                  ) -> Awaitable[FutureMessage]:
         """Produce message by adding to buffer.
 
         Notes:
