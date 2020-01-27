@@ -649,6 +649,7 @@ class SerializedChannel(Channel[T]):
         if key is not None:
             schema = schema or self.schema
             assert schema is not None
+
             return await schema.dumps_key(
                 self.app, key,
                 serializer=key_serializer,

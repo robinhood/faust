@@ -1,6 +1,7 @@
 import asyncio
 import re
 import faust
+import json
 import pytest
 from faust import Event, Record
 from faust.exceptions import KeyDecodeError, ValueDecodeError
@@ -120,6 +121,51 @@ class test_Topic:
         assert topic.schema.value_serializer == 'captnproto'
 
         assert repr(topic.schema)
+
+    @pytest.mark.asyncio
+    async def test_schema__override_loads_value(self, *, app, topic):
+        headers = [('avro-schema', b'https://avro-server/user-schema.avsc')]
+        payload = {'user_id': '100', 'content': 'Hi'}
+
+        class UserNotification(faust.Record):
+            user_id: str
+            content: str
+
+        class MySchema(faust.Schema):
+            async def dumps_value(
+                self, app, value, *,
+                serializer=None,
+                headers,
+            ):
+                return json.dumps(value).encode(), headers
+
+            async def dumps_key(
+                self, app, key, *,
+                serializer=None,
+                headers=None,
+            ):
+                return None, headers
+
+        schema = MySchema(value_serializer=UserNotification)
+
+        _, keys = await topic.prepare_key(
+            'key',
+            None,
+            schema=schema,
+            headers=headers,
+        )
+
+        assert headers == keys
+
+        payload_encoded, keys = await topic.prepare_value(
+            payload,
+            None,
+            schema=schema,
+            headers=headers,
+        )
+
+        assert headers == keys
+        assert payload_encoded == json.dumps(payload).encode()
 
     def test_init_key_serializer_taken_from_key_type(self, app):
         class M(Record, serializer='foobar'):

@@ -156,6 +156,17 @@ def test_loads_value(payload, typ, serializer, expected, *, app):
         typ, payload, serializer=serializer) == expected
 
 
+def test_loads_from_payload(app):
+    payload = {
+        'id': 'A2',
+        'first_name': 'George',
+        'last_name': 'Costanza',
+    }
+    user = app.serializers.loads_from_payload(User, payload)
+
+    assert isinstance(user, User)
+
+
 def test_loads_value_missing_key_raises_error(*, app):
     account = ACCOUNT1.to_representation()
     account.pop('active')
