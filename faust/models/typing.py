@@ -27,6 +27,7 @@ from typing import (
     NamedTuple,
     Optional,
     Set,
+    TYPE_CHECKING,
     Tuple,
     Type,
     TypeVar,
@@ -43,12 +44,6 @@ from mode.utils.objects import (
     qualname,
 )
 from mode.utils.typing import Counter
-
-try:
-    from typing import Final
-except ImportError:
-    Final = object
-
 from faust.types.models import (
     CoercionHandler,
     CoercionMapping,
@@ -59,6 +54,14 @@ from faust.utils import codegen
 from faust.utils.functional import translate
 from faust.utils.iso8601 import parse as parse_iso8601
 from faust.utils.json import str_to_decimal
+
+if TYPE_CHECKING:
+    from typing_extensions import Final
+else:
+    try:
+        from typing import Final
+    except ImportError:
+        Final = object
 
 __all__ = ['NodeType', 'TypeExpression']
 
