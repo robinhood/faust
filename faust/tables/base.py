@@ -9,9 +9,7 @@ from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any,
-    Awaitable,
     Callable,
-    Coroutine,
     Iterable,
     Iterator,
     List,
@@ -357,7 +355,7 @@ class Collection(Service, CollectionT):
                     interval, name='table_cleanup'):
                 await self._del_old_keys()
 
-    async def _del_old_keys(self) -> Coroutine[Any, Any, None]:
+    async def _del_old_keys(self) -> None:
         window = cast(WindowT, self.window)
         assert window
         for partition, timestamps in self._partition_timestamps.items():
@@ -377,7 +375,7 @@ class Collection(Service, CollectionT):
                         max(key[1][0] for key in keys_to_remove),
                     )
 
-    async def on_window_close(self, key: Any, value: Any) -> Awaitable[Any]:
+    async def on_window_close(self, key: Any, value: Any) -> None:
         if self._on_window_close:
             if(iscoroutinefunction(self._on_window_close)):
                 await self._on_window_close(key, value)
