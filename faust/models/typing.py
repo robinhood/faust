@@ -55,9 +55,9 @@ from faust.utils.functional import translate
 from faust.utils.iso8601 import parse as parse_iso8601
 from faust.utils.json import str_to_decimal
 
-if TYPE_CHECKING: # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing_extensions import Final
-else: # pragma: no cover
+else:  # pragma: no cover
     try:
         from typing import Final
     except ImportError:
