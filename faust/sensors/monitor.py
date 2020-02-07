@@ -200,6 +200,8 @@ class Monitor(Sensor, KeywordReduce):
     #: Average request->response latency.
     http_response_latency_avg: float = .0
 
+    stream_inbound_time: Dict[TP, float] = cast(Dict[TP, float], None)
+
     def __init__(self,
                  *,
                  max_avg_history: int = None,
@@ -287,6 +289,8 @@ class Monitor(Sensor, KeywordReduce):
         self.tp_committed_offsets = {}
         self.tp_read_offsets = {}
         self.tp_end_offsets = {}
+
+        self.stream_inbound_time = {}
         Service.__init__(self, **kwargs)
 
     def secs_since(self, start_time: float) -> float:

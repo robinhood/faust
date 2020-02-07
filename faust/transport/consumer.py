@@ -388,12 +388,6 @@ class Consumer(Service, ConsumerT):
     #: shutting down or resuming a rebalance.
     _unacked_messages: MutableSet[Message]
 
-    #: Time of last record batch received.
-    #: Set only when not set, and reset by commit() so actually
-    #: tracks how long it ago it was since we received a record that
-    #: was never committed.
-    _last_batch: MutableMapping[TP, float]
-
     #: Time of when the consumer was started.
     _time_start: float
 
@@ -442,7 +436,6 @@ class Consumer(Service, ConsumerT):
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         self._time_start = monotonic()
-        self._last_batch = defaultdict(float)
         self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
         self.can_resume_flow = Event()
@@ -468,7 +461,6 @@ class Consumer(Service, ConsumerT):
         self._paused_partitions = set()
         self.can_resume_flow.clear()
         self.flow_active = True
-        self._last_batch.clear()
         self._time_start = monotonic()
 
     async def on_restart(self) -> None:
@@ -518,7 +510,6 @@ class Consumer(Service, ConsumerT):
         """Seek partition to specific offset."""
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
-        self._last_batch.pop(partition, None)
         await self._seek(partition, offset)
         # set new read offset so we will reread messages
         self._read_offset[ensure_TP(partition)] = offset if offset else None
@@ -588,7 +579,6 @@ class Consumer(Service, ConsumerT):
             # start callback chain of assigned callbacks.
             #   need to copy set at this point, since we cannot have
             #   the callbacks mutate our active list.
-            self._last_batch.clear()
             await T(self._on_partitions_assigned, partitions=assigned)(
                 assigned)
         self.app.on_rebalance_return()
@@ -770,8 +760,6 @@ class Consumer(Service, ConsumerT):
         else:
             await self.commit_and_end_transactions()
 
-        self._last_batch.clear()
-
     @Service.task
     async def _commit_handler(self) -> None:
         interval = self.commit_interval
@@ -782,18 +770,21 @@ class Consumer(Service, ConsumerT):
 
     @Service.task
     async def _commit_livelock_detector(self) -> None:  # pragma: no cover
-        soft_timeout = self.commit_livelock_soft_timeout
         interval: float = self.commit_interval * 2.5
-        acks_enabled_for = self.app.topics.acks_enabled_for
         await self.sleep(interval)
         async for sleep_time in self.itertimer(interval, name='livelock'):
-            for tp, last_batch_time in self._last_batch.items():
-                if last_batch_time and acks_enabled_for(tp.topic):
-                    s_since_batch = monotonic() - last_batch_time
-                    if s_since_batch > soft_timeout:
-                        self.log.warning(
-                            'Possible livelock: '
-                            'COMMIT OFFSET NOT ADVANCING FOR %r', tp)
+            if not self.app.rebalancing:
+                await self.verify_all_partitions_active()
+
+    async def verify_all_partitions_active(self) -> None:
+        now = monotonic()
+        for tp in self.assignment():
+            await self.sleep(0)
+            if not self.should_stop:
+                self.verify_event_path(now, tp)
+
+    def verify_event_path(self, now: float, tp: TP) -> None:
+        ...
 
     async def commit(self, topics: TPorTopicSet = None,
                      start_new_transaction: bool = True) -> bool:
@@ -940,8 +931,6 @@ class Consumer(Service, ConsumerT):
                 on_timeout.info('-tables.on_commit')
         self._committed_offset.update(committable_offsets)
         self.app.monitor.on_tp_commit(committable_offsets)
-        for tp in offsets:
-            self._last_batch.pop(tp, None)
         return did_commit
 
     def _filter_tps_with_pending_acks(
@@ -1011,14 +1000,13 @@ class Consumer(Service, ConsumerT):
 
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
-        get_commit_offset = self._committed_offset.__getitem__
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
         commit_every = self._commit_every
         acks_enabled_for = self.app.topics.acks_enabled_for
 
-        yield_every = 500
+        yield_every = 100
         num_since_yield = 0
         sleep = asyncio.sleep
 
@@ -1026,7 +1014,6 @@ class Consumer(Service, ConsumerT):
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=1.0))
-                last_batch = self._last_batch
 
                 # Sleeping because sometimes getmany is called in a loop
                 # never releasing to the event loop
@@ -1040,9 +1027,6 @@ class Consumer(Service, ConsumerT):
 
                         offset = message.offset
                         r_offset = get_read_offset(tp)
-                        committed_offset = get_commit_offset(tp)
-                        if committed_offset != r_offset:
-                            last_batch[tp] = monotonic()
                         if r_offset is None or offset > r_offset:
                             gap = offset - (r_offset or 0)
                             # We have a gap in income messages

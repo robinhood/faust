@@ -7,7 +7,6 @@ import weakref
 
 from asyncio import CancelledError
 from contextvars import ContextVar
-from time import monotonic
 from typing import (
     Any,
     AsyncIterable,
@@ -113,7 +112,6 @@ class Stream(StreamT[T_co], Service):
     _passive = False
     _finalized = False
     _passive_started: asyncio.Event
-    _timeout_check_future: Optional[asyncio.Future] = None
 
     def __init__(self,
                  channel: AsyncIterator[T_co],
@@ -732,7 +730,6 @@ class Stream(StreamT[T_co], Service):
             await self._on_start()
         if self._passive:
             await self._passive_started.wait()
-        self._timeout_check_future = self.add_future(self._timeout_check())
 
     async def stop(self) -> None:
         """Stop this stream."""
@@ -742,14 +739,6 @@ class Stream(StreamT[T_co], Service):
 
     async def on_stop(self) -> None:
         """Signal that the stream is stopping."""
-        timeout_check_fut, self._timeout_check_future = (
-            self._timeout_check_future, None)
-        if timeout_check_fut is not None and not timeout_check_fut.done():
-            timeout_check_fut.cancel()
-            try:
-                await timeout_check_fut
-            except asyncio.CancelledError:
-                pass
         self._passive = False
         self._passive_started.clear()
         for table_or_stream in self.combined:
@@ -950,24 +939,6 @@ class Stream(StreamT[T_co], Service):
                 await self.stop()
                 # reset to allow calling .start again on next `async for`
                 self.service_reset()
-
-    async def _timeout_check(self) -> None:
-        timeout = self.app.conf.stream_processing_timeout
-        wakeup_freq = 10.0
-        if timeout is not None:
-            time_start = monotonic()
-            current_total = self.events_total
-            async for sleep_time in self.itertimer(wakeup_freq,
-                                                   name='stream-timeout'):
-                time_now = monotonic()
-                if self.events_total and time_now - time_start > timeout:
-                    if self.events_total == current_total:
-                        self.log.info(
-                            'Stream is not moving. '
-                            'If there is no lag then ignore this.'
-                            'current_event=%r', self.current_event)
-                    current_total = self.events_total
-                    time_start = time_now
 
     async def __anext__(self) -> T:  # pragma: no cover
         ...

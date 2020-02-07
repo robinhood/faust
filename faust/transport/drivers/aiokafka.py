@@ -3,6 +3,7 @@ import asyncio
 import typing
 
 from collections import deque
+from time import monotonic
 from typing import (
     Any,
     Awaitable,
@@ -46,7 +47,8 @@ from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
 from mode.utils.objects import cached_property
-from mode.utils.times import Seconds, want_seconds
+from mode.utils import text
+from mode.utils.times import Seconds, humanize_seconds_ago, want_seconds
 from mode.utils.typing import Deque
 from opentracing.ext import tags
 from yarl import URL
@@ -94,6 +96,34 @@ logger = get_logger(__name__)
 DEFAULT_GENERATION_ID = OffsetCommitRequest.DEFAULT_GENERATION_ID
 
 TOPIC_LENGTH_MAX = 249
+
+SLOW_PROCESSING_CAUSE_AGENT = '''\
+The agent processing the stream is hanging (waiting for network, I/O or \
+infinite loop).\
+'''
+
+SLOW_PROCESSING_CAUSE_STREAM = '''\
+The stream has stopped processing events for some reason.\
+'''
+
+
+SLOW_PROCESSING_CAUSE_COMMIT = '''\
+The commit handler background thread has stopped working (report as bug).\
+'''
+
+
+SLOW_PROCESSING_EXPLAINED = '''\
+There are multiple possible explanations for this:
+
+1) The processing of a single event in the stream
+   is taking too long.
+
+    The timeout for this is defined by the %(setting)s setting,
+    currently set to %(current_value)r.  If you expect the time
+    required to process an event, to be greater than this then please
+    increase the timeout.
+
+'''
 
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
@@ -201,16 +231,36 @@ class AIOKafkaConsumerThread(ConsumerThread):
     _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
     _pending_rebalancing_spans: Deque[opentracing.Span]
 
+    tp_last_committed_at: MutableMapping[TP, float]
+    time_started: float
+
+    tp_fetch_request_timeout_secs: float
+    tp_fetch_response_timeout_secs: float
+    tp_stream_timeout_secs: float
+    tp_commit_timeout_secs: float
+
     def __post_init__(self) -> None:
         consumer = cast(Consumer, self.consumer)
         self._partitioner: PartitionerT = (
             self.app.conf.producer_partitioner or DefaultPartitioner())
         self._rebalance_listener = consumer.RebalanceListener(self)
         self._pending_rebalancing_spans = deque()
+        self.tp_last_committed_at = {}
+
+        app = self.consumer.app
+
+        stream_processing_timeout = app.conf.stream_processing_timeout
+        self.tp_fetch_request_timeout_secs = stream_processing_timeout
+        self.tp_fetch_response_timeout_secs = stream_processing_timeout
+        self.tp_stream_timeout_secs = stream_processing_timeout
+
+        commit_livelock_timeout = app.conf.broker_commit_livelock_soft_timeout
+        self.tp_commit_timeout_secs = commit_livelock_timeout
 
     async def on_start(self) -> None:
         """Call when consumer starts."""
         self._consumer = self._create_consumer(loop=self.thread_loop)
+        self.time_started = monotonic()
         await self._consumer.start()
 
     async def on_thread_stop(self) -> None:
@@ -437,11 +487,16 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         consumer = self._ensure_consumer()
+        now = monotonic()
         try:
             aiokafka_offsets = {
                 tp: OffsetAndMetadata(offset, '')
                 for tp, offset in offsets.items()
             }
+            self.tp_last_committed_at.update({
+                tp: now
+                for tp in offsets
+            })
             await consumer.commit(aiokafka_offsets)
         except CommitFailedError as exc:
             if 'already rebalanced' in str(exc):
@@ -456,6 +511,166 @@ class AIOKafkaConsumerThread(ConsumerThread):
             await self.crash(exc)
             return False
         return True
+
+    def verify_event_path(self, now: float, tp: TP) -> None:
+        # long function ahead, but not difficult to test
+        # as it always returns as soon as some condition is met.
+
+        parent = cast(Consumer, self.consumer)
+        app = parent.app
+        consumer = self._ensure_consumer()
+        monitor = app.monitor
+        acks_enabled_for = app.topics.acks_enabled_for
+        aiotp = parent._new_topicpartition(tp.topic, tp.partition)
+        secs_since_started = now - self.time_started
+
+        request_at = consumer.records_last_request.get(aiotp)
+        if request_at is None:
+            if secs_since_started >= self.tp_fetch_request_timeout_secs:
+                # NO FETCH REQUEST SENT AT ALL SINCE WORKER START
+                self.log.error(
+                    'Aiokafka has not sent fetch request for %r since start ',
+                    '(started %s)',
+                    tp, humanize_seconds_ago(secs_since_started),
+                )
+            return None
+
+        response_at = consumer.records_last_response.get(aiotp) or 0.0
+        if response_at is None:
+            if secs_since_started >= self.tp_fetch_response_timeout_secs:
+                # NO FETCH RESPONSE RECEIVED AT ALL SINCE WORKER START
+                self.log.error(
+                    'Aiokafka has not received fetch response for %r since '
+                    'start (started %s)',
+                    tp, humanize_seconds_ago(secs_since_started),
+                )
+            return None
+
+        secs_since_request = now - request_at
+        if secs_since_request >= self.tp_fetch_request_timeout_secs:
+            # NO REQUEST SENT BY AIOKAFKA IN THE LAST n SECONDS
+            self.log.error(
+                'Aiokafka stopped fetching from %r (last done %s)',
+                tp,
+                humanize_seconds_ago(secs_since_request),
+            )
+            return None
+
+        secs_since_response = now - response_at
+        if secs_since_response >= self.tp_fetch_response_timeout_secs:
+            # NO RESPONSE RECEIVED FROM KAKFA IN THE LAST n SECONDS
+            self.log.error(
+                'Broker stopped responding to fetch requests for %r '
+                '(last responded %s)',
+                tp,
+                humanize_seconds_ago(secs_since_response),
+            )
+            return None
+
+        if monitor is not None:  # need for .stream_inbound_time
+            highwater = self.highwater(tp)
+            committed_offset = parent._committed_offset.get(tp)
+            has_acks = acks_enabled_for(tp.topic)
+            if highwater is None:
+                if secs_since_started >= self.tp_stream_timeout_secs:
+                    # AIOKAFKA HAS NOT UPDATED HIGHWATER SINCE STARTING
+                    self.log.error(
+                        'Highwater not yet available for %r ',
+                        '(started %s)',
+                        tp, humanize_seconds_ago(secs_since_started),
+                    )
+                return None
+
+            if has_acks and committed_offset is not None:
+                if highwater > committed_offset:
+                    inbound = monitor.stream_inbound_time.get(tp)
+                    if inbound is None:
+                        if secs_since_started >= self.tp_stream_timeout_secs:
+                            # AIOKAFKA IS FETCHING BUT STREAM IS NOT
+                            # PROCESSING EVENTS (no events at all since
+                            # start).
+                            self._log_slow_processing_stream(
+                                'Stream has not started processing %r ',
+                                '(started %s)',
+                                tp, humanize_seconds_ago(secs_since_started),
+                            )
+                        return None
+
+                    secs_since_stream = now - inbound
+                    if secs_since_stream >= self.tp_stream_timeout_secs:
+                        # AIOKAFKA IS FETCHING, AND STREAM WAS WORKING
+                        # BEFORE BUT NOW HAS STOPPED PROCESSING
+                        # (or processing of an event in the stream takes
+                        #  longer than tp_stream_timeout_secs).
+                        self._log_slow_processing_stream(
+                            'Stream stopped processing, or is slow for %r '
+                            '(last inbound %s)',
+                            tp, humanize_seconds_ago(secs_since_stream),
+                        )
+                        return None
+
+                    last_commit = self.tp_last_committed_at.get(tp)
+                    if last_commit is None:
+                        if secs_since_started >= self.tp_commit_timeout_secs:
+                            # AIOKAFKA IS FETCHING AND STREAM IS PROCESSING
+                            # BUT WE HAVE NOT COMMITTED ANYTHING SINCE WORKER
+                            # START.
+                            self._log_slow_processing_commit(
+                                'Has not committed %r at all since worker '
+                                'start (started %s)',
+                                tp, humanize_seconds_ago(secs_since_started),
+                            )
+                            return None
+                    else:
+                        secs_since_commit = now - last_commit
+                        if secs_since_commit >= self.tp_commit_timeout_secs:
+                            # AIOKAFKA IS FETCHING AND STREAM IS PROCESSING
+                            # BUT WE HAVE NOT COMITTED ANYTHING IN A WHILE
+                            # (commit offset is not advancing).
+                            self._log_slow_processing_commit(
+                                'Has not committed %r (last commit %s).',
+                                'broker_commit_livelock_soft_timeout',
+                                tp, humanize_seconds_ago(secs_since_commit),
+                            )
+                            return None
+
+    def _log_slow_processing_stream(self, msg: str, *args: Any) -> None:
+        app = self.consumer.app
+        self._log_slow_processing(
+            msg, *args,
+            causes=[
+                SLOW_PROCESSING_CAUSE_STREAM,
+                SLOW_PROCESSING_CAUSE_AGENT,
+            ],
+            setting='stream_processing_timeout',
+            current_value=app.conf.stream_processing_timeout,
+        )
+
+    def _log_slow_processing_commit(self, msg: str, *args: Any) -> None:
+        app = self.consumer.app
+        self._log_slow_processing(
+            msg, *args,
+            causes=[SLOW_PROCESSING_CAUSE_COMMIT],
+            setting='broker_commit_livelock_soft_timeout',
+            current_value=app.conf.broker_commit_livelock_soft_timeout,
+        )
+
+    def _log_slow_processing(self, msg: str, *args: Any,
+                             causes: Iterable[str],
+                             setting: str,
+                             current_value: float) -> None:
+        message = ' '.join([
+            msg,
+            SLOW_PROCESSING_EXPLAINED,
+            text.enumeration(causes, start=2, sep='\n\n'),
+        ])
+        return self.log.error(
+            message,
+            *args,
+            causes=causes,
+            setting=setting,
+            current_value=current_value,
+        )
 
     async def position(self, tp: TP) -> Optional[int]:
         """Return the current position for topic partition."""
