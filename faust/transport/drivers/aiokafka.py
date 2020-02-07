@@ -535,7 +535,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                 )
             return None
 
-        response_at = consumer.records_last_response.get(aiotp) or 0.0
+        response_at = consumer.records_last_response.get(aiotp)
         if response_at is None:
             if secs_since_started >= self.tp_fetch_response_timeout_secs:
                 # NO FETCH RESPONSE RECEIVED AT ALL SINCE WORKER START
