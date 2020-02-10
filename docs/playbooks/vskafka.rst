@@ -31,7 +31,7 @@ KStream
 
     .. sourcecode:: python
 
-        @app.agent(Topic)
+        @app.agent(topic)
         async def process(stream):
             async for key, event in stream.items():
                 yield myfun(key, event)
