@@ -1,8 +1,5 @@
 REFBASE = 'http://faust.readthedocs.io/en/latest'
 REFS = {
-    'mailing-list':
-        'https://groups.google.com/group/faust-users',
-    'irc-channel': 'getting-started/resources.html#irc-channel',
     'slack-channel': 'getting-started/resources.html#slack-channel',
     'bundles': 'introduction/installation.html#bundles',
     'reporting-bugs': 'contributing.html#reporting-bugs',

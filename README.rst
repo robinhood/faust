@@ -446,24 +446,16 @@ Faust supports kafka with version >= 0.10.
 Getting Help
 ============
 
-.. _mailing-list:
-
-Mailing list
-------------
-
-For discussions about the usage, development, and future of Faust,
-please join the `faust-users`_ mailing list.
-
-.. _`faust-users`: https://groups.google.com/group/faust-users/
-
 .. _slack-channel:
 
 Slack
 -----
 
-Come chat with us on Slack:
+For discussions about the usage, development, and future of Faust,
+please join the `fauststream`_ Slack.
 
-https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg
+* https://fauststream.slack.com
+* Sign-up: https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg
 
 Resources
 =========
