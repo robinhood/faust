@@ -119,7 +119,7 @@ If you'd like to submit the information encrypted our PGP key is::
 Other bugs
 ----------
 
-Bugs can always be described to the `mailing-list`_, but the best
+Bugs can always be described to the `slack-channel`_, but the best
 way to report an issue and to ensure a timely response is to use the
 issue tracker.
 
@@ -133,7 +133,7 @@ and participate in the discussion.
 2) **Determine if your bug is really a bug**.
 
 You shouldn't file a bug if you're requesting support. For that you can use
-the `mailing-list`_, or `slack-channel`_.
+the `slack-channel`_.
 
 3) **Make sure your bug hasn't already been reported**.
 
@@ -204,7 +204,7 @@ issue tracker.
 * ``Mode`` - https://github.com/ask/mode/issues
 
 If you're unsure of the origin of the bug you can ask the
-`mailing-list`_, or just use the Faust issue tracker.
+`slack-channel`_, or just use the Faust issue tracker.
 
 Contributors guide to the code base
 ===================================
@@ -908,8 +908,6 @@ following:
     the ``1.0`` branch for the 1.0 series.
 
 * Also add the previous version under the "versions" tab.
-
-.. _`mailing-list`: https://groups.google.com/group/faust-users
 
 .. _`slack-channel`: http://faust.readthedocs.io/en/latest/getting-started/resources.html#slack-channel
 
