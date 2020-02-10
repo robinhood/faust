@@ -97,22 +97,23 @@ DEFAULT_GENERATION_ID = OffsetCommitRequest.DEFAULT_GENERATION_ID
 
 TOPIC_LENGTH_MAX = 249
 
-SLOW_PROCESSING_CAUSE_AGENT = '''\
+SLOW_PROCESSING_CAUSE_AGENT = '''
 The agent processing the stream is hanging (waiting for network, I/O or \
-infinite loop).\
-'''
+infinite loop).
+'''.strip()
 
-SLOW_PROCESSING_CAUSE_STREAM = '''\
-The stream has stopped processing events for some reason.\
-'''
-
-
-SLOW_PROCESSING_CAUSE_COMMIT = '''\
-The commit handler background thread has stopped working (report as bug).\
-'''
+SLOW_PROCESSING_CAUSE_STREAM = '''
+The stream has stopped processing events for some reason.
+'''.strip()
 
 
-SLOW_PROCESSING_EXPLAINED = '''\
+SLOW_PROCESSING_CAUSE_COMMIT = '''
+The commit handler background thread has stopped working (report as bug).
+'''.strip()
+
+
+SLOW_PROCESSING_EXPLAINED = '''
+
 There are multiple possible explanations for this:
 
 1) The processing of a single event in the stream
@@ -124,6 +125,42 @@ There are multiple possible explanations for this:
     increase the timeout.
 
 '''
+
+SLOW_PROCESSING_NO_FETCH_SINCE_START = '''
+Aiokafka has not sent fetch request for %r since start (started %s)
+'''.strip()
+
+SLOW_PROCESSING_NO_RESPONSE_SINCE_START = '''
+Aiokafka has not received fetch response for %r since start (started %s)
+'''.strip()
+
+SLOW_PROCESSING_NO_RECENT_FETCH = '''
+Aiokafka stopped fetching from %r (last done %s)
+'''.strip()
+
+SLOW_PROCESSING_NO_RECENT_RESPONSE = '''
+Broker stopped responding to fetch requests for %r (last responded %s)
+'''.strip()
+
+SLOW_PROCESSING_NO_HIGHWATER_SINCE_START = '''
+Highwater not yet available for %r (started %s).
+'''.strip()
+
+SLOW_PROCESSING_STREAM_IDLE_SINCE_START = '''
+Stream has not started processing %r (started %s).
+'''.strip()
+
+SLOW_PROCESSING_STREAM_IDLE = '''
+Stream stopped processing, or is slow for %r (last inbound %s).
+'''.strip()
+
+SLOW_PROCESSING_NO_COMMIT_SINCE_START = '''
+Has not committed %r at all since worker start (started %s).
+'''.strip()
+
+SLOW_PROCESSING_NO_RECENT_COMMIT = '''
+Has not committed %r (last commit %s).
+'''.strip()
 
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
@@ -529,8 +566,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             if secs_since_started >= self.tp_fetch_request_timeout_secs:
                 # NO FETCH REQUEST SENT AT ALL SINCE WORKER START
                 self.log.error(
-                    'Aiokafka has not sent fetch request for %r since start ',
-                    '(started %s)',
+                    SLOW_PROCESSING_NO_FETCH_SINCE_START,
                     tp, humanize_seconds_ago(secs_since_started),
                 )
             return None
@@ -540,8 +576,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             if secs_since_started >= self.tp_fetch_response_timeout_secs:
                 # NO FETCH RESPONSE RECEIVED AT ALL SINCE WORKER START
                 self.log.error(
-                    'Aiokafka has not received fetch response for %r since '
-                    'start (started %s)',
+                    SLOW_PROCESSING_NO_RESPONSE_SINCE_START,
                     tp, humanize_seconds_ago(secs_since_started),
                 )
             return None
@@ -550,7 +585,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         if secs_since_request >= self.tp_fetch_request_timeout_secs:
             # NO REQUEST SENT BY AIOKAFKA IN THE LAST n SECONDS
             self.log.error(
-                'Aiokafka stopped fetching from %r (last done %s)',
+                SLOW_PROCESSING_NO_RECENT_FETCH,
                 tp,
                 humanize_seconds_ago(secs_since_request),
             )
@@ -560,8 +595,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         if secs_since_response >= self.tp_fetch_response_timeout_secs:
             # NO RESPONSE RECEIVED FROM KAKFA IN THE LAST n SECONDS
             self.log.error(
-                'Broker stopped responding to fetch requests for %r '
-                '(last responded %s)',
+                SLOW_PROCESSING_NO_RECENT_RESPONSE,
                 tp,
                 humanize_seconds_ago(secs_since_response),
             )
@@ -575,8 +609,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                 if secs_since_started >= self.tp_stream_timeout_secs:
                     # AIOKAFKA HAS NOT UPDATED HIGHWATER SINCE STARTING
                     self.log.error(
-                        'Highwater not yet available for %r ',
-                        '(started %s)',
+                        SLOW_PROCESSING_NO_HIGHWATER_SINCE_START,
                         tp, humanize_seconds_ago(secs_since_started),
                     )
                 return None
@@ -590,8 +623,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                             # PROCESSING EVENTS (no events at all since
                             # start).
                             self._log_slow_processing_stream(
-                                'Stream has not started processing %r ',
-                                '(started %s)',
+                                SLOW_PROCESSING_STREAM_IDLE_SINCE_START,
                                 tp, humanize_seconds_ago(secs_since_started),
                             )
                         return None
@@ -603,8 +635,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                         # (or processing of an event in the stream takes
                         #  longer than tp_stream_timeout_secs).
                         self._log_slow_processing_stream(
-                            'Stream stopped processing, or is slow for %r '
-                            '(last inbound %s)',
+                            SLOW_PROCESSING_STREAM_IDLE,
                             tp, humanize_seconds_ago(secs_since_stream),
                         )
                         return None
@@ -616,8 +647,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                             # BUT WE HAVE NOT COMMITTED ANYTHING SINCE WORKER
                             # START.
                             self._log_slow_processing_commit(
-                                'Has not committed %r at all since worker '
-                                'start (started %s)',
+                                SLOW_PROCESSING_NO_COMMIT_SINCE_START,
                                 tp, humanize_seconds_ago(secs_since_started),
                             )
                             return None
@@ -628,8 +658,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
                             # BUT WE HAVE NOT COMITTED ANYTHING IN A WHILE
                             # (commit offset is not advancing).
                             self._log_slow_processing_commit(
-                                'Has not committed %r (last commit %s).',
-                                'broker_commit_livelock_soft_timeout',
+                                SLOW_PROCESSING_NO_RECENT_COMMIT,
                                 tp, humanize_seconds_ago(secs_since_commit),
                             )
                             return None
@@ -655,19 +684,22 @@ class AIOKafkaConsumerThread(ConsumerThread):
             current_value=app.conf.broker_commit_livelock_soft_timeout,
         )
 
-    def _log_slow_processing(self, msg: str, *args: Any,
-                             causes: Iterable[str],
-                             setting: str,
-                             current_value: float) -> None:
-        message = ' '.join([
+    def _make_slow_processing_error(self,
+                                    msg: str,
+                                    causes: Iterable[str]) -> str:
+        return ' '.join([
             msg,
             SLOW_PROCESSING_EXPLAINED,
             text.enumeration(causes, start=2, sep='\n\n'),
         ])
+
+    def _log_slow_processing(self, msg: str, *args: Any,
+                             causes: Iterable[str],
+                             setting: str,
+                             current_value: float) -> None:
         return self.log.error(
-            message,
+            self._make_slow_processing_error(msg, causes),
             *args,
-            causes=causes,
             setting=setting,
             current_value=current_value,
         )

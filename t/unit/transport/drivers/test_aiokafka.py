@@ -1,16 +1,19 @@
-from contextlib import contextmanager
 import aiokafka
 import faust
 import opentracing
 import pytest
 import random
 import string
+from contextlib import contextmanager
+from typing import Optional
 
 from aiokafka.errors import CommitFailedError, IllegalStateError, KafkaError
 from aiokafka.structs import OffsetAndMetadata, TopicPartition
 from opentracing.ext import tags
 from faust import auth
 from faust.exceptions import ImproperlyConfigured, NotReady
+from faust.sensors.monitor import Monitor
+from faust.transport.drivers import aiokafka as mod
 from faust.transport.drivers.aiokafka import (
     AIOKafkaConsumerThread,
     Consumer,
@@ -26,7 +29,7 @@ from faust.transport.drivers.aiokafka import (
 )
 from faust.types import TP
 from mode.utils.futures import done_future
-from mode.utils.mocks import AsyncMock, MagicMock, Mock, call, patch
+from mode.utils.mocks import ANY, AsyncMock, MagicMock, Mock, call, patch
 
 TP1 = TP('topic', 23)
 TP2 = TP('topix', 23)
@@ -231,7 +234,7 @@ class test_Consumer:
         assert not consumer.transport._topic_waiters
 
 
-class test_AIOKafkaConsumerThread:
+class AIOKafkaConsumerThreadFixtures:
 
     @pytest.fixture()
     def cthread(self, *, consumer):
@@ -267,6 +270,384 @@ class test_AIOKafkaConsumerThread:
             position=AsyncMock(),
             end_offsets=AsyncMock(),
         )
+
+    @pytest.fixture()
+    def now(self):
+        return 1201230410
+
+    @pytest.fixture()
+    def tp(self):
+        return TP('foo', 30)
+
+    @pytest.fixture()
+    def aiotp(self, *, tp):
+        return TopicPartition(tp.topic, tp.partition)
+
+    @pytest.fixture()
+    def logger(self, *, cthread):
+        cthread.log = Mock(name='cthread.log')
+        return cthread.log
+
+
+class test_verify_event_path_base(AIOKafkaConsumerThreadFixtures):
+
+    last_request: Optional[float] = None
+    last_response: Optional[float] = None
+    highwater: int = 1
+    committed_offset: int = 1
+    acks_enabled: bool = False
+    stream_inbound: Optional[float] = None
+    last_commit: Optional[float] = None
+    expected_message: Optional[str] = None
+    has_monitor = True
+
+    def _set_started(self, t):
+        self._cthread.time_started = t
+
+    def _set_last_request(self, last_request):
+        self.__consumer.records_last_request[self._aiotp] = last_request
+
+    def _set_last_response(self, last_response):
+        self.__consumer.records_last_response[self._aiotp] = last_response
+
+    def _set_stream_inbound(self, inbound_time):
+        self._app.monitor.stream_inbound_time[self._tp] = inbound_time
+
+    def _set_last_commit(self, commit_time):
+        self._cthread.tp_last_committed_at[self._tp] = commit_time
+
+    @pytest.fixture(autouse=True)
+    def aaaa_setup_attributes(self, *,
+                              app,
+                              cthread,
+                              _consumer,
+                              now,
+                              tp,
+                              aiotp):
+        self._app = app
+        self._tp = tp
+        self._aiotp = aiotp
+        self._now = now
+        self._cthread = cthread
+        self.__consumer = _consumer
+
+    @pytest.fixture(autouse=True)
+    def setup_consumer(self, *, app, cthread, _consumer, now, tp, aiotp):
+        assert self._tp is tp
+        assert self._aiotp is aiotp
+        # patch self.acks_enabledc
+        app.topics.acks_enabled_for = Mock(name='acks_enabled_for')
+        app.topics.acks_enabled_for.return_value = self.acks_enabled
+
+        # patch consumer.time_started
+        self._set_started(now)
+
+        # connect underlying AIOKafkaConsumer object.
+        cthread._consumer = _consumer
+
+        # patch AIOKafkaConsumer.records_last_request to self.last_request
+        _consumer.records_last_request = {}
+        if self.last_request is not None:
+            self._set_last_request(self.last_request)
+
+        # patch AIOKafkaConsumer.records_last_response to self.last_response
+        _consumer.records_last_response = {}
+        if self.last_response is not None:
+            self._set_last_response(self.last_response)
+
+        # patch app.monitor
+        if self.has_monitor:
+            cthread.consumer.app.monitor = Mock(name='monitor', spec=Monitor)
+            app.monitor = cthread.consumer.app.monitor
+            app.monitor = Mock(name='monitor', spec=Monitor)
+            # patch monitor.stream_inbound_time
+            # this is the time when a stream last processed a record
+            # for tp
+            app.monitor.stream_inbound_time = {}
+            self._set_stream_inbound(self.stream_inbound)
+        else:
+            app.monitor = None
+
+        # patch highwater
+        cthread.highwater = Mock(name='highwater')
+        cthread.highwater.return_value = self.highwater
+
+        # patch committed offset
+        cthread.consumer._committed_offset = {
+            tp: self.committed_offset,
+        }
+
+        cthread.tp_last_committed_at = {}
+        self._set_last_commit(self.last_commit)
+
+    def test_state(self, *, cthread, now):
+        # verify that setup_consumer fixture was applied
+        assert cthread.time_started == now
+
+
+class test_VEP_no_fetch_since_start(test_verify_event_path_base):
+
+    def test_just_started(self, *, cthread, now, tp, logger):
+        self._set_started(now - 2.0)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out(self, *, cthread, now, tp, logger):
+        self._set_started(
+            now - cthread.tp_fetch_request_timeout_secs * 2,
+        )
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_called_with(
+            mod.SLOW_PROCESSING_NO_FETCH_SINCE_START,
+            ANY, ANY,
+        )
+
+
+class test_VEP_no_response_since_start(test_verify_event_path_base):
+
+    def test_just_started(self, *, cthread, _consumer, now, tp, logger):
+        self._set_last_request(now - 5.0)
+        self._set_started(now - 2.0)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out(self, *, cthread, _consumer, now, tp, logger):
+        assert cthread.verify_event_path(now, tp) is None
+        self._set_last_request(now - 5.0)
+        self._set_started(
+            now - cthread.tp_fetch_response_timeout_secs * 2,
+        )
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_called_with(
+            mod.SLOW_PROCESSING_NO_RESPONSE_SINCE_START,
+            ANY, ANY,
+        )
+
+
+class test_VEP_no_recent_fetch(test_verify_event_path_base):
+
+    def test_recent_fetch(self, *, cthread, now, tp, logger):
+        self._set_last_response(now - 30.0)
+        self._set_last_request(now - 2.0)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out(self, *, cthread, now, tp, logger):
+        self._set_last_response(now - 30.0)
+        self._set_last_request(now - cthread.tp_fetch_request_timeout_secs * 2)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_called_with(
+            mod.SLOW_PROCESSING_NO_RECENT_FETCH,
+            ANY, ANY,
+        )
+
+
+class test_VEP_no_recent_response(test_verify_event_path_base):
+
+    def test_recent_response(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 2.0)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(
+            now - cthread.tp_fetch_response_timeout_secs * 2)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_called_with(
+            mod.SLOW_PROCESSING_NO_RECENT_RESPONSE,
+            ANY, ANY,
+        )
+
+
+class test_VEP_no_highwater_since_start(test_verify_event_path_base):
+    highwater = None
+
+    def test_no_monitor(self, *, app, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now)
+        app.monitor = None
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_just_started(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - cthread.tp_stream_timeout_secs * 2)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_called_with(
+            mod.SLOW_PROCESSING_NO_HIGHWATER_SINCE_START,
+            ANY, ANY,
+        )
+
+
+class test_VEP_stream_idle_no_highwater(test_verify_event_path_base):
+
+    highwater = 10
+    committed_offset = 10
+
+    def test_highwater_same_as_offset(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - 300.0)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+
+class test_VEP_stream_idle_highwater_no_acks(
+        test_verify_event_path_base):
+    acks_enabled = False
+
+    def test_no_acks(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+
+class test_VEP_stream_idle_highwater_same_has_acks_everything_OK(
+        test_verify_event_path_base):
+    highwater = 10
+    committed_offset = 10
+    inbound_time = None
+    acks_enabled = True
+
+    def test_main(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+
+class test_VEP_stream_idle_highwater_no_inbound(
+        test_verify_event_path_base):
+    highwater = 20
+    committed_offset = 10
+    inbound_time = None
+    acks_enabled = True
+
+    def test_just_started(self, *, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out_since_start(self, *, app, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - cthread.tp_stream_timeout_secs * 2)
+        assert cthread.verify_event_path(now, tp) is None
+        expected_message = cthread._make_slow_processing_error(
+            mod.SLOW_PROCESSING_STREAM_IDLE_SINCE_START,
+            [mod.SLOW_PROCESSING_CAUSE_STREAM,
+             mod.SLOW_PROCESSING_CAUSE_AGENT])
+        logger.error.assert_called_once_with(
+            expected_message,
+            tp, ANY,
+            setting='stream_processing_timeout',
+            current_value=app.conf.stream_processing_timeout,
+        )
+
+    def test_has_inbound(self, *, app, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - cthread.tp_stream_timeout_secs * 2)
+        self._set_stream_inbound(now)
+        self._set_last_commit(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_inbound_timed_out(self, *, app, cthread, now, tp, logger):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - cthread.tp_stream_timeout_secs * 4)
+        self._set_stream_inbound(now - cthread.tp_stream_timeout_secs * 2)
+        self._set_last_commit(now)
+        assert cthread.verify_event_path(now, tp) is None
+        expected_message = cthread._make_slow_processing_error(
+            mod.SLOW_PROCESSING_STREAM_IDLE,
+            [mod.SLOW_PROCESSING_CAUSE_STREAM,
+             mod.SLOW_PROCESSING_CAUSE_AGENT])
+        logger.error.assert_called_once_with(
+            expected_message,
+            tp, ANY,
+            setting='stream_processing_timeout',
+            current_value=app.conf.stream_processing_timeout,
+        )
+
+
+class test_VEP_no_commit(test_verify_event_path_base):
+    highwater = 20
+    committed_offset = 10
+    inbound_time = None
+    acks_enabled = True
+
+    def _configure(self, now, cthread):
+        self._set_last_request(now - 10.0)
+        self._set_last_response(now - 5.0)
+        self._set_started(now - cthread.tp_stream_timeout_secs * 4)
+        self._set_stream_inbound(now - 0.01)
+
+    def test_just_started(self, *, cthread, now, tp, logger):
+        self._configure(now, cthread)
+        self._set_last_commit(None)
+        self._set_started(now)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+    def test_timed_out_since_start(self, *, app, cthread, now, tp, logger):
+        self._configure(now, cthread)
+        self._set_last_commit(None)
+        self._set_started(now - cthread.tp_commit_timeout_secs * 2)
+        assert cthread.verify_event_path(now, tp) is None
+        expected_message = cthread._make_slow_processing_error(
+            mod.SLOW_PROCESSING_NO_COMMIT_SINCE_START,
+            [mod.SLOW_PROCESSING_CAUSE_COMMIT],
+        )
+        logger.error.assert_called_once_with(
+            expected_message,
+            tp, ANY,
+            setting='broker_commit_livelock_soft_timeout',
+            current_value=app.conf.broker_commit_livelock_soft_timeout,
+        )
+
+    def test_timed_out_since_last(self, *, app, cthread, now, tp, logger):
+        self._configure(now, cthread)
+        self._set_last_commit(cthread.tp_commit_timeout_secs * 2)
+        self._set_started(now - cthread.tp_commit_timeout_secs * 4)
+        assert cthread.verify_event_path(now, tp) is None
+        expected_message = cthread._make_slow_processing_error(
+            mod.SLOW_PROCESSING_NO_RECENT_COMMIT,
+            [mod.SLOW_PROCESSING_CAUSE_COMMIT],
+        )
+        logger.error.assert_called_once_with(
+            expected_message,
+            tp, ANY,
+            setting='broker_commit_livelock_soft_timeout',
+            current_value=app.conf.broker_commit_livelock_soft_timeout,
+        )
+
+    def test_committing_fine(self, *, app, cthread, now, tp, logger):
+        self._configure(now, cthread)
+        self._set_last_commit(now - 2.0)
+        self._set_started(now - cthread.tp_commit_timeout_secs * 4)
+        assert cthread.verify_event_path(now, tp) is None
+        logger.error.assert_not_called()
+
+
+class test_AIOKafkaConsumerThread(AIOKafkaConsumerThreadFixtures):
 
     def test_constructor(self, *, cthread):
         assert cthread._partitioner
