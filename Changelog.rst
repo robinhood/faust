@@ -8,6 +8,32 @@ This document contain change notes for bugfix releases in
 the Faust 1.10 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.10.2:
+
+1.10.2
+======
+:release-date: 2020-02-10 3:54 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+  + Now depends on :ref:`Mode 4.3.1 <mode:version-4.3.0>`.
+
+  + Now depends on :pypi:`robinhood-aiokafka` 1.1.4
+
+- Aiokafka: Livelock and stream timeouts replaced with better instrumentation.
+
+    This will let us better isolate what the cause of
+    a stream not processing events, or the worker not committing is.
+
+    The worker now logs if:
+
+    1) aiokafka stopped sending fetch requests
+    2) kafka stopped responding to fetch requests
+    3) aiokafka stopped updating highwater offset.
+    4) a stream stopped processing events.
+    5) the worker stopped committing offsets.
+
 .. _version-1.10.1:
 
 1.10.1
