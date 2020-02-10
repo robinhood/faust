@@ -815,7 +815,7 @@ You can also add services at runtime in application subclasses:
 Application Signals
 ===================
 
-You may have experience signals in other frameworks such as `Django`_
+You may have experience with signals in other frameworks such as `Django`_
 and `Celery`_.
 
 The main difference between signals in Faust is that they accept

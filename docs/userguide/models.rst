@@ -660,7 +660,7 @@ is not used.
 Fields with the same name as a reserved keyword
 -----------------------------------------------
 
-Sometimes data you want to describe data will contan
+Sometimes the data you want to describe will contain
 field names that collide with a reserved Python keyword.
 
 One such example is a field named ``in``. You cannot define
