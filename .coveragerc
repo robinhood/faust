@@ -46,4 +46,6 @@ exclude_lines =
 
     if sys.platform == 'win32':
 
+    if DEBUG:
+
     \@abc\.abstractmethod

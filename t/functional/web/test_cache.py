@@ -13,7 +13,7 @@ DEFAULT_TIMEOUT = 361.363
 VIEW_B_TIMEOUT = 64.3
 
 blueprint = Blueprint('test')
-cache = blueprint.cache(timeout=DEFAULT_TIMEOUT)
+cache = blueprint.cache(timeout=None)
 
 
 class ResponseModel(faust.Record):
@@ -27,7 +27,7 @@ class ACachedView(View):
     def __post_init__(self) -> None:
         self.counter = count()
 
-    @cache.view()
+    @cache.view(timeout=DEFAULT_TIMEOUT)
     async def get(self, request):
         return await self._next_response(request)
 
@@ -52,6 +52,14 @@ class CCachedView(ACachedView):
     ...
 
 
+@blueprint.route('/D/', name='d')
+class DCachedView(ACachedView):
+
+    @cache.view(timeout=None)
+    async def get(self, request):
+        return await self._next_response(request)
+
+
 def test_cache():
     assert cache.key_prefix == 'test'
 
@@ -67,6 +75,36 @@ async def test_cached_view__HEAD(*, app, bp, web_client, web):
         assert response.status == 200
         response2 = await client.head(urlA)
         assert response2.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+async def test_cached_view__redis_no_timeout(
+        *, app, bp, web_client, web, mocked_redis):
+    async with app.cache:
+        client = await web_client
+        urlD = web.url_for('test:d')
+        response = await client.get(urlD)
+        assert response.status == 200
+        content = await response.read()
+        response2 = await client.get(urlD)
+        assert response2.status == 200
+        assert await response2.read() == content
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='memory://')
+async def test_cached_view__memory_no_timeout(
+        *, app, bp, web_client, web, mocked_redis):
+    async with app.cache:
+        client = await web_client
+        urlD = web.url_for('test:d')
+        response = await client.get(urlD)
+        assert response.status == 200
+        content = await response.read()
+        response2 = await client.get(urlD)
+        assert response2.status == 200
+        assert await response2.read() == content
 
 
 @pytest.mark.asyncio

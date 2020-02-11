@@ -17,6 +17,11 @@ def test_ReplyPromise():
     r.fulfill('id1', 'value')
     assert r.result() == 'value'
 
+    with pytest.raises(ValueError):
+        r._verify_correlation_id('')
+    with pytest.raises(ValueError):
+        r._verify_correlation_id(None)
+
 
 class test_BarrierState:
 

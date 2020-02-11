@@ -160,7 +160,9 @@ class Fetcher(Service):
                     break
                 except asyncio.TimeoutError:
                     self.log.warning('Fetcher is ignoring cancel or slow :(')
-                else:
+                else:  # pragma: no cover
+                    # coverage does not record this line as being executed
+                    # but I've verified that it is [ask]
                     break
 
     @Service.task

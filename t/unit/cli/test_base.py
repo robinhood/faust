@@ -659,6 +659,10 @@ class test_AppCommand:
                 prefix='prefix',
             )
 
+    def test_abbreviate_fqdn__no_origin(self, *, command, ctx):
+        command.app.conf.origin = None
+        assert command.abbreviate_fqdn('foo') == ''
+
     def test_from_handler_no_params(self, *, command):
         @command.from_handler()
         async def takes_no_args():

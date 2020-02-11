@@ -246,6 +246,24 @@ class test_Case:
             await case._send_frequency(case)
 
     @pytest.mark.asyncio
+    async def test__send_frequency__no_frequency(self, *, case, loop):
+        case.frequency = 0.0
+        case.sleep = AsyncMock()
+        case.make_fake_request = AsyncMock()
+        with patch('mode.services.Timer') as ti:
+
+            async def on_itertimer(*args, **kwargs):
+                case._stopped.set()
+                yield 0.1
+                yield 0.2
+                yield 0.3
+                yield 0.4
+            ti.side_effect = on_itertimer
+
+            await case._send_frequency(case)
+        case.make_fake_request.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test__send_frequency__last_stop(self, *, case):
         case.frequency = 0.1
         case.sleep = AsyncMock()
@@ -267,7 +285,7 @@ class test_Case:
             await case._send_frequency(case)
 
     @pytest.mark.asyncio
-    async def test__send_frequency__no_frequency(self, *, case):
+    async def test__send_frequency__no_frequency_None(self, *, case):
         case.frequency = None
         await case._send_frequency(case)
 

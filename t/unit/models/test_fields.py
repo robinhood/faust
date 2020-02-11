@@ -1,8 +1,14 @@
 from decimal import Decimal
 import pytest
+from mode.utils.mocks import Mock
 from faust import Record
 from faust.exceptions import ValidationError
-from faust.models.fields import BytesField, DecimalField, FieldDescriptor
+from faust.models.fields import (
+    BooleanField,
+    BytesField,
+    DecimalField,
+    FieldDescriptor,
+)
 
 
 class X(Record):
@@ -31,6 +37,67 @@ class test_FieldDescriptor:
     def test_validate(self):
         f = FieldDescriptor()
         assert list(f.validate('foo')) == []
+
+
+class test_BooleanField:
+
+    @pytest.fixture()
+    def model(self):
+        model = Mock(name='model')
+        model.__name__ = 'Model'
+        return model
+
+    @pytest.fixture()
+    def field(self, *, model):
+        return self._new_field(model, required=True)
+
+    def _new_field(self, model, required: bool, **kwargs) -> BooleanField:
+        return BooleanField(
+            field='foo',
+            type=bool,
+            required=True,
+            model=model,
+            coerce=True,
+            **kwargs,
+        )
+
+    @pytest.mark.parametrize('value', [
+        True,
+        False,
+    ])
+    def test_validate_bool(self, value, *, field):
+        assert not list(field.validate(value))
+
+    @pytest.mark.parametrize('value', [
+        '',
+        None,
+        12,
+        3.2,
+        object,
+    ])
+    def test_validate_other(self, value, *, field):
+        errors = list(field.validate(value))
+        assert errors
+        assert str(errors[0]).startswith(
+            'foo must be True or False, of type bool')
+
+    @pytest.mark.parametrize('value,expected', [
+        ('', False),
+        ('foo', True),
+        (0, False),
+        (1, True),
+        (999, True),
+        (object(), True),
+        (None, False),
+        ({}, False),
+        ([], False),
+        ([1], True),
+    ])
+    def test_prepare_value__when_coerce(self, value, expected, *, field):
+        assert field.prepare_value(value) is expected
+
+    def test_prepare_value__no_coerce(self, *, field):
+        assert field.prepare_value(None, coerce=False) is None
 
 
 class test_DecimalField:

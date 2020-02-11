@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+from typing import Hashable
 from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
@@ -50,6 +51,10 @@ class test_AgentManager:
         agent1.stop.assert_called_once_with()
         agent2.stop.assert_called_once_with()
 
+    def test_hashable(self, *, agents):
+        assert isinstance(agents, Hashable)
+        assert hash(agents)
+
     @pytest.mark.asyncio
     async def test_start(self, *, many):
         await many.start()
@@ -72,6 +77,28 @@ class test_AgentManager:
         await many.stop()
         for agent in many.values():
             agent.cancel.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_wait_until_agents_started(self, *, agents):
+        agents.wait_for_stopped = AsyncMock()
+        await agents.wait_until_agents_started()
+        agents.wait_for_stopped.assert_called_once_with(
+            agents._agents_started,
+        )
+
+    @pytest.mark.asyncio
+    async def test_wait_until_agents_started__producer_only(
+            self, *, app, agents):
+        app.producer_only = True
+        agents._agents_started.clear()
+        await agents.wait_until_agents_started()
+
+    @pytest.mark.asyncio
+    async def test_wait_until_agents_started__client_only(
+            self, *, app, agents):
+        app.client_only = True
+        agents._agents_started.clear()
+        await agents.wait_until_agents_started()
 
     def test_update_topic_index(self, *, many, agent1, agent2):
         many.update_topic_index()
