@@ -1189,13 +1189,15 @@ If processing of a single event exceeds this time we log an error,
 but do not stop processing.
 
 If you are seeing a warning like this you should either
-1) increase this timeout to allow events to take longer, or
-2) add a timeout to the operation so that stream processing
-   always completed before the timeout.
+
+1) increase this timeout to allow agents to spend more time
+   on a single event, or
+2) add a timeout to the operation in the agent, so stream processing
+   always completes before the timeout.
 
 The latter is preferred for network operations such as web requests.
 If a network service you depend on is temporarily offline you should
-consider doing retries (sent to a separate topic):
+consider doing retries (send to separate topic):
 
 .. sourcecode:: python
 

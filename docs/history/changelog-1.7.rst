@@ -128,10 +128,10 @@ For even older releases you can visit the :ref:`history` section.
         class X(faust.Record, coerce=True):
             date: Optional[datetime]
 
-        as a :class:`~faust.models.fields.DatetimeField` and when
-        deserializing the field would end up as a string.
+    as a :class:`~faust.models.fields.DatetimeField` and when
+    deserializing the field would end up as a string.
 
-        It's now properly converted to :class:`~datetime.datetime`.
+    It's now properly converted to :class:`~datetime.datetime`.
 
 - **RocksDB**: Adds :setting:`table_key_index_size` setting (Closes #372)
 

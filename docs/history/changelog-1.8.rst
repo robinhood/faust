@@ -114,8 +114,10 @@ For even older releases you can visit the :ref:`history` section.
 
     .. sourcecode:: python
 
-        async for key, value in stream.items():
-           table[key] = value
+        @app.agent()
+        async def agent(stream):
+            async for key, value in stream.items():
+                table[key] = value
 
    when the table is modified it will know what topic the source
    event comes from and use the same partition number.
@@ -126,15 +128,15 @@ For even older releases you can visit the :ref:`history` section.
 
    .. sourcecode:: python
 
-        table = app.Table('name', use_partitioner=True)
+        my_table = app.Table('name', use_partitioner=True)
 
     You may also temporarily enable this option in any location
-    by using ``table.clone(...)``:
+    by using ``table.clone(use_paritioner=True)``:
 
     .. sourcecode:: python
 
         @app.page('/foo/{key}/')
-        async def foo(web, request, key: str):
+        async def foo(web, request, key):
             table.clone(use_partitoner)[key] = 'bar'
 
 - **Models**: Support for "schemas" that group key/value related
@@ -145,6 +147,11 @@ For even older releases you can visit the :ref:`history` section.
    for a topic or agent:
 
    .. sourcecode:: python
+
+        class Point(faust.Record):
+            x: int
+            y: int
+            z: int = None
 
         schema = faust.Schema(
             key_type=Point,
