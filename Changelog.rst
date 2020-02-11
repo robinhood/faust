@@ -23,16 +23,19 @@ please visit the :ref:`history` section.
 
 - Aiokafka: Livelock and stream timeouts replaced with better instrumentation.
 
-    This will let us better isolate what the cause of
-    a stream not processing events, or the worker not committing is.
+    This will let us better isolate the cause of
+    a worker that is not progressing. The problem could originate in
+    code written by the user, the :pypi:`aiokafka` Kafka client, or a
+    core component of the Faust worker could be malfunctioning.
 
-    The worker now logs if:
+    To help diagnose the cause of such disruption, the worker now logs when
 
-    1) aiokafka stopped sending fetch requests
-    2) kafka stopped responding to fetch requests
-    3) aiokafka stopped updating highwater offset.
-    4) a stream stopped processing events.
-    5) the worker stopped committing offsets.
+    1) :pypi:`aiokafka` stops sending fetch requests.
+    2) Kafka stops responding to fetch requests.
+    3) :pypi:`aiokafka` stops updating highwater offset.
+    4) a stream stops processing events, or is processing very slowly.
+    5) the worker stops committing offsets, or the time it takes to complete
+       the commit operation is exorbitant.
 
 .. _version-1.10.1:
 
