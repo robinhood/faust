@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from time import monotonic
 from typing import (
     Any,
+    Iterator,
     List,
     Mapping,
     MutableMapping,
@@ -28,6 +29,7 @@ from faust.types import AppT, EventT, TP
 from faust.types.tables import CollectionT, TableManagerT
 from faust.types.transports import ConsumerT
 from faust.utils import terminal
+from faust.utils.terminal.tables import TableDataT  # List[List[str]]
 from faust.utils.tracing import finish_span, traced_from_parent_span
 
 if typing.TYPE_CHECKING:
@@ -590,16 +592,43 @@ class Recovery(Service):
             tp: value - 1 if value is not None else -1
             for tp, value in highwaters.items()
         }
-        table = terminal.logtable(
-            [[k.topic, str(k.partition), str(v)]
-             for k, v in sorted(highwaters.items())],
+        self.log.info(
+            'Highwater for %s changelog partitions:\n%s',
+            title, self._highwater_logtable(highwaters, title=title))
+        destination.clear()
+        destination.update(highwaters)
+
+    def _highwater_logtable(self, highwaters: Mapping[TP, int], *,
+                            title: str) -> str:
+        table_data = [
+            [k.topic, str(k.partition), str(v)]
+            for k, v in sorted(highwaters.items())
+        ]
+        return terminal.logtable(
+            list(self._consolidate_table_keys(table_data)),
             title=f'Highwater - {title.capitalize()}',
             headers=['topic', 'partition', 'highwater'],
         )
-        self.log.info(
-            'Highwater for %s changelog partitions:\n%s', title, table)
-        destination.clear()
-        destination.update(highwaters)
+
+    def _consolidate_table_keys(self, data: TableDataT) -> Iterator[List[str]]:
+        """Format terminal log table to reduce noise from duplicate keys.
+
+        We log tables where the first row is the name of the topic,
+        and it gets noisy when that name is repeated over and over.
+
+        This function replaces repeating topic names
+        with the ditto mark.
+
+        Note:
+            Data must be sorted.
+        """
+        prev_key: Optional[str] = None
+        for key, *rest in data:
+            if prev_key is not None and prev_key == key:
+                yield ['〃', *rest]  # ditto
+            else:
+                yield [key, *rest]
+            prev_key = key
 
     async def _build_offsets(self,
                              consumer: ConsumerT,
@@ -621,13 +650,23 @@ class Recovery(Service):
                 destination[tp] = last_value
             else:
                 destination[tp] = max(last_value, new_value)
-        table = terminal.logtable(
-            [[k.topic, str(k.partition), str(v)]
-             for k, v in sorted(destination.items())],
+        self.log.info(
+            '%s offsets at start of reading:\n%s',
+            title,
+            self._start_offsets_logtable(destination, title=title),
+        )
+
+    def _start_offsets_logtable(self, offsets: Mapping[TP, int], *,
+                                title: str) -> str:
+        table_data = [
+            [k.topic, str(k.partition), str(v)]
+            for k, v in sorted(offsets.items())
+        ]
+        return terminal.logtable(
+            list(self._consolidate_table_keys(table_data)),
             title=f'Reading Starts At - {title.capitalize()}',
             headers=['topic', 'partition', 'offset'],
         )
-        self.log.info('%s offsets at start of reading:\n%s', title, table)
 
     async def _seek_offsets(self,
                             consumer: ConsumerT,
@@ -798,14 +837,17 @@ class Recovery(Service):
             self,
             title: str,
             stats: RecoveryStatsMapping) -> str:
-        return terminal.logtable(
-            [list(map(str, [
+        table_data = [
+            list(map(str, [
                 tp.topic,
                 tp.partition,
                 s.highwater,
                 s.offset,
                 s.remaining,
-            ])) for tp, s in sorted(stats.items())],
+            ])) for tp, s in sorted(stats.items())
+        ]
+        return terminal.logtable(
+            list(self._consolidate_table_keys(table_data)),
             title=title,
             headers=[
                 'topic',
