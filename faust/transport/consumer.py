@@ -739,7 +739,11 @@ class Consumer(Service, ConsumerT):
             wait_count += 1
             if not wait_count % 10:  # pragma: no cover
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
-                self.log.warning('wait_empty: Waiting for %r tasks', remaining)
+                self.log.warning('wait_empty: Waiting for tasks %r', remaining)
+                self.log.info(
+                    'Agent tracebacks:\n%s',
+                    self.app.agents.human_tracebacks(),
+                )
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
