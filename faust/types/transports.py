@@ -408,6 +408,10 @@ class ConsumerT(ServiceT):
     def close(self) -> None:
         ...
 
+    @abc.abstractmethod
+    def verify_recovery_event_path(self, now: float, tp: TP) -> None:
+        ...
+
     @property
     @abc.abstractmethod
     def unacked(self) -> Set[Message]:

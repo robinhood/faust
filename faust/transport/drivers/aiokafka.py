@@ -552,54 +552,14 @@ class AIOKafkaConsumerThread(ConsumerThread):
     def verify_event_path(self, now: float, tp: TP) -> None:
         # long function ahead, but not difficult to test
         # as it always returns as soon as some condition is met.
-
+        if self._verify_aiokafka_event_path(now, tp):
+            # already logged error.
+            return None
         parent = cast(Consumer, self.consumer)
         app = parent.app
-        consumer = self._ensure_consumer()
         monitor = app.monitor
         acks_enabled_for = app.topics.acks_enabled_for
-        aiotp = parent._new_topicpartition(tp.topic, tp.partition)
         secs_since_started = now - self.time_started
-
-        request_at = consumer.records_last_request.get(aiotp)
-        if request_at is None:
-            if secs_since_started >= self.tp_fetch_request_timeout_secs:
-                # NO FETCH REQUEST SENT AT ALL SINCE WORKER START
-                self.log.error(
-                    SLOW_PROCESSING_NO_FETCH_SINCE_START,
-                    tp, humanize_seconds_ago(secs_since_started),
-                )
-            return None
-
-        response_at = consumer.records_last_response.get(aiotp)
-        if response_at is None:
-            if secs_since_started >= self.tp_fetch_response_timeout_secs:
-                # NO FETCH RESPONSE RECEIVED AT ALL SINCE WORKER START
-                self.log.error(
-                    SLOW_PROCESSING_NO_RESPONSE_SINCE_START,
-                    tp, humanize_seconds_ago(secs_since_started),
-                )
-            return None
-
-        secs_since_request = now - request_at
-        if secs_since_request >= self.tp_fetch_request_timeout_secs:
-            # NO REQUEST SENT BY AIOKAFKA IN THE LAST n SECONDS
-            self.log.error(
-                SLOW_PROCESSING_NO_RECENT_FETCH,
-                tp,
-                humanize_seconds_ago(secs_since_request),
-            )
-            return None
-
-        secs_since_response = now - response_at
-        if secs_since_response >= self.tp_fetch_response_timeout_secs:
-            # NO RESPONSE RECEIVED FROM KAKFA IN THE LAST n SECONDS
-            self.log.error(
-                SLOW_PROCESSING_NO_RECENT_RESPONSE,
-                tp,
-                humanize_seconds_ago(secs_since_response),
-            )
-            return None
 
         if monitor is not None:  # need for .stream_inbound_time
             highwater = self.highwater(tp)
@@ -662,6 +622,60 @@ class AIOKafkaConsumerThread(ConsumerThread):
                                 tp, humanize_seconds_ago(secs_since_commit),
                             )
                             return None
+
+    def verify_recovery_event_path(self, now: float, tp: TP) -> None:
+        self._verify_aiokafka_event_path(now, tp)
+
+    def _verify_aiokafka_event_path(self, now: float, tp: TP) -> bool:
+        """Verify that :pypi:`aiokafka` event path is working.
+
+        Returns :const:`True` if any error was logged.
+        """
+        parent = cast(Consumer, self.consumer)
+        consumer = self._ensure_consumer()
+        secs_since_started = now - self.time_started
+        aiotp = parent._new_topicpartition(tp.topic, tp.partition)
+
+        request_at = consumer.records_last_request.get(aiotp)
+        if request_at is None:
+            if secs_since_started >= self.tp_fetch_request_timeout_secs:
+                # NO FETCH REQUEST SENT AT ALL SINCE WORKER START
+                self.log.error(
+                    SLOW_PROCESSING_NO_FETCH_SINCE_START,
+                    tp, humanize_seconds_ago(secs_since_started),
+                )
+            return True
+
+        response_at = consumer.records_last_response.get(aiotp)
+        if response_at is None:
+            if secs_since_started >= self.tp_fetch_response_timeout_secs:
+                # NO FETCH RESPONSE RECEIVED AT ALL SINCE WORKER START
+                self.log.error(
+                    SLOW_PROCESSING_NO_RESPONSE_SINCE_START,
+                    tp, humanize_seconds_ago(secs_since_started),
+                )
+            return True
+
+        secs_since_request = now - request_at
+        if secs_since_request >= self.tp_fetch_request_timeout_secs:
+            # NO REQUEST SENT BY AIOKAFKA IN THE LAST n SECONDS
+            self.log.error(
+                SLOW_PROCESSING_NO_RECENT_FETCH,
+                tp,
+                humanize_seconds_ago(secs_since_request),
+            )
+            return True
+
+        secs_since_response = now - response_at
+        if secs_since_response >= self.tp_fetch_response_timeout_secs:
+            # NO RESPONSE RECEIVED FROM KAKFA IN THE LAST n SECONDS
+            self.log.error(
+                SLOW_PROCESSING_NO_RECENT_RESPONSE,
+                tp,
+                humanize_seconds_ago(secs_since_response),
+            )
+            return True
+        return False
 
     def _log_slow_processing_stream(self, msg: str, *args: Any) -> None:
         app = self.consumer.app

@@ -788,6 +788,9 @@ class Consumer(Service, ConsumerT):
     def verify_event_path(self, now: float, tp: TP) -> None:
         ...
 
+    def verify_recovery_event_path(self, now: float, tp: TP) -> None:
+        ...
+
     async def commit(self, topics: TPorTopicSet = None,
                      start_new_transaction: bool = True) -> bool:
         """Maybe commit the offset for all or specific topics.
@@ -1195,6 +1198,9 @@ class ConsumerThread(QueueServiceThread):
         """Hash key to determine partition number."""
         ...
 
+    def verify_recovery_event_path(self, now: float, tp: TP) -> None:
+        ...
+
 
 class ThreadDelegateConsumer(Consumer):
 
@@ -1302,3 +1308,6 @@ class ThreadDelegateConsumer(Consumer):
                       partition: int = None) -> Optional[int]:
         """Hash key to determine partition number."""
         return self._thread.key_partition(topic, key, partition=partition)
+
+    def verify_recovery_event_path(self, now: float, tp: TP) -> None:
+        return self._thread.verify_recovery_event_path(now, tp)
