@@ -23,6 +23,7 @@ from mode.utils.logging import Severity, formatter
 from .types import AppT, SensorT, TP, TopicT
 from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
 from .utils import terminal
+from .utils.functional import consecutive_numbers
 
 try:  # pragma: no cover
     # if installed we use this to set ps.name (argv[0])
@@ -71,10 +72,43 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
                 topics[tp.topic].add(tp.partition)
 
             return '\n' + terminal.logtable(
-                [(k, repr(v)) for k, v in sorted(topics.items())],
+                [(k, _repr_partition_set(v))
+                 for k, v in sorted(topics.items())],
                 title='Topic Partition Set',
                 headers=['topic', 'partitions'],
             )
+
+
+def _repr_partition_set(s: Set[int]) -> str:
+    """Convert set of partition numbers to human readable form.
+
+    This will consolidate ranges of partitions to make them easier
+    to read.
+
+    Example:
+        >>> partitions = {1, 2, 3, 7, 8, 9, 10, 34, 35, 36, 37, 38, 50}
+        >>> _repr_partition_set(partitions)
+        '{1-3, 7-10, 34-38, 50}'
+    """
+    elements = ', '.join(_iter_consecutive_numbers(sorted(s)))
+    return f'{{{elements}}}'
+
+
+def _iter_consecutive_numbers(s: Iterable[int]) -> Iterable[str]:
+    """Find consecutive number ranges from an iterable of integers.
+
+    The number ranges are represented as strings (e.g. ``"3-14"``)
+
+    Example:
+        >>> numbers = {1, 2, 3, 7, 8, 9, 10, 34, 35, 36, 37, 38, 50}
+        >>> list(_iter_consecutive_numbers(numbers))
+        [1-3, 7-10, 34-38, 50]
+    """
+    for numbers in consecutive_numbers(s):
+        if len(numbers) > 1:
+            yield f'{numbers[0]}-{numbers[-1]}'
+        else:
+            yield f'{numbers[0]}'
 
 
 class Worker(mode.Worker):
