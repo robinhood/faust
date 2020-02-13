@@ -751,9 +751,17 @@ class Consumer(Service, ConsumerT):
             if not self._unacked_messages:
                 break
             await T(self._wait_for_ack)(timeout=1)
+            self._clean_unacked_messages()
 
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
         await T(self.commit_and_end_transactions)()
+
+    def _clean_unacked_messages(self) -> None:
+        # remove actually acked messages from weakset.
+        self._unacked_messages -= {
+            message for message in self._unacked_messages
+            if message.acked
+        }
 
     async def commit_and_end_transactions(self) -> None:
         """Commit all safe offsets and end transaction."""
