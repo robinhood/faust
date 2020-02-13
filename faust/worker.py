@@ -18,7 +18,7 @@ from typing import Any, Dict, IO, Iterable, Mapping, Optional, Set, Union
 import mode
 from aiokafka.structs import TopicPartition
 from mode import ServiceT, get_logger
-from mode.utils.logging import Severity, formatter
+from mode.utils.logging import Severity, formatter2
 
 from .types import AppT, SensorT, TP, TopicT
 from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
@@ -41,8 +41,9 @@ TP_TYPES = (TP, TopicPartition)
 logger = get_logger(__name__)
 
 
-@formatter
-def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
+@formatter2
+def format_log_arguments(
+        arg: Any, record: logging.LogRecord) -> Any:  # pragma: no cover
     # This adds custom formatting to certain log messages.
 
     if arg and isinstance(arg, Mapping):
@@ -65,18 +66,45 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
                 headers=['topic', 'partition', 'offset'],
             )
     elif arg and isinstance(arg, (set, list)):
-        # Sets/Lists of TopicPartition are converted to terminal table.
-        if isinstance(next(iter(arg)), TP_TYPES):
-            topics: Dict[str, Set[int]] = defaultdict(set)
-            for tp in arg:
-                topics[tp.topic].add(tp.partition)
-
+        if 'Subscribed to topic' in record.msg:
             return '\n' + terminal.logtable(
-                [(k, _repr_partition_set(v))
-                 for k, v in sorted(topics.items())],
-                title='Topic Partition Set',
-                headers=['topic', 'partitions'],
+                [
+                    [str(v)] for v in sorted(arg)
+                ],
+                title='Final Subscription',
+                headers=['topic name'],
             )
+        elif isinstance(next(iter(arg)), TP_TYPES):
+            # Sets/Lists of TopicPartition are converted to terminal table.
+            return _partition_set_logtable(arg)
+
+    elif arg and isinstance(arg, frozenset):
+        if 'subscribed topics to' in record.msg:
+            # aiokafka emits a frozenset of topics,
+            # and we convert this to a terminal table.
+            return '\n' + terminal.logtable(
+                [
+                    [str(v)] for v in sorted(arg)
+                ],
+                title='Requested Subscription',
+                headers=['topic name'],
+            )
+        elif isinstance(next(iter(arg)), TP_TYPES):
+            # Sets/Lists of TopicPartition are converted to terminal table.
+            return _partition_set_logtable(arg)
+
+
+def _partition_set_logtable(arg: Iterable[TP]) -> str:
+    topics: Dict[str, Set[int]] = defaultdict(set)
+    for tp in arg:
+        topics[tp.topic].add(tp.partition)
+
+    return '\n' + terminal.logtable(
+        [(k, _repr_partition_set(v))
+            for k, v in sorted(topics.items())],
+        title='Topic Partition Set',
+        headers=['topic', 'partitions'],
+    )
 
 
 def _repr_partition_set(s: Set[int]) -> str:
