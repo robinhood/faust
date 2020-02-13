@@ -2,7 +2,7 @@
 import asyncio
 
 from collections import defaultdict
-from typing import Any, Dict, MutableMapping, MutableSet, Set
+from typing import Any, Dict, List, Mapping, MutableMapping, MutableSet, Set
 from weakref import WeakSet
 
 from mode import Service
@@ -14,14 +14,34 @@ from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
 from faust.utils.tracing import traced_from_parent_span
 
+TRACEBACK_HEADER = '''
+=======================================
+ TRACEBACK OF ALL RUNNING AGENT ACTORS
+=======================================
+'''
+
+TRACEBACK_FORMAT = '''
+* {name} ----->
+============================================================
+{traceback}
+
+'''
+
+TRACEBACK_FOOTER = '''
+-eof tracebacks- :-)
+'''
+
 
 class AgentManager(Service, AgentManagerT, ManagedUserDict):
     """Agent manager."""
 
+    traceback_header: str = TRACEBACK_HEADER
+    traceback_format: str = TRACEBACK_FORMAT
+    traceback_footer: str = TRACEBACK_FOOTER
+
     _by_topic: MutableMapping[str, MutableSet[AgentT]]
 
-    def __init__(self, app: AppT,
-                 **kwargs: Any) -> None:
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
@@ -37,6 +57,25 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         for agent in self.values():
             await agent.maybe_start()
         self._agents_started.set()
+
+    def tracebacks(self) -> Mapping[str, List[str]]:
+        return {
+            name: agent.actor_tracebacks()
+            for name, agent in self.items()
+        }
+
+    def human_tracebacks(self) -> str:
+        return '\n'.join([
+            self.traceback_header,
+            '\n'.join(
+                self.traceback_format.format(
+                    name=name,
+                    traceback=traceback,
+                )
+                for name, traceback in self.tracebacks().items()
+            ),
+            self.traceback_footer,
+        ])
 
     async def wait_until_agents_started(self) -> None:
         if not self.app.producer_only and not self.app.client_only:

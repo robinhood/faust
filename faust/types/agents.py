@@ -97,6 +97,10 @@ class ActorT(ServiceT, Generic[_T]):
     async def on_isolated_partition_assigned(self, tp: TP) -> None:
         ...
 
+    @abc.abstractmethod
+    def traceback(self) -> str:
+        ...
+
 
 class AsyncIterableActorT(ActorT[AsyncIterable], AsyncIterable):
     """Used for agent function that yields."""
@@ -136,6 +140,10 @@ class AgentT(ServiceT, Generic[_T]):
                  isolated_partitions: bool = False,
                  **kwargs: Any) -> None:
         self.fun: AgentFun = fun
+
+    @abc.abstractmethod
+    def actor_tracebacks(self) -> List[str]:
+        ...
 
     @abc.abstractmethod
     def __call__(self, *,
@@ -280,6 +288,14 @@ class AgentManagerT(ServiceT, ManagedUserDict[str, AgentT]):
     async def on_rebalance(self,
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def tracebacks(self) -> Mapping[str, List[str]]:
+        ...
+
+    @abc.abstractmethod
+    def human_tracebacks(self) -> str:
         ...
 
 

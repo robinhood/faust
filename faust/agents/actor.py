@@ -1,6 +1,7 @@
 """Actor - Individual Agent instances."""
-from typing import Any, AsyncIterator, Set, cast
+from typing import Any, AsyncGenerator, AsyncIterator, Coroutine, Set, cast
 from mode import Service
+from mode.utils.tracebacks import format_agen_stack, format_coro_stack
 
 from faust.types import ChannelT, StreamT, TP
 from faust.types.agents import (
@@ -81,9 +82,15 @@ class AsyncIterableActor(AsyncIterableActorT, Actor):
     def __aiter__(self) -> AsyncIterator:
         return self.it.__aiter__()
 
+    def traceback(self) -> str:
+        return format_agen_stack(cast(AsyncGenerator, self.it))
+
 
 class AwaitableActor(AwaitableActorT, Actor):
     """Used for actor function that do not yield."""
 
     def __await__(self) -> Any:
         return self.it.__await__()
+
+    def traceback(self) -> str:
+        return format_coro_stack(cast(Coroutine, self.it))

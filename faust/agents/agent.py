@@ -16,7 +16,6 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
-    MutableSequence,
     MutableSet,
     Optional,
     Set,
@@ -163,7 +162,6 @@ class Agent(AgentT, Service):
 
     # supervisor is None until the agent is started so we cast to simplify.
     supervisor: SupervisorStrategyT = cast(SupervisorStrategyT, None)
-    instances: MutableSequence[ActorRefT]
 
     # channel is loaded lazily on .channel property access
     # to make sure configuration is not accessed when agent created
@@ -236,6 +234,9 @@ class Agent(AgentT, Service):
         # Agent service is now a child of app.
         self.beacon.reattach(self.app.agents.beacon)
         return []
+
+    def actor_tracebacks(self) -> List[str]:
+        return [actor.traceback() for actor in self._actors]
 
     async def _start_one(self,
                          *,
