@@ -7,9 +7,16 @@ from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
 
+class FakeActor(Actor):
+    # need to implement traceback method to test this.
+
+    def traceback(self) -> str:
+        return ''
+
+
 class test_Actor:
 
-    ActorType = Actor
+    ActorType = FakeActor
 
     @pytest.fixture()
     def agent(self):
