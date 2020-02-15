@@ -8,6 +8,53 @@ This document contain change notes for bugfix releases in
 the Faust 1.10 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.10.3:
+
+1.10.3
+======
+:release-date: 2020-02-14 4:27 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+  + Now depends on :ref:`Mode 4.3.2 <mode:version-4.3.2>`
+
+  + Now depends on :pypi:`robinhood-aiokafka` 1.1.5
+
+- **Tables**: The rebalancing callback for tables now yields more
+  often back to the event loop to prevent it from blocking
+  the loop for too long.
+
+- **Dist**: Removed accidental dependency on :pypi:`typing_extensions`
+
+  Contributed by Eran Kampf (:github_user:`ekampf`).
+
+- **Consumer**: wait empty now manually garbage collects acked
+  entries from ``unacked_messages``.
+
+    This fixes hanging during rebalance in some cases.
+
+- **Consumer**: Wait empty now logs traceback of all running agents
+
+    This happens when it has been waiting for agents to process
+    currently waiting events, and it has been waiting for a long time.
+
+- **Worker**: Make logged lists of partition sets more beautiful.
+
+- **Worker**: Consolidate repeated topic names in logs to use ditto mark
+
+- **Worker**: Make logged "setting newly assigned partitions" list
+  easier to read.
+
+    This will now:
+
+    - Sort the numbers
+    - Consolidate number ranges (e.g. ``1-5`` instead of ``1, 2, 3, 4, 5``).
+
+- **Tables**: Recovery: Better diagnosis in logs if recovery hangs.
+
+- **Tables**: Recovery: Show estimated time remaining until recovery is done.
+
 .. _version-1.10.2:
 
 1.10.2
