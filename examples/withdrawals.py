@@ -31,12 +31,12 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 app = faust.App(
     'faust-withdrawals',
-    version=4,
+    version=5,
     broker='aiokafka://',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
-    processing_guarantee='exactly_once',
+    # processing_guarantee='exactly_once',
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
