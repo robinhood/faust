@@ -254,6 +254,7 @@ class Recovery(Service):
         assigned_actives = app.assignor.assigned_actives()
 
         for tp in revoked:
+            await asyncio.sleep(0)
             self.revoke(tp)
 
         self.standby_tps.clear()
@@ -265,11 +266,13 @@ class Recovery(Service):
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
                 self.add_standby(table, tp)
+            await asyncio.sleep(0)
         await asyncio.sleep(0)
         for tp in assigned_actives:
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
                 self.add_active(table, tp)
+            await asyncio.sleep(0)
         await asyncio.sleep(0)
 
         active_offsets = {

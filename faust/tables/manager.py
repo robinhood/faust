@@ -150,16 +150,19 @@ class TableManager(Service, TableManagerT):
     async def _update_channels(self) -> None:
         self._tables_finalized.set()
         for table in self.values():
+            await asyncio.sleep(0)
             if table not in self._channels:
                 chan = table.changelog_topic.clone_using_queue(
                     self.changelog_queue)
                 self.app.topics.add(chan)
+                await asyncio.sleep(0)
                 self._channels[table] = chan
             await table.maybe_start()
         self.app.consumer.pause_partitions({
             tp for tp in self.app.consumer.assignment()
             if tp.topic in self._changelogs
         })
+        await asyncio.sleep(0)
         self._tables_registered.set()
 
     async def on_stop(self) -> None:
