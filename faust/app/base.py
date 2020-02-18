@@ -1502,9 +1502,6 @@ class App(AppT, Service):
         """Call when rebalancing starts."""
         self.rebalancing = True
         self.rebalancing_count += 1
-        if self._rebalancing_sensor_state:
-            self.log.warning('Previous rebalance did not clear state: %r',
-                             self._rebalancing_sensor_state)
         self._rebalancing_sensor_state = self.sensors.on_rebalance_start(self)
         if self.tracer:
             category = f'{self.conf.name}-_faust'
