@@ -240,7 +240,7 @@ class Worker(mode.Worker):
             redirect_stdouts_level = (
                 conf.worker_redirect_stdouts_level or logging.INFO)
         if logging_config is None:
-            logging_config = app.conf.logging_config
+            logging_config = dict(app.conf.logging_config or {})
         super().__init__(
             *services,
             debug=debug,

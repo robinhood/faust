@@ -2,8 +2,10 @@
 from typing import List, Optional, Union
 from yarl import URL
 
+URIListArg = Union[str, URL, List[URL], List[str]]
 
-def urllist(arg: Union[URL, str, List[str], List[URL]], *,
+
+def urllist(arg: URIListArg, *,
             default_scheme: str = None) -> List[URL]:
     """Create list of URLs.
 

@@ -33,12 +33,15 @@ __docformat__ = 'restructuredtext'
 # -eof meta-
 
 
-class version_info_t(NamedTuple):
+class VersionInfo(NamedTuple):
     major: int
     minor: int
     micro: int
     releaselevel: str
     serial: str
+
+
+version_info_t = VersionInfo   # XXX compat
 
 
 # bumpversion can only search for {current_version}
@@ -47,7 +50,7 @@ _match = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__)
 if _match is None:  # pragma: no cover
     raise RuntimeError('THIS IS A BROKEN RELEASE!')
 _temp = _match.groups()
-VERSION = version_info = version_info_t(
+VERSION = version_info = VersionInfo(
     int(_temp[0]), int(_temp[1]), int(_temp[2]), _temp[3] or '', '')
 del(_match)
 del(_temp)
@@ -237,7 +240,7 @@ class _module(ModuleType):
         '__name__',
         '__path__',
         'VERSION',
-        'version_info_t',
+        'VersionInfo',
         'version_info',
         '__package__',
         '__version__',
@@ -275,6 +278,7 @@ new_module.__dict__.update({
     '__homepage__': __homepage__,
     '__docformat__': __docformat__,
     '__package__': __package__,
+    'VersionInfo': VersionInfo,
     'version_info_t': version_info_t,
     'version_info': version_info,
     'VERSION': VERSION,
