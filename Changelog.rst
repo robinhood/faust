@@ -18,6 +18,7 @@ please visit the :ref:`history` section.
 - Documentation improvements by:
 
   + Andrey Martyanov (:github_user:`martyanov`).
+  + Christoph Deil (:github_user:`cdeil`).
   + Hisham Elsheshtawy (:github_user:`Sheshtawy`).
   + :github_user:`lsabi`.
 
