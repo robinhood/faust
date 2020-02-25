@@ -280,6 +280,7 @@ class Worker(mode.Worker):
             self.spinner.stop()
 
     async def maybe_start_blockdetection(self) -> None:
+        """Start blocking detector service if enabled."""
         # the base class implemention of this
         # only starts the block detector if self.debug is set.
         if self.blocking_timeout:
