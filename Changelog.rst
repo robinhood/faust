@@ -18,7 +18,8 @@ please visit the :ref:`history` section.
 - Documentation improvements by:
 
   + Andrey Martyanov (:github_user:`martyanov`).
-  + :github_user:`lsabi`
+  + Hisham Elsheshtawy (:github_user:`Sheshtawy`).
+  + :github_user:`lsabi`.
 
 .. _version-1.10.3:
 
