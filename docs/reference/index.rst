@@ -184,6 +184,10 @@ Types
     faust.types.sensors
     faust.types.serializers
     faust.types.settings
+    faust.types.settings.base
+    faust.types.settings.params
+    faust.types.settings.sections
+    faust.types.settings.settings
     faust.types.stores
     faust.types.streams
     faust.types.tables

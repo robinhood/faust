@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-from typing import Iterator, List
+from typing import Any, Iterator, List, Type
 from faust.types.settings import Settings
 from faust.types.settings.params import Param
 from faust.types.settings.sections import Section
@@ -25,6 +25,39 @@ SETTING_TEMPLATE = '''\
 
 
 class Rst:
+
+    def to_ref(self, t: Type) -> str:
+        name: str
+        module = t.__module__
+        if module == 'builtins':
+            return self._class(t.__name__)
+        elif module == 'typing':
+            name = t._name
+            if name == 'List':
+                list_type = t.__args__ and t.__args__[0] or Any
+                return ' '.join([
+                    self.literal('['),
+                    self.to_ref(list_type),
+                    self.literal(']'),
+                ])
+            elif name.startswith('Dict', 'Mapping', 'MutableMapping'):
+                key_type = value_type = Any
+                if t.__args__:
+                    key_type = t.__args__[0]
+                if len(t.__args__) > 1:
+                    value_type = t.__args__[1]
+                return ' '.join([
+                    self.literal('{'),
+                    ': '.join([
+                        self.to_ref(key_type),
+                        self.to_ref(value_type),
+                    ]),
+                    self.literal('}'),
+                ])
+        else:
+            name = t.__name__
+
+        return self._class(f'{module}.{name}')
 
     def header(self, sep: str, title: str) -> str:
         return '\n'.join([title, sep * len(title)])
@@ -51,6 +84,8 @@ class Rst:
         return self.ref('const', value)
 
     def _class(self, value: str) -> str:
+        if '.' in value:
+            value = '~' + value
         return self.ref('class', value)
 
     def option(self, value: str) -> str:
@@ -148,7 +183,8 @@ class ConfigRef(Rst):
         if setting.version_changed:
             for version, reason in setting.version_changed.items():
                 yield self.directive('versionchanged', version, reason)
-        yield self.inforow('type', setting.text_type)
+        yield self.inforow('type', ' / '.join(
+            self.to_ref(t) for t in setting.text_type))
 
         if setting.default_template:
             default_info_title = 'default (template)'

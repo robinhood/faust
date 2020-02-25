@@ -239,7 +239,7 @@ then you can set origin manually.
 
 .. versionadded:: 1.4
 
-:type: :class:`datetime.tzinfo`
+:type: :class:`~datetime.tzinfo`
 :default: ``datetime.timezone.utc``
 :environment: :envvar:`TIMEZONE`
 
@@ -276,7 +276,7 @@ the second version is 2, and so on.
 ``broker``
 ----------
 
-:type: :class:`str` / :class:`~yarl.URL` / ``List[URL/str]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
 :default: :const:`None`
 :environment: :envvar:`BROKER_URL`
 
@@ -453,7 +453,7 @@ Kafka connections and enabling certificate-based authentication.
 ``ssl_context``
 ---------------
 
-:type: :class:`ssl.SSLContext`
+:type: :class:`~ssl.SSLContext`
 :default: :const:`None`
 
 SSL configuration.
@@ -480,7 +480,7 @@ by :func:`logging.config.dictConfig`.
 ``loghandlers``
 ---------------
 
-:type: ``List[logging.Handler]``
+:type: ``[``:class:`~logging.Handler```]``
 :default: :const:`None`
 
 List of custom logging handlers.
@@ -563,7 +563,7 @@ Advanced Agent Settings
 ``agent_supervisor``
 --------------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'mode.OneForOneSupervisor'``
 :environment: :envvar:`AGENT_SUPERVISOR`
 
@@ -618,7 +618,7 @@ Advanced Broker Settings
 
 .. versionadded:: 1.7
 
-:type: :class:`str` / :class:`~yarl.URL` / ``List[URL/str]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
 :default (alias to setting): :setting:`broker`
 :environment: :envvar:`BROKER_CONSUMER_URL`
 
@@ -636,7 +636,7 @@ If not set the value found in :setting:`broker` will be used.
 
 .. versionadded:: 1.7
 
-:type: :class:`str` / :class:`~yarl.URL` / ``List[URL/str]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
 :default (alias to setting): :setting:`broker`
 :environment: :envvar:`BROKER_PRODUCER_URL`
 
@@ -956,7 +956,7 @@ Options include 'earliest', 'latest', 'none'.
 
 .. versionadded:: 1.5
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.transport.utils:DefaultSchedulingStrategy'``
 
 Consumer scheduler class.
@@ -988,7 +988,7 @@ Serialization Settings
 ``key_serializer``
 ------------------
 
-:type: :class:`str` / :class:`~faust.serializers.codecs.Codec`
+:type: :class:`str` / :class:`~faust.types.codecs.CodecT`
 :default: ``'raw'``
 :environment: :envvar:`APP_KEY_SERIALIZER`
 
@@ -1010,7 +1010,7 @@ This can be the name of a serializer/codec, or an actual
 ``value_serializer``
 --------------------
 
-:type: :class:`str` / :class:`~faust.serializers.codecs.Codec`
+:type: :class:`str` / :class:`~faust.types.codecs.CodecT`
 :default: ``'json'``
 :environment: :envvar:`APP_VALUE_SERIALIZER`
 
@@ -1142,7 +1142,7 @@ Should rarely have to change this.
 
 .. versionadded:: 1.2
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: :const:`None`
 
 Producer partitioning strategy.
@@ -1790,7 +1790,7 @@ Extension Settings
 ``Agent``
 ---------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Agent'``
 
 Agent class type.
@@ -1815,7 +1815,7 @@ Example using the string path to a class::
 ``Event``
 ---------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Event'``
 
 Event class type.
@@ -1840,7 +1840,7 @@ Example using the string path to a class::
 ``Schema``
 ----------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Schema'``
 
 Schema class type.
@@ -1865,7 +1865,7 @@ Example using the string path to a class::
 ``Stream``
 ----------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Stream'``
 
 Stream class type.
@@ -1890,7 +1890,7 @@ Example using the string path to a class::
 ``Table``
 ---------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Table'``
 
 Table class type.
@@ -1915,7 +1915,7 @@ Example using the string path to a class::
 ``SetTable``
 ------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:SetTable'``
 
 SetTable extension table.
@@ -1940,7 +1940,7 @@ Example using the string path to a class::
 ``GlobalTable``
 ---------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:GlobalTable'``
 
 GlobalTable class type.
@@ -1965,7 +1965,7 @@ Example using the string path to a class::
 ``SetGlobalTable``
 ------------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:SetGlobalTable'``
 
 SetGlobalTable class type.
@@ -1990,7 +1990,7 @@ Example using the string path to a class::
 ``TableManager``
 ----------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.tables:TableManager'``
 
 Table manager class type.
@@ -2017,7 +2017,7 @@ Example using the string path to a class::
 ``Serializers``
 ---------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.serializers:Registry'``
 
 Serializer registry class type.
@@ -2044,7 +2044,7 @@ Example using the string path to a class::
 ``Worker``
 ----------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.worker:Worker'``
 
 Worker class type.
@@ -2071,7 +2071,7 @@ Example using the string path to a class::
 ``PartitionAssignor``
 ---------------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.assignor:PartitionAssignor'``
 
 Partition assignor class type.
@@ -2098,7 +2098,7 @@ Example using the string path to a class::
 ``LeaderAssignor``
 ------------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.assignor:LeaderAssignor'``
 
 Leader assignor class type.
@@ -2125,7 +2125,7 @@ Example using the string path to a class::
 ``Router``
 ----------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.app.router:Router'``
 
 Router class type.
@@ -2153,7 +2153,7 @@ Example using the string path to a class::
 ``Topic``
 ---------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust:Topic'``
 
 Topic class type.
@@ -2180,7 +2180,7 @@ Example using the string path to a class::
 ``HttpClient``
 --------------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'aiohttp.client:ClientSession'``
 
 Http client class type
@@ -2208,7 +2208,7 @@ Example using the string path to a class::
 ``Monitor``
 -----------
 
-:type: :class:`str` / :class:`typing.Type`
+:type: :class:`str` / :class:`~typing.Type`
 :default: ``'faust.sensors:Monitor'``
 
 Monitor sensor class type.

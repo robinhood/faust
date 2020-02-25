@@ -3,16 +3,18 @@ import logging
 import ssl
 import typing
 import warnings
-from datetime import timezone, tzinfo
+from datetime import timedelta, timezone, tzinfo
 from pathlib import Path as _Path
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Generic,
     Iterable,
     List,
     Mapping,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -29,7 +31,7 @@ from faust.utils import json
 from faust.utils.urls import URIListArg, urllist
 
 from faust.types.auth import CredentialsArg, CredentialsT, to_credentials
-from faust.types.codecs import CodecArg
+from faust.types.codecs import CodecArg, CodecT
 
 if typing.TYPE_CHECKING:
     from .settings import Settings as _Settings
@@ -129,7 +131,7 @@ OnDefaultCallable = Callable[[_Settings], IT]
 
 
 class Param(Generic[IT, OT], property):
-    text_type: str = ':class:`~typing.Any`'
+    text_type: ClassVar[Tuple[Any, ...]] = (Any,)
 
     name: str
     storage_name: str
@@ -334,7 +336,7 @@ class Param(Generic[IT, OT], property):
 
 
 class Bool(Param[Any, bool]):
-    text_type = ':class:`bool`'
+    text_type = (bool,)
 
     def to_python(self, conf: _Settings, value: Any) -> bool:
         if isinstance(value, str):
@@ -343,11 +345,11 @@ class Bool(Param[Any, bool]):
 
 
 class Str(Param[str, str]):
-    text_type = ':class:`str`'
+    text_type = (str,)
 
 
 class Severity(Param[_Severity, _Severity]):
-    text_type = ':class:`str` / :class:`int`'
+    text_type = (str, int)
 
 
 class Number(Param[IT, OT]):
@@ -391,7 +393,7 @@ NumberInputArg = Union[str, int, float]
 
 
 class _Int(Number[IT, OT]):
-    text_type = ':class:`int`'
+    text_type = (int,)
 
     def convert(self,
                 conf: _Settings,
@@ -416,14 +418,14 @@ class Port(UnsignedInt):
 
 
 class Seconds(Param[_Seconds, float]):
-    text_type = ':class:`float` / :class:`~datetime.timedelta`'
+    text_type = (float, timedelta)
 
     def to_python(self, conf: _Settings, value: _Seconds) -> float:
         return want_seconds(value)
 
 
 class Credentials(Param[CredentialsArg, Optional[CredentialsT]]):
-    text_type = ':class:`~faust.types.auth.CredentialsT`'
+    text_type = (CredentialsT,)
 
     def to_python(self,
                   conf: _Settings,
@@ -432,11 +434,11 @@ class Credentials(Param[CredentialsArg, Optional[CredentialsT]]):
 
 
 class SSLContext(Param[ssl.SSLContext, Optional[ssl.SSLContext]]):
-    text_type = ':class:`ssl.SSLContext`'
+    text_type = (ssl.SSLContext,)
 
 
 class Dict(Param[DictArg[T], Mapping[str, T]]):
-    text_type = ':class:`dict`'
+    text_type = (dict,)
 
     def to_python(self,
                   conf: _Settings,
@@ -449,7 +451,7 @@ class Dict(Param[DictArg[T], Mapping[str, T]]):
 
 
 class LogHandlers(Param[List[logging.Handler], List[logging.Handler]]):
-    text_type = '``List[logging.Handler]``'
+    text_type = (List[logging.Handler],)
 
     def prepare_init_default(
             self, conf: _Settings, value: Any) -> List[logging.Handler]:
@@ -457,7 +459,7 @@ class LogHandlers(Param[List[logging.Handler], List[logging.Handler]]):
 
 
 class Timezone(Param[Union[str, tzinfo], tzinfo]):
-    text_type = ':class:`datetime.tzinfo`'
+    text_type = (tzinfo,)
     builtin_timezones = {'UTC': timezone.utc}
 
     def to_python(self, conf: _Settings, value: Union[str, tzinfo]) -> tzinfo:
@@ -472,7 +474,7 @@ class Timezone(Param[Union[str, tzinfo], tzinfo]):
 
 
 class BrokerList(Param[BrokerArg, List[_URL]]):
-    text_type = ':class:`str` / :class:`~yarl.URL` / ``List[URL/str]``'
+    text_type = (str, _URL, List[str])
     default_scheme = DEFAULT_BROKER_SCHEME
 
     def to_python(self, conf: _Settings, value: BrokerArg) -> List[_URL]:
@@ -483,14 +485,14 @@ class BrokerList(Param[BrokerArg, List[_URL]]):
 
 
 class URL(Param[URLArg, _URL]):
-    text_type = ':class:`str` / :class:`~yarl.URL`'
+    text_type = (str, _URL)
 
     def to_python(self, conf: _Settings, value: URLArg) -> _URL:
         return _URL(value)
 
 
 class Path(Param[Union[str, _Path], _Path]):
-    text_type = ':class:`str` / :class:`~pathlib.Path`'
+    text_type = (str, _Path)
     expanduser: bool = True
 
     def to_python(self, conf: _Settings, value: Union[str, _Path]) -> _Path:
@@ -504,13 +506,13 @@ class Path(Param[Union[str, _Path], _Path]):
 
 
 class Codec(Param[CodecArg, CodecArg]):
-    text_type = ':class:`str` / :class:`~faust.serializers.codecs.Codec`'
+    text_type = (str, CodecT)
 
 
 def Enum(typ: T) -> Type[Param[Union[str, T], T]]:
 
     class EnumParam(Param[Union[str, T], T]):
-        text_type = ':class:`str`'
+        text_type = (str,)
 
         def to_python(self, conf: _Settings, value: Union[str, T]) -> T:
             return typ(value)  # type: ignore
@@ -519,7 +521,7 @@ def Enum(typ: T) -> Type[Param[Union[str, T], T]]:
 
 
 class _Symbol(Param[IT, OT]):
-    text_type = ':class:`str` / :class:`typing.Type`'
+    text_type = (str, Type)
 
     def to_python(self, conf: _Settings, value: IT) -> OT:
         return cast(OT, symbol_by_name(value))

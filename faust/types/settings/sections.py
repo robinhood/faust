@@ -45,9 +45,6 @@ class SectionType(Enum):
     WORKER = 'WORKER'
 
 
-Type[_Param[IT, OT]]
-
-
 class Section:
     type: SectionType
     title: str
