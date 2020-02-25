@@ -403,6 +403,7 @@ class Settings(base.SettingsRegistry):
         params.Path,
         env_name='APP_DATADIR',
         default=DATADIR,
+        related_cli_options={'faust': '--datadir'},
     )
     def datadir(self, path: Path) -> Path:
         """Application data directory.
@@ -450,6 +451,7 @@ class Settings(base.SettingsRegistry):
         params.Bool,
         env_name='APP_DEBUG',
         default=False,
+        related_cli_options={'faust': '--debug'},
     )
     def debug(self) -> bool:
         """Use in development to expose sensor information endpoint.
@@ -1628,6 +1630,7 @@ class Settings(base.SettingsRegistry):
         version_introduced='1.2',
         env_name='WEB_BIND',
         default=WEB_BIND,
+        related_cli_options={'faust worker': ['--web-bind']},
     )
     def web_bind(self) -> str:
         """Web network interface binding mask.
@@ -1679,6 +1682,7 @@ class Settings(base.SettingsRegistry):
         version_introduced='1.2',
         env_name='APP_WEB_ENABLED',
         default=True,
+        related_cli_options={'faust worker': ['--with-web']},
     )
     def web_enabled(self) -> bool:
         """Enable/disable internal web server.
@@ -1693,6 +1697,7 @@ class Settings(base.SettingsRegistry):
         version_introduced='1.2',
         env_name='WEB_HOST',
         default_template='{conf.NODE_HOSTNAME}',
+        related_cli_options={'faust worker': ['--web-host']},
     )
     def web_host(self) -> str:
         """Web server host name.
@@ -1727,6 +1732,7 @@ class Settings(base.SettingsRegistry):
         version_introduced='1.2',
         env_name='WEB_PORT',
         default=WEB_PORT,
+        related_cli_options={'faust worker': ['--web-port']},
     )
     def web_port(self) -> int:
         """Web server port.
@@ -1741,6 +1747,7 @@ class Settings(base.SettingsRegistry):
         params.URL,
         version_introduced='1.2',
         default=WEB_TRANSPORT,
+        related_cli_options={'faust worker': ['--web-transport']},
     )
     def web_transport(self) -> URL:
         """Network transport used for the web server.
