@@ -8,6 +8,17 @@ This document contain change notes for bugfix releases in
 the Faust 1.10 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.10.4:
+
+1.10.4
+======
+:release-date: TBA
+:release-by: TBA
+
+- Documentation improvements by:
+
+  + Andrey Martyanov (:github_user:`martyanov`).
+
 .. _version-1.10.3:
 
 1.10.3
