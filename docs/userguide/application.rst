@@ -102,6 +102,20 @@ in such a way that tables can exceed the size of available memory.
         settings -- these can be passed as keyword arguments
         when creating the :class:`faust.App`.
 
+App Instantation and Configuration
+==================================
+
+Instantiating and setting the configurations of a Faust app can be done in two steps, much like a `Flask`_ app. One can create a new App instance with the entire configuration as parameters and then run it, or instantiate the App, set the parameters and then run the application. This allows for easier configuration switching (in particular during development and testing phases).
+
+.. _`Flask`: https://flask.palletsprojects.com/en/1.1.x/tutorial/factory/
+
+.. sourcecode:: pycon
+
+    >>> app = faust.App('myApp')
+    >>> app.conf.broker='kafka://kafka.example.com'
+    >>> app.conf.store='rocksdb://'
+    >>> app.main()
+
 Actions
 =======
 
