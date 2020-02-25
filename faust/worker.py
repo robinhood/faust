@@ -21,7 +21,7 @@ from mode import ServiceT, get_logger
 from mode.utils.logging import Severity, formatter2
 
 from .types import AppT, SensorT, TP, TopicT
-from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
+from .types._env import CONSOLE_PORT, DEBUG
 from .utils import terminal
 from .utils.functional import consecutive_numbers
 
@@ -222,7 +222,7 @@ class Worker(mode.Worker):
                  logfile: Union[str, IO] = None,
                  stdout: IO = sys.stdout,
                  stderr: IO = sys.stderr,
-                 blocking_timeout: float = BLOCKING_TIMEOUT,
+                 blocking_timeout: float = None,
                  workdir: Union[Path, str] = None,
                  console_port: int = CONSOLE_PORT,
                  loop: asyncio.AbstractEventLoop = None,
@@ -239,8 +239,8 @@ class Worker(mode.Worker):
         if redirect_stdouts_level is None:
             redirect_stdouts_level = (
                 conf.worker_redirect_stdouts_level or logging.INFO)
-        if logging_config is None:
-            logging_config = dict(app.conf.logging_config or {})
+        if logging_config is None and app.conf.logging_config:
+            logging_config = dict(app.conf.logging_config)
         super().__init__(
             *services,
             debug=debug,
@@ -250,7 +250,7 @@ class Worker(mode.Worker):
             loghandlers=app.conf.loghandlers,
             stdout=stdout,
             stderr=stderr,
-            blocking_timeout=blocking_timeout,
+            blocking_timeout=blocking_timeout or 0.0,
             console_port=console_port,
             redirect_stdouts=redirect_stdouts,
             redirect_stdouts_level=redirect_stdouts_level,
@@ -278,6 +278,12 @@ class Worker(mode.Worker):
         self._shutdown_immediately = True
         if self.spinner:
             self.spinner.stop()
+
+    async def maybe_start_blockdetection(self) -> None:
+        # the base class implemention of this
+        # only starts the block detector if self.debug is set.
+        if self.blocking_timeout:
+            await self.blocking_detector.maybe_start()
 
     async def on_startup_finished(self) -> None:
         """Signal called when worker has started."""

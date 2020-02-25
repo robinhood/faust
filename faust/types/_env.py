@@ -4,7 +4,6 @@ from typing import Any, Sequence
 from yarl import URL
 
 __all__ = [
-    'BLOCKING_TIMEOUT',
     'CONSOLE_PORT',
     'DATADIR',
     'DEBUG',
@@ -38,9 +37,6 @@ WORKDIR: str = _getenv('WORKDIR', None)
 
 #: Directory to keep the application state (tables, checkpoints, etc).
 DATADIR: str = _getenv('DATADIR', '{conf.name}-data')
-
-#: Blocking detection timeout
-BLOCKING_TIMEOUT: float = float(_getenv('BLOCKING_TIMEOUT', '10.0'))
 
 #: :pypi:`aiomonitor` console default port
 CONSOLE_PORT: int = int(_getenv('CONSOLE_PORT', 50101))

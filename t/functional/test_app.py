@@ -111,6 +111,16 @@ class test_settings:
             expected_value=OneForAllSupervisor,
         ),
         EnvCase(
+            env={'BLOCKING_TIMEOUT': '0.0'},
+            setting=Settings.blocking_timeout,
+            expected_value=0.0,
+        ),
+        EnvCase(
+            env={'BLOCKING_TIMEOUT': '3.03'},
+            setting=Settings.blocking_timeout,
+            expected_value=3.03,
+        ),
+        EnvCase(
             env={'BROKER_URL': 'foo://'},
             setting=Settings.broker,
             expected_value=[URL('foo://')],
@@ -438,19 +448,29 @@ class test_settings:
     ])
     def test_env(self, env, setting, expected_value):
         app = self.App(env=env)
-        assert setting.__get__(app.conf) == expected_value
+        self.assert_expected(setting.__get__(app.conf), expected_value)
 
         # env prefix passed as argument
         prefixed_env = {'FOO_' + k: v for k, v in env.items()}
         app2 = self.App(env=prefixed_env, env_prefix='FOO_')
-        assert setting.__get__(app2.conf) == expected_value
+        self.assert_expected(setting.__get__(app2.conf), expected_value)
 
         # env prefix set in ENV
         prefixed_env2 = {'BAR_' + k: v for k, v in env.items()}
         prefixed_env2['APP_ENV_PREFIX'] = 'BAR_'
         app3 = self.App(env=prefixed_env2)
         assert app3.conf.env_prefix == 'BAR_'
-        assert setting.__get__(app3.conf) == expected_value
+        self.assert_expected(setting.__get__(app3.conf), expected_value)
+
+    def assert_expected(self, value, expected_value):
+        if expected_value is None:
+            assert value is None
+        elif expected_value is True:
+            assert value is True
+        elif expected_value is False:
+            assert value is False
+        else:
+            assert value == expected_value
 
     def test_defaults(self):
         app = self.App()
@@ -466,6 +486,7 @@ class test_settings:
         assert not conf.web_in_thread
         assert conf.datadir == Path('myid-data')
         assert conf.tabledir == Path('myid-data/v1/tables')
+        assert conf.blocking_timeout is None
         assert conf.processing_guarantee == ProcessingGuarantee.AT_LEAST_ONCE
         assert conf.broker_api_version == Settings.broker_api_version.default
         assert conf.broker_client_id == Settings.broker_client_id.default
@@ -607,6 +628,7 @@ class test_settings:
                                  datadir=str(DATADIR),
                                  tabledir=str(TABLEDIR),
                                  processing_guarantee='exactly_once',
+                                 blocking_timeout=3.03,
                                  broker_api_version='0.1',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
@@ -676,6 +698,7 @@ class test_settings:
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
+            blocking_timeout=blocking_timeout,
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
@@ -730,6 +753,7 @@ class test_settings:
         assert conf.broker == [URL(broker)]
         assert conf.broker_consumer == [URL(broker_consumer)]
         assert conf.broker_producer == [URL(broker_producer)]
+        assert conf.blocking_timeout == blocking_timeout
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))

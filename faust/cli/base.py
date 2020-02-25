@@ -40,7 +40,6 @@ from mode.utils.typing import NoReturn
 from mode.worker import exiting
 
 from faust.types._env import (
-    BLOCKING_TIMEOUT,
     CONSOLE_PORT,
     DATADIR,
     DEBUG,
@@ -204,7 +203,7 @@ now_builtin_worker_options: OptionSequence = [
     compat_option(
         '--blocking-timeout',
         state_key='blocking_timeout',
-        default=BLOCKING_TIMEOUT,
+        default=None,
         type=float,
         help='when --debug: Blocking detector timeout.',
     ),
@@ -775,7 +774,7 @@ class Command(abc.ABC):
     @property
     def blocking_timeout(self) -> float:
         """Return the blocking timeout used for this command."""
-        return self._blocking_timeout or BLOCKING_TIMEOUT
+        return self._blocking_timeout or 0.0
 
     @blocking_timeout.setter
     def blocking_timeout(self, timeout: float) -> None:
@@ -1006,6 +1005,15 @@ class AppCommand(Command):
         if self.app.conf.origin:
             return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)
         return ''
+
+    @property
+    def blocking_timeout(self) -> float:
+        """Return the blocking timeout used for this command."""
+        return self._blocking_timeout or self.app.conf.blocking_timeout
+
+    @blocking_timeout.setter
+    def blocking_timeout(self, timeout: float) -> None:
+        self._blocking_timeout = timeout
 
 
 def call_command(command: str,

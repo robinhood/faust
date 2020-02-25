@@ -16,7 +16,7 @@ from faust.cli.base import (
     find_app,
     option,
 )
-from faust.types._env import BLOCKING_TIMEOUT, CONSOLE_PORT
+from faust.types._env import CONSOLE_PORT
 from mode import Worker
 from mode.utils.mocks import AsyncMock, Mock, call, patch
 
@@ -484,12 +484,12 @@ class test_Command:
         command.loglevel = None
         assert command.loglevel == DEFAULT_LOGLEVEL
 
-    def test_blocking_timeout(self, *, command, ctx):
+    def test_blocking_timeout(self, *, app, command, ctx):
         assert command.blocking_timeout == ctx.ensure_object().blocking_timeout
         command.blocking_timeout = 32.41
         assert command.blocking_timeout == 32.41
         command.blocking_timeout = None
-        assert command.blocking_timeout == BLOCKING_TIMEOUT
+        assert command.blocking_timeout == app.conf.blocking_timeout
 
     def test_console_port(self, *, command, ctx):
         assert command.console_port == ctx.ensure_object().console_port

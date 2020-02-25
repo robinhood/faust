@@ -594,6 +594,47 @@ class Settings(base.SettingsRegistry):
         """
 
     @sections.Common.setting(
+        params.Seconds,
+        env_name='BLOCKING_TIMEOUT',
+        default=None,
+        related_cli_options={'faust': '--blocking-timeout'},
+    )
+    def blocking_timeout(self) -> Optional[float]:
+        """Blocking timeout (in seconds).
+
+        When specified the worker will start a periodic signal based
+        timer that only triggers when the loop has been blocked
+        for a time exceeding this timeout.
+
+        This is the most safe way to detect blocking, but could have
+        adverse effects on libraries that do not automatically
+        retry interrupted system calls.
+
+        Python itself does retry all interrupted system calls
+        since version 3.5 (see :pep:`475`), but this might not
+        be the case with C extensions added to the worker by the user.
+
+        The blocking detector is a background thread
+        that periodically wakes up to either arm a timer, or cancel
+        an already armed timer. In pseudocode:
+
+        .. sourcecode:: python
+
+            while True:
+                # cancel previous alarm and arm new alarm
+                signal.signal(signal.SIGALRM, on_alarm)
+                signal.setitimer(signal.ITIMER_REAL, blocking_timeout)
+                # sleep to wakeup just before the timeout
+                await asyncio.sleep(blocking_timeout * 0.96)
+
+            def on_alarm(signum, frame):
+                logger.warning('Blocking detected: ...')
+
+        If the sleep does not wake up in time the alarm signal
+        will be sent to the process and a traceback will be logged.
+        """
+
+    @sections.Common.setting(
         params.BrokerList,
         env_name='BROKER_URL',
     )
