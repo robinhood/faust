@@ -5,5 +5,9 @@
 .. contents::
     :local:
 
-See :ref:`guide-settings`.
+.. currentmodule:: faust.types.settings
+
+.. automodule:: faust.types.settings
+    :members:
+    :undoc-members:
 
