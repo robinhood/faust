@@ -21,7 +21,12 @@ from mode import ServiceT, get_logger
 from mode.utils.logging import Severity, formatter2
 
 from .types import AppT, SensorT, TP, TopicT
-from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
+from .types._env import (
+    BLOCKING_TIMEOUT,
+    CONSOLE_PORT,
+    DEBUG,
+    FORCE_BLOCKING_TIMEOUT,
+)
 from .utils import terminal
 from .utils.functional import consecutive_numbers
 
@@ -278,6 +283,12 @@ class Worker(mode.Worker):
         self._shutdown_immediately = True
         if self.spinner:
             self.spinner.stop()
+
+    async def maybe_start_blockdetection(self) -> None:
+        if self.debug or FORCE_BLOCKING_TIMEOUT:
+            self.log.info('Starting blocking detector with timeout %r',
+                          self.blocking_timeout)
+            await self.blocking_detector.maybe_start()
 
     async def on_startup_finished(self) -> None:
         """Signal called when worker has started."""
