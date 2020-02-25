@@ -46,6 +46,7 @@ class SectionType(Enum):
 
 
 class Section:
+    """Configuration section."""
     type: SectionType
     title: str
     refid: str
@@ -61,6 +62,7 @@ class Section:
 
     def setting(self, param: Type[_Param[IT, OT]],
                 **kwargs: Any) -> Callable[[Callable], OT]:
+        """Decorate to define new setting in this section."""
         def inner(fun: Callable) -> OT:
             setting = param(
                 name=fun.__name__,

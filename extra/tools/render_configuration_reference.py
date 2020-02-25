@@ -33,28 +33,31 @@ class Rst:
         if module == 'builtins':
             return self._class(t.__name__)
         elif module == 'typing':
-            name = t._name
-            if name == 'List':
-                list_type = t.__args__ and t.__args__[0] or Any
-                return ' '.join([
-                    self.literal('['),
-                    self.to_ref(list_type),
-                    self.literal(']'),
-                ])
-            elif name.startswith(('Dict', 'Mapping', 'MutableMapping')):
-                key_type = value_type = Any
-                if t.__args__:
-                    key_type = t.__args__[0]
-                if len(t.__args__) > 1:
-                    value_type = t.__args__[1]
-                return ' '.join([
-                    self.literal('{'),
-                    ': '.join([
-                        self.to_ref(key_type),
-                        self.to_ref(value_type),
-                    ]),
-                    self.literal('}'),
-                ])
+            if t is Any:
+                name = 'Any'
+            else:
+                name = getattr(t, '_name', t.__name__)
+                if name == 'List':
+                    list_type = t.__args__ and t.__args__[0] or Any
+                    return ' '.join([
+                        self.literal('['),
+                        self.to_ref(list_type),
+                        self.literal(']'),
+                    ])
+                elif name.startswith(('Dict', 'Mapping', 'MutableMapping')):
+                    key_type = value_type = Any
+                    if t.__args__:
+                        key_type = t.__args__[0]
+                    if len(t.__args__) > 1:
+                        value_type = t.__args__[1]
+                    return ' '.join([
+                        self.literal('{'),
+                        ': '.join([
+                            self.to_ref(key_type),
+                            self.to_ref(value_type),
+                        ]),
+                        self.literal('}'),
+                    ])
         else:
             name = t.__name__
 
@@ -215,8 +218,8 @@ class ConfigRef(Rst):
             yield self.inforow(
                 'related-settings',
                 ', '.join(
-                    self.settingref(setting_name)
-                    for setting_name in setting.related_settings
+                    self.settingref(setting.name)
+                    for setting in setting.related_settings
                 ),
             )
 

@@ -44,7 +44,12 @@ SettingSectionIndexMapping = Dict[_Section, List[Param]]
 
 
 class SettingsRegistry(abc.ABC):
+    """Base class used for :class:`faust.types.settings.Settings`."""
+
+    #: Index of all settings by name.
     SETTINGS: ClassVar[SettingIndexMapping] = {}
+
+    #: Index of all sections and the settings in a section.
     SETTINGS_BY_SECTION: ClassVar[SettingSectionIndexMapping] = {}
 
     _initializing: bool = True
@@ -52,9 +57,10 @@ class SettingsRegistry(abc.ABC):
 
     @classmethod
     def setting_names(cls) -> Set[str]:
+        """Return set of all active setting names."""
         return {
             name for name, setting in cls.SETTINGS.items()
-            if not setting.deprecated
+            if setting.active and not setting.deprecated
         }
 
     @classmethod

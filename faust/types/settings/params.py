@@ -66,7 +66,6 @@ __all__ = [
     'Enum',
     'Symbol',
     'to_bool',
-    'setting',
 ]
 
 #: Default transport used when no scheme specified.
@@ -131,39 +130,160 @@ OnDefaultCallable = Callable[[_Settings], IT]
 
 
 class Param(Generic[IT, OT], property):
+    """Faust setting desscription.
+
+    Describes a Faust setting, how to read it from environment
+    variables or from a configuration object.
+
+    """
+
+    #: Textual description of setting type.
+    #: This is used by :file:`extra/tools/render_configuration_reference.py`
+    #: to display the types supported by this setting.
+    #:
+    #: Can be a tuple of actual classes, or a tuple of strings.
+    #: If a tuple of classes say a setting that accepts :class:`str`
+    #: and :class:`int`:
+    #:
+    #: .. sourcecode:: python
+    #:
+    #:      text_type = (str, int)
+    #:
+    #: the generated description will be:
+    #:
+    #: .. sourcecode:: restructuredtext
+    #:
+    #:   :type: :class:`str` / :class:`int`
+    #:
     text_type: ClassVar[Tuple[Any, ...]] = (Any,)
 
+    #: Setting name (e.g. ``broker_request_timeout``).
     name: str
+
+    #: Storage name (e.g. ``_broker_request_timeout``).
+    #: This is the attribute name where we'll be storing
+    #: the actual value for the setting.
+    #: For example ``Settings.broker_request_timeout`` will be a
+    #: property that calls ``Param.__get__`` on attribute access,
+    #: and ``.__set__`` when setting attribute value, and those
+    #: will use the underlying ``Settings._broker_request_timeout``
+    #: storage attribute to access/store the current value.
     storage_name: str
 
+    #: Default value for setting.
+    #:
+    #: Note that this will not be used if :attr:`default_alias` or
+    #: :attr:`defaut_template` is set.
     default: IT = cast(IT, None)
 
+    #: Environment variable name for setting.
+    #: For :setting:`broker_request_timeout` this would be
+    #: ``env_name="BROKER_REQUEST_TIMEOUT"``
     env_name: Optional[str] = None
+
     #: If setting is not customized this is an optional
     #: list of other settings that we should take default value from.
-    #: For example the `broker_consumer`/`broker_producer` settings
-    #: can configure the broker URL for consumers and producers separately
-    #: but take their default value from the `broker` setting.
+    #: For example the :setting:`broker_consumer`/:setting:`broker_producer`
+    #: settings can configure the broker URL for consumers and producers
+    #: separately but take their default value from the `broker` setting.
     default_alias: Optional[str] = None
+
+    #: Default template.
+    #: If set the default value will be generated from this format string
+    #: template.
+    #: For exmaple the :setting:`canonical_url` setting uses
+    #: ``default_template='http://{conf.web_host}:{conf.web_port}' to
+    #: generate a default value from the :setting:`web_host` and
+    #: :setting:`web_port` settings.
     default_template: Optional[str] = None
+
+    #: Set to true if the value can be :const:`None`.
     allow_none: bool = False
+
     # If set to True we don't modify the value
     # of the attribute to set a default.
     # This is used by e.g. the env_prefix setting
     # which has custom constructor code in Settings.on_init
     ignore_default: bool = False
 
+    #: The configuration section this setting belongs to.
+    #: E.g. ``sections.Common``.
     section: _Section
+
+    #: The version that this setting was first introduced.
+    #: This is used by :file:`extra/tools/render_configuration_reference.py`
+    #: to generate a version added directive:
+    #:
+    #: .. sourcecode:: restructuredtext
+    #:
+    #:    .. versionadded:: 1.10
     version_introduced: Optional[str] = None
+
+    #: Set this if the setting is deprecated and should not be used anymore.
+    #: Deprecated settings are not added to the configuration reference.
+    #: Note: You must also set a :attr:`deprecation_reason`.
     version_deprecated: Optional[str] = None
-    version_removed: Optional[str] = None
-    version_changed: Optional[Mapping[str, str]] = None
     deprecation_reason: Optional[str] = None
 
-    related_cli_options: Mapping[str, List[str]]
-    related_settings: List[str]
+    #: Mapping of version changes and reason for changing.
+    #: This is used by :file:`extra/tools/render_configuration_reference.py`
+    #: For example if this was enabled by default but then changed
+    #: to be disabled by default in version 1.30, then you can specify
+    #: that as ``version_changed={'1.30': 'Disabled by default.'}``
+    #: and the configuration reference will be rendered with the
+    #: following version changed directive added:
+    #:
+    #: .. sourcecode:: restructuredtext
+    #:
+    #:    .. versionchanged:: 1.30
+    #:
+    #:         Disabled by default.
+    version_changed: Optional[Mapping[str, str]] = None
 
+    #: Set this if the setting should be disabled completely,
+    #: but still be included in the code.
+    #: This is rare, no setting should be included in the
+    #: code if it has been removed.  Currently this is only
+    #: used for the example setting that describes how you can add new
+    #: settings.
+    version_removed: Optional[str] = None
+
+    #: Mapping of related command line options.
+    #: This should be a mapping from command name to a list of option names.
+    #:
+    #: For example the :setting:`canonical_url` setting lists related
+    #: options as:
+    #:
+    #: .. sourcecode:: python
+    #:
+    #:    related_cli_options={
+    #:      'faust worker': ['--web-host', '--web-port'],
+    #:    }
+    #:
+    #: And this will end up in the configuration reference as:
+    #:
+    #: .. sourcecode:: restructuredtext
+    #:
+    #:   :related-options: :option:`faust worker --web-host`,
+    #:                     :option:`faust worker --web-port`
+    related_cli_options: Mapping[str, List[str]]
+
+    #: List of related settings.
+    #: For example for the :setting:`canonical_url` setting
+    #: the list of related settings are defined as:
+    #: ``related_settings=[web_host, web_port]``.
+    #: The configuration reference will then include that as:
+    #:
+    #: .. sourcecode:: restructuredtext
+    #:
+    #:    :related-settings: :setting:`web_host`, :setting:`web_port`
+    related_settings: List[Any]
+
+    #: Template used to generate a deprecation warning for deprecated settings.
     deprecation_warning_template: str = DEPRECATION_WARNING_TEMPLATE
+
+    #: Template used to generate an additional removal warning
+    #: for the deprecation warning.
     deprecation_removal_warning: str = DEPRECATION_REMOVAL_WARNING
 
     def __init__(self, *,
@@ -181,7 +301,7 @@ class Param(Generic[IT, OT], property):
                  version_changed: Mapping[str, str] = None,
                  deprecation_reason: str = None,
                  related_cli_options: Mapping[str, List[str]] = None,
-                 related_settings: List[str] = None,
+                 related_settings: List[Any] = None,
                  help: str = None,
                  **kwargs: Any) -> None:
         assert name
@@ -225,14 +345,17 @@ class Param(Generic[IT, OT], property):
             assert self.deprecation_reason
 
     def _init_options(self, **kwargs: Any) -> None:
+        """Use in subclasses to quickly override ``__init__``."""
         ...
 
     def on_get_value(self, fun: OutputCallable) -> OutputCallable:
+        """Decorator that adds a callback when this setting is retrieved."""
         assert self._on_get_value_ is None
         self._on_get_value_ = fun
         return fun
 
     def on_set_default(self, fun: OnDefaultCallable) -> OnDefaultCallable:
+        """Decorator that adds a callback when a default value is used."""
         assert self._on_set_default_ is None
         self._on_set_default_ = fun
         return fun
@@ -250,6 +373,7 @@ class Param(Generic[IT, OT], property):
         self.on_set(obj, self.prepare_set(obj, value))
 
     def on_get(self, conf: _Settings) -> OT:
+        """What happens when the setting is accessed/retrieved."""
         value = getattr(conf, self.storage_name)
         if value is None and self.default_alias:
             retval = getattr(conf, self.default_alias)
@@ -260,24 +384,41 @@ class Param(Generic[IT, OT], property):
         return retval
 
     def prepare_get(self, conf: _Settings, value: OT) -> OT:
+        """Prepare value when accessed/retrieved."""
         return value
 
     def on_set(self, settings: Any, value: OT) -> None:
+        """What happens when the setting is stored/set."""
         settings.__dict__[self.storage_name] = value
         assert getattr(settings, self.storage_name) == value
 
     def set_class_default(self, cls: Type) -> None:
+        """Set class default value for storage attribute."""
         setattr(cls, self.storage_name, self.default)
 
     def on_init_set_value(self,
                           conf: _Settings,
                           provided_value: Optional[IT]) -> None:
+        """What happens at ``Settings.__init__`` to store provided value.
+
+        Arguments:
+            conf: Settings object.
+            provided_value: Provided configuration value passed to
+                            ``Settings.__init__`` or :const:`None` if not set.
+        """
         if provided_value is not None:
             self.__set__(conf, provided_value)
 
     def on_init_set_default(self,
                             conf: _Settings,
                             provided_value: Optional[IT]) -> None:
+        """What happens at ``Settings.__init__`` to set default value.
+
+        Arguments:
+            conf: Settings object.
+            provided_value: Provided configuration value passed to
+                            ``Settings.__init__`` or :const:`None` if not set.
+        """
         if provided_value is None:
             default_value = self.default
             if self._on_set_default_:
@@ -288,6 +429,7 @@ class Param(Generic[IT, OT], property):
                     self.prepare_init_default(conf, default_value))
 
     def build_deprecation_warning(self) -> str:
+        """Build deprecation warning for this setting."""
         alt_removal = ''
         if self.version_removed:
             alt_removal = self.deprecation_removal_warning.format(self=self)
@@ -297,12 +439,15 @@ class Param(Generic[IT, OT], property):
         )
 
     def validate_before(self, value: IT = None) -> None:
+        """Validate value before setting is converted to the target type."""
         ...
 
     def validate_after(self, value: OT) -> None:
+        """Validate value after it has been converted to its target type."""
         ...
 
     def prepare_set(self, conf: _Settings, value: IT) -> OT:
+        """Prepare value for storage."""
         skip_validate = value is None and self.allow_none
         if not skip_validate:
             self.validate_before(value)
@@ -315,11 +460,13 @@ class Param(Generic[IT, OT], property):
         return new_value
 
     def prepare_init_default(self, conf: _Settings, value: IT) -> OT:
+        """Prepare default value for storage."""
         if value is not None:
             return self.to_python(conf, value)
         return None
 
     def to_python(self, conf: _Settings, value: IT) -> OT:
+        """Convert value in input type to its output type."""
         return cast(OT, value)
 
     @property
@@ -336,23 +483,28 @@ class Param(Generic[IT, OT], property):
 
 
 class Bool(Param[Any, bool]):
+    """Boolean setting type."""
     text_type = (bool,)
 
     def to_python(self, conf: _Settings, value: Any) -> bool:
+        """Convert given value to :class:`bool`."""
         if isinstance(value, str):
             return to_bool(value)
         return bool(value)
 
 
 class Str(Param[str, str]):
+    """String setting type."""
     text_type = (str,)
 
 
 class Severity(Param[_Severity, _Severity]):
+    """Logging severity setting type."""
     text_type = (str, int)
 
 
 class Number(Param[IT, OT]):
+    """Number setting type (baseclass for int/float)."""
     min_value: Optional[int] = None
     max_value: Optional[int] = None
 
@@ -372,9 +524,11 @@ class Number(Param[IT, OT]):
     def to_python(self,
                   conf: _Settings,
                   value: IT) -> OT:
+        """Convert given value to number."""
         return self.convert(conf, value)
 
     def validate_after(self, value: OT) -> None:
+        """Validate number value."""
         v = cast(int, value)
         min_ = self.min_value
         max_ = self.max_value
@@ -398,26 +552,42 @@ class _Int(Number[IT, OT]):
     def convert(self,
                 conf: _Settings,
                 value: IT) -> OT:
+        """Convert given value to int."""
         return cast(OT, int(cast(int, value)))
 
 
 class Int(_Int[NumberInputArg, int]):
-    ...
+    """Signed integer setting type."""
 
 
 class UnsignedInt(_Int[NumberInputArg, int]):
+    """Unsigned integer setting type."""
     min_value = 0
 
 
 class Version(Int):
+    """Version setting type.
+
+    Versions must be greater than ``1``.
+    """
     min_value = 1
 
 
 class Port(UnsignedInt):
+    """Network port setting type.
+
+    Ports must be in the range 1-65535.
+    """
+    min_value = 1
     max_value = 65535
 
 
 class Seconds(Param[_Seconds, float]):
+    """Seconds setting type.
+
+    Converts from :class:`float`/:class:`~datetime.timedelta` to
+    :class:`float`.
+    """
     text_type = (float, timedelta)
 
     def to_python(self, conf: _Settings, value: _Seconds) -> float:
@@ -425,6 +595,7 @@ class Seconds(Param[_Seconds, float]):
 
 
 class Credentials(Param[CredentialsArg, Optional[CredentialsT]]):
+    """Authentication credentials setting type."""
     text_type = (CredentialsT,)
 
     def to_python(self,
@@ -434,10 +605,12 @@ class Credentials(Param[CredentialsArg, Optional[CredentialsT]]):
 
 
 class SSLContext(Param[ssl.SSLContext, Optional[ssl.SSLContext]]):
+    """SSL context setting type."""
     text_type = (ssl.SSLContext,)
 
 
 class Dict(Param[DictArg[T], Mapping[str, T]]):
+    """Dictionary setting type."""
     text_type = (dict,)
 
     def to_python(self,
@@ -451,6 +624,7 @@ class Dict(Param[DictArg[T], Mapping[str, T]]):
 
 
 class LogHandlers(Param[List[logging.Handler], List[logging.Handler]]):
+    """Log handler list setting type."""
     text_type = (List[logging.Handler],)
 
     def prepare_init_default(
@@ -459,6 +633,7 @@ class LogHandlers(Param[List[logging.Handler], List[logging.Handler]]):
 
 
 class Timezone(Param[Union[str, tzinfo], tzinfo]):
+    """Timezone setting type."""
     text_type = (tzinfo,)
     builtin_timezones = {'UTC': timezone.utc}
 
@@ -474,6 +649,7 @@ class Timezone(Param[Union[str, tzinfo], tzinfo]):
 
 
 class BrokerList(Param[BrokerArg, List[_URL]]):
+    """Broker URL list setting type."""
     text_type = (str, _URL, List[str])
     default_scheme = DEFAULT_BROKER_SCHEME
 
@@ -485,6 +661,7 @@ class BrokerList(Param[BrokerArg, List[_URL]]):
 
 
 class URL(Param[URLArg, _URL]):
+    """URL setting type."""
     text_type = (str, _URL)
 
     def to_python(self, conf: _Settings, value: URLArg) -> _URL:
@@ -492,6 +669,7 @@ class URL(Param[URLArg, _URL]):
 
 
 class Path(Param[Union[str, _Path], _Path]):
+    """Path setting type."""
     text_type = (str, _Path)
     expanduser: bool = True
 
@@ -506,10 +684,12 @@ class Path(Param[Union[str, _Path], _Path]):
 
 
 class Codec(Param[CodecArg, CodecArg]):
+    """Serialization codec setting type."""
     text_type = (str, CodecT)
 
 
 def Enum(typ: T) -> Type[Param[Union[str, T], T]]:
+    """Generate new enum setting type."""
 
     class EnumParam(Param[Union[str, T], T]):
         text_type = (str,)
@@ -528,8 +708,5 @@ class _Symbol(Param[IT, OT]):
 
 
 def Symbol(typ: T) -> Type[Param[SymbolArg[T], T]]:
+    """Generate new symbol setting type."""
     return _Symbol[SymbolArg[T], T]
-
-
-def setting(param: Type[Param[IT, OT]]) -> OT:
-    return cast(OT, param)

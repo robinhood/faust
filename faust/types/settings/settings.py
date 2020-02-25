@@ -43,7 +43,7 @@ from faust.types.web import HttpClientT, ResourceOptions
 from . import base
 from . import params
 from . import sections
-from .params import BrokerArg, URLArg, setting
+from .params import BrokerArg, URLArg
 
 if typing.TYPE_CHECKING:
     from faust.types.worker import Worker as _WorkerT
@@ -398,7 +398,6 @@ class Settings(base.SettingsRegistry):
             For manual control over autodiscovery, you can also call the
             :meth:`@discover` method manually.
         """
-        ...
 
     @sections.Common.setting(
         params.Path,
@@ -418,7 +417,6 @@ class Settings(base.SettingsRegistry):
               so there is usually no reason to provide a default value
               when creating the app.
         """
-        ...
 
     @datadir.on_get_value  # type: ignore
     def _prepare_datadir(self, path: Path) -> Path:
@@ -443,7 +441,6 @@ class Settings(base.SettingsRegistry):
         path will be considered to be relative to the :setting:`datadir`
         setting.
         """
-        ...
 
     @tabledir.on_get_value  # type: ignore
     def _prepare_tabledir(self, path: Path) -> Path:
@@ -469,7 +466,6 @@ class Settings(base.SettingsRegistry):
                 app.web.blueprints.add(
                     '/stats/', 'faust.web.apps.stats:blueprint')
         """
-        ...
 
     @sections.Common.setting(
         params.Str,
@@ -484,7 +480,6 @@ class Settings(base.SettingsRegistry):
         When configuring Faust by environent variables,
         this adds a common prefix to all Faust environment value names.
         """
-        ...
 
     @sections.Common.setting(
         params.Str,
@@ -497,7 +492,6 @@ class Settings(base.SettingsRegistry):
         The format string used to generate the final :setting:`id` value
         by combining it with the :setting:`version` parameter.
         """
-        ...
 
     @sections.Common.setting(
         params.Str,
@@ -528,7 +522,6 @@ class Settings(base.SettingsRegistry):
 
         The timezone used for date-related functionality such as cronjobs.
         """
-        ...
 
     @sections.Common.setting(
         params.Int,
@@ -552,7 +545,6 @@ class Settings(base.SettingsRegistry):
             topic; we may only consume from them. To mark a topic as internal,
             use: ``app.topic(..., internal=True)``.
         """
-        ...
 
     @sections.Agent.setting(
         params.Symbol(Type[SupervisorStrategyT]),
@@ -598,7 +590,6 @@ class Settings(base.SettingsRegistry):
             in the group and never restarted them again (until the program is
             restarted).
         """
-        ...
 
     @sections.Common.setting(
         params.BrokerList,
@@ -668,7 +659,6 @@ class Settings(base.SettingsRegistry):
                 suitable for tables), and do not create any necessary internal
                 topics (you have to create them manually).
         """
-        ...
 
     @broker.on_set_default  # type: ignore
     def _prepare_broker(self) -> BrokerArg:
@@ -688,7 +678,6 @@ class Settings(base.SettingsRegistry):
 
         If not set the value found in :setting:`broker` will be used.
         """
-        ...
 
     @sections.Broker.setting(
         params.BrokerList,
@@ -704,7 +693,6 @@ class Settings(base.SettingsRegistry):
 
         If not set the value found in :setting:`broker` will be used.
         """
-        ...
 
     @sections.Broker.setting(
         params.Str,
@@ -738,7 +726,6 @@ class Settings(base.SettingsRegistry):
         Kafka headers support was added in Kafka 0.11, so you can specify
         ``broker_api_version="0.10"`` to remove the headers from messages.
         """
-        ...
 
     @sections.Broker.setting(
         params.Bool,
@@ -750,7 +737,6 @@ class Settings(base.SettingsRegistry):
 
         Automatically check the CRC32 of the records consumed.
         """
-        ...
 
     @sections.Broker.setting(
         params.Str,
@@ -765,7 +751,6 @@ class Settings(base.SettingsRegistry):
         The client id is used to identify the software used, and is not usually
         configured by the user.
         """
-        ...
 
     @sections.Broker.setting(
         params.UnsignedInt,
@@ -780,7 +765,6 @@ class Settings(base.SettingsRegistry):
         See also :setting:`broker_commit_interval`, which is how frequently
         we commit on a timer when there are few messages being received.
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -793,7 +777,6 @@ class Settings(base.SettingsRegistry):
         How often we commit messages that have been
         fully processed (:term:`acked`).
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -806,7 +789,6 @@ class Settings(base.SettingsRegistry):
         How long time it takes before we warn that the Kafka commit offset has
         not advanced (only when processing messages).
         """
-        ...
 
     @sections.Common.setting(
         params.Credentials,
@@ -913,7 +895,6 @@ class Settings(base.SettingsRegistry):
 
         If any of these time out, you should increase this setting.
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -935,7 +916,6 @@ class Settings(base.SettingsRegistry):
         .. _`KIP-62`:
             https://cwiki.apache.org/confluence/display/KAFKA/KIP-62%3A+Allow+consumer+to+send+heartbeats+from+a+background+thread
         """
-        ...
 
     @sections.Broker.setting(
         params.UnsignedInt,
@@ -953,7 +933,6 @@ class Settings(base.SettingsRegistry):
         to tune the number of records that must be handled on every
         loop iteration.
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -976,7 +955,6 @@ class Settings(base.SettingsRegistry):
             The session timeout must not be greater than the
             :setting:`broker_request_timeout`.
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -992,7 +970,6 @@ class Settings(base.SettingsRegistry):
             The request timeout must not be less than the
             :setting:`broker_session_timeout`.
         """
-        ...
 
     @sections.Broker.setting(
         params.Seconds,
@@ -1015,7 +992,6 @@ class Settings(base.SettingsRegistry):
             The session timeout must not be greater than the
             :setting:`broker_request_timeout`.
         """
-        ...
 
     @sections.Common.setting(
         params.SSLContext,
@@ -1026,7 +1002,6 @@ class Settings(base.SettingsRegistry):
 
         See :setting:`credentials`.
         """
-        ...
 
     @sections.Consumer.setting(
         params.Str,
@@ -1040,7 +1015,6 @@ class Settings(base.SettingsRegistry):
         Configures the broker API version to use for consumers.
         See :setting:`broker_api_version` for more information.
         """
-        ...
 
     @sections.Consumer.setting(
         params.UnsignedInt,
@@ -1065,7 +1039,6 @@ class Settings(base.SettingsRegistry):
         You must keep this limit low enough to account
         for many partitions being assigned to a single node.
         """
-        ...
 
     @sections.Consumer.setting(
         params.Str,
@@ -1102,7 +1075,6 @@ class Settings(base.SettingsRegistry):
             - The :ref:`codecs` section in the model guide -- for
               more information about codecs.
         """
-        ...
 
     @sections.Serialization.setting(
         params.Codec,
@@ -1123,7 +1095,6 @@ class Settings(base.SettingsRegistry):
             - The :ref:`codecs` section in the model guide -- for
               more information about codecs.
         """
-        ...
 
     @sections.Common.setting(
         params.Dict[Any],
@@ -1135,7 +1106,6 @@ class Settings(base.SettingsRegistry):
         Optional dictionary for logging configuration, as supported
         by :func:`logging.config.dictConfig`.
         """
-        ...
 
     @sections.Common.setting(
         params.LogHandlers,
@@ -1145,7 +1115,6 @@ class Settings(base.SettingsRegistry):
 
         Specify a list of custom log handlers to use in worker instances.
         """
-        ...
 
     @sections.Producer.setting(
         params.Int,
@@ -1173,7 +1142,6 @@ class Settings(base.SettingsRegistry):
                   replica remains alive. This is the strongest
                   available guarantee.
         """
-        ...
 
     @sections.Producer.setting(
         params.Str,
@@ -1187,7 +1155,6 @@ class Settings(base.SettingsRegistry):
         Configures the broker API version to use for producers.
         See :setting:`broker_api_version` for more information.
         """
-        ...
 
     @sections.Producer.setting(
         params.Str,
@@ -1200,7 +1167,6 @@ class Settings(base.SettingsRegistry):
         The compression type for all data generated by the producer.
         Valid values are `gzip`, `snappy`, `lz4`, or :const:`None`.
         """
-        ...
 
     # XXX Convert to seconds
     @sections.Producer.setting(
@@ -1215,7 +1181,6 @@ class Settings(base.SettingsRegistry):
 
         Should rarely have to change this.
         """
-        ...
 
     @sections.Producer.setting(
         params.UnsignedInt,
@@ -1227,7 +1192,6 @@ class Settings(base.SettingsRegistry):
 
         Max size of each producer batch, in bytes.
         """
-        ...
 
     @sections.Producer.setting(
         params.UnsignedInt,
@@ -1241,7 +1205,6 @@ class Settings(base.SettingsRegistry):
 
         Should rarely have to change this.
         """
-        ...
 
     @sections.Producer.setting(
         params._Symbol[PartitionerT, Optional[PartitionerT]],
@@ -1801,7 +1764,7 @@ class Settings(base.SettingsRegistry):
         related_cli_options={
             'faust worker': ['--web-host', '--web-port'],
         },
-        related_settings=['web_host', 'web_port'],
+        related_settings=[web_host, web_port],
     )
     def canonical_url(self) -> URL:
         """Node specific canonical URL.
@@ -1861,7 +1824,6 @@ class Settings(base.SettingsRegistry):
             app = App(..., Agent='myproj.agents.Agent')
         """
 
-    @setting
     @sections.Consumer.setting(
         params.Symbol(Type[SchedulingStrategyT]),
         version_introduced='1.5',
