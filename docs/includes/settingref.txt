@@ -282,6 +282,50 @@ the second version is 2, and so on.
    use: ``app.topic(..., internal=True)``.
 
 
+.. setting:: blocking_timeout
+
+``blocking_timeout``
+--------------------
+
+:type: :class:`float` / :class:`~datetime.timedelta`
+:default: :const:`None`
+:environment: :envvar:`BLOCKING_TIMEOUT`
+:related-command-options: :option:`faust -`, :option:`faust -`, :option:`faust b`, :option:`faust l`, :option:`faust o`, :option:`faust c`, :option:`faust k`, :option:`faust i`, :option:`faust n`, :option:`faust g`, :option:`faust -`, :option:`faust t`, :option:`faust i`, :option:`faust m`, :option:`faust e`, :option:`faust o`, :option:`faust u`, :option:`faust t`
+
+Blocking timeout (in seconds).
+
+When specified the worker will start a periodic signal based
+timer that only triggers when the loop has been blocked
+for a time exceeding this timeout.
+
+This is the most safe way to detect blocking, but could have
+adverse effects on libraries that do not automatically
+retry interrupted system calls.
+
+Python itself does retry all interrupted system calls
+since version 3.5 (see :pep:`475`), but this might not
+be the case with C extensions added to the worker by the user.
+
+The blocking detector is a background thread
+that periodically wakes up to either arm a timer, or cancel
+an already armed timer. In pseudocode:
+
+.. sourcecode:: python
+
+   while True:
+       # cancel previous alarm and arm new alarm
+       signal.signal(signal.SIGALRM, on_alarm)
+       signal.setitimer(signal.ITIMER_REAL, blocking_timeout)
+       # sleep to wakeup just before the timeout
+       await asyncio.sleep(blocking_timeout * 0.96)
+
+   def on_alarm(signum, frame):
+       logger.warning('Blocking detected: ...')
+
+If the sleep does not wake up in time the alarm signal
+will be sent to the process and a traceback will be logged.
+
+
 .. setting:: broker
 
 ``broker``
@@ -710,7 +754,7 @@ Automatically check the CRC32 of the records consumed.
 --------------------
 
 :type: :class:`str`
-:default: ``'faust-1.10.3'``
+:default: ``'faust-1.11.0a1'``
 :environment: :envvar:`BROKER_CLIENT_ID`
 
 Broker client ID.
