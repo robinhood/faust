@@ -285,6 +285,7 @@ class Worker(mode.Worker):
             self.spinner.stop()
 
     async def maybe_start_blockdetection(self) -> None:
+        """Start blocking detector if enabled."""
         if self.debug or FORCE_BLOCKING_TIMEOUT:
             self.log.info('Starting blocking detector with timeout %r',
                           self.blocking_timeout)
