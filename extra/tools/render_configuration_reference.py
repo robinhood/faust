@@ -21,6 +21,7 @@ SETTING_TEMPLATE = '''\
 {metadata}
 
 {content}
+
 '''
 
 
@@ -40,7 +41,7 @@ class Rst:
                     self.to_ref(list_type),
                     self.literal(']'),
                 ])
-            elif name.startswith('Dict', 'Mapping', 'MutableMapping'):
+            elif name.startswith(('Dict', 'Mapping', 'MutableMapping')):
                 key_type = value_type = Any
                 if t.__args__:
                     key_type = t.__args__[0]

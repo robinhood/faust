@@ -119,6 +119,7 @@ The value for this argument can be:
    For manual control over autodiscovery, you can also call the
    :meth:`@discover` method manually.
 
+
 .. setting:: datadir
 
 ``datadir``
@@ -140,6 +141,7 @@ local tables, etc.
      so there is usually no reason to provide a default value
      when creating the app.
 
+
 .. setting:: tabledir
 
 ``tabledir``
@@ -158,6 +160,7 @@ but if you want to store tables separately you can configure this one.
 If the path provided is relative (it has no leading slash), then the
 path will be considered to be relative to the :setting:`datadir`
 setting.
+
 
 .. setting:: debug
 
@@ -182,6 +185,7 @@ Use in development to expose sensor information endpoint.
        app.web.blueprints.add(
            '/stats/', 'faust.web.apps.stats:blueprint')
 
+
 .. setting:: env_prefix
 
 ``env_prefix``
@@ -198,6 +202,7 @@ Environment variable prefix.
 When configuring Faust by environent variables,
 this adds a common prefix to all Faust environment value names.
 
+
 .. setting:: id_format
 
 ``id_format``
@@ -211,6 +216,7 @@ Application ID format template.
 
 The format string used to generate the final :setting:`id` value
 by combining it with the :setting:`version` parameter.
+
 
 .. setting:: origin
 
@@ -232,6 +238,7 @@ The :program:`faust worker` program will try to automatically set
 the origin, but if you are having problems with auto generated names
 then you can set origin manually.
 
+
 .. setting:: timezone
 
 ``timezone``
@@ -246,6 +253,7 @@ then you can set origin manually.
 Project timezone.
 
 The timezone used for date-related functionality such as cronjobs.
+
 
 .. setting:: version
 
@@ -271,12 +279,13 @@ the second version is 2, and so on.
    topic; we may only consume from them. To mark a topic as internal,
    use: ``app.topic(..., internal=True)``.
 
+
 .. setting:: broker
 
 ``broker``
 ----------
 
-:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[`` :class:`str` ``]``
 :default: :const:`None`
 :environment: :envvar:`BROKER_URL`
 
@@ -343,6 +352,7 @@ Available Transports
    Limitations: Does not do sticky partition assignment (not
        suitable for tables), and do not create any necessary internal
        topics (you have to create them manually).
+
 
 .. setting:: broker_credentials
 
@@ -448,6 +458,7 @@ Kafka connections and enabling certificate-based authentication.
    ssl_context.load_cert_chain('client.cert', keyfile='client.key')
    app = faust.App(..., broker_credentials=ssl_context)
 
+
 .. setting:: ssl_context
 
 ``ssl_context``
@@ -459,6 +470,7 @@ Kafka connections and enabling certificate-based authentication.
 SSL configuration.
 
 See :setting:`credentials`.
+
 
 .. setting:: logging_config
 
@@ -475,17 +487,19 @@ Logging dictionary configuration.
 Optional dictionary for logging configuration, as supported
 by :func:`logging.config.dictConfig`.
 
+
 .. setting:: loghandlers
 
 ``loghandlers``
 ---------------
 
-:type: ``[``:class:`~logging.Handler```]``
+:type: ``[`` :class:`~logging.Handler` ``]``
 :default: :const:`None`
 
 List of custom logging handlers.
 
 Specify a list of custom log handlers to use in worker instances.
+
 
 .. setting:: processing_guarantee
 
@@ -513,6 +527,7 @@ For development you can change this, by adjusting broker setting
 ``transaction.state.log.replication.factor`` to the number of brokers
 you want to use.
 
+
 .. setting:: store
 
 ``store``
@@ -531,6 +546,7 @@ not use the ``memory://`` store in production.
 
 In production, a persistent table store, such as ``rocksdb://`` is
 preferred.
+
 
 .. setting:: cache
 
@@ -551,6 +567,7 @@ URL can be:
 + ``redis://host``
 + ``rediscluster://host``, or
 + ``memory://``.
+
 
 
 .. _settings-agent:
@@ -606,6 +623,7 @@ These are the supervisors supported:
    restarted).
 
 
+
 .. _settings-broker:
 
 Advanced Broker Settings
@@ -618,7 +636,7 @@ Advanced Broker Settings
 
 .. versionadded:: 1.7
 
-:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[`` :class:`str` ``]``
 :default (alias to setting): :setting:`broker`
 :environment: :envvar:`BROKER_CONSUMER_URL`
 
@@ -629,6 +647,7 @@ producing and consuming separately.
 
 If not set the value found in :setting:`broker` will be used.
 
+
 .. setting:: broker_producer
 
 ``broker_producer``
@@ -636,7 +655,7 @@ If not set the value found in :setting:`broker` will be used.
 
 .. versionadded:: 1.7
 
-:type: :class:`str` / :class:`~yarl.URL` / ``[``:class:`str```]``
+:type: :class:`str` / :class:`~yarl.URL` / ``[`` :class:`str` ``]``
 :default (alias to setting): :setting:`broker`
 :environment: :envvar:`BROKER_PRODUCER_URL`
 
@@ -646,6 +665,7 @@ You can use this setting to configure the transport used for
 producing and consuming separately.
 
 If not set the value found in :setting:`broker` will be used.
+
 
 .. setting:: broker_api_version
 
@@ -679,6 +699,7 @@ Disable sending headers for all messages produced
 Kafka headers support was added in Kafka 0.11, so you can specify
 ``broker_api_version="0.10"`` to remove the headers from messages.
 
+
 .. setting:: broker_check_crcs
 
 ``broker_check_crcs``
@@ -691,6 +712,7 @@ Kafka headers support was added in Kafka 0.11, so you can specify
 Broker CRC check.
 
 Automatically check the CRC32 of the records consumed.
+
 
 .. setting:: broker_client_id
 
@@ -708,6 +730,7 @@ There is rarely any reason to configure this setting.
 The client id is used to identify the software used, and is not usually
 configured by the user.
 
+
 .. setting:: broker_commit_every
 
 ``broker_commit_every``
@@ -724,6 +747,7 @@ Commit offset every n messages.
 See also :setting:`broker_commit_interval`, which is how frequently
 we commit on a timer when there are few messages being received.
 
+
 .. setting:: broker_commit_interval
 
 ``broker_commit_interval``
@@ -738,6 +762,7 @@ Broker commit time frequency.
 How often we commit messages that have been
 fully processed (:term:`acked`).
 
+
 .. setting:: broker_commit_livelock_soft_timeout
 
 ``broker_commit_livelock_soft_timeout``
@@ -751,6 +776,7 @@ Commit livelock timeout.
 
 How long time it takes before we warn that the Kafka commit offset has
 not advanced (only when processing messages).
+
 
 .. setting:: broker_heartbeat_interval
 
@@ -769,6 +795,7 @@ How often we send heartbeats to the broker, and also how often
 we expect to receive heartbeats from the broker.
 
 If any of these time out, you should increase this setting.
+
 
 .. setting:: broker_max_poll_interval
 
@@ -794,6 +821,7 @@ See `KIP-62`_ for technical details.
 .. _`KIP-62`:
    https://cwiki.apache.org/confluence/display/KAFKA/KIP-62%3A+Allow+consumer+to+send+heartbeats+from+a+background+thread
 
+
 .. setting:: broker_max_poll_records
 
 ``broker_max_poll_records``
@@ -812,6 +840,7 @@ If you find that your application needs more time to process
 messages you may want to adjust :setting:`broker_max_poll_records`
 to tune the number of records that must be handled on every
 loop iteration.
+
 
 .. setting:: broker_rebalance_timeout
 
@@ -838,6 +867,7 @@ constantly rebalancing, but make sure you also increase the
    The session timeout must not be greater than the
    :setting:`broker_request_timeout`.
 
+
 .. setting:: broker_request_timeout
 
 ``broker_request_timeout``
@@ -855,6 +885,7 @@ Kafka client request timeout.
 
    The request timeout must not be less than the
    :setting:`broker_session_timeout`.
+
 
 .. setting:: broker_session_timeout
 
@@ -882,6 +913,7 @@ constantly rebalancing, but make sure you also increase the
    :setting:`broker_request_timeout`.
 
 
+
 .. _settings-consumer:
 
 Advanced Consumer Settings
@@ -902,6 +934,7 @@ Consumer API version.
 
 Configures the broker API version to use for consumers.
 See :setting:`broker_api_version` for more information.
+
 
 .. setting:: consumer_max_fetch_size
 
@@ -930,6 +963,7 @@ the rebalancing timeout.
 You must keep this limit low enough to account
 for many partitions being assigned to a single node.
 
+
 .. setting:: consumer_auto_offset_reset
 
 ``consumer_auto_offset_reset``
@@ -948,6 +982,7 @@ there is no initial offset, or the stored offset no longer
 exists, e.g. when starting a new consumer for the first time.
 
 Options include 'earliest', 'latest', 'none'.
+
 
 .. setting:: ConsumerScheduler
 
@@ -978,6 +1013,7 @@ Example using the string path to a class::
    app = App(..., ConsumerScheduler='myproj.MySchedulingStrategy')
 
 
+
 .. _settings-serialization:
 
 Serialization Settings
@@ -1005,6 +1041,7 @@ This can be the name of a serializer/codec, or an actual
    - The :ref:`codecs` section in the model guide -- for
      more information about codecs.
 
+
 .. setting:: value_serializer
 
 ``value_serializer``
@@ -1026,6 +1063,7 @@ This can be string, the name of a serializer/codec, or an actual
 
    - The :ref:`codecs` section in the model guide -- for
      more information about codecs.
+
 
 
 .. _settings-producer:
@@ -1062,6 +1100,7 @@ durability of records that are sent. The following settings are common:
          replica remains alive. This is the strongest
          available guarantee.
 
+
 .. setting:: producer_api_version
 
 ``producer_api_version``
@@ -1078,6 +1117,7 @@ Producer API version.
 Configures the broker API version to use for producers.
 See :setting:`broker_api_version` for more information.
 
+
 .. setting:: producer_compression_type
 
 ``producer_compression_type``
@@ -1091,6 +1131,7 @@ Producer compression type.
 
 The compression type for all data generated by the producer.
 Valid values are `gzip`, `snappy`, `lz4`, or :const:`None`.
+
 
 .. setting:: producer_linger_ms
 
@@ -1107,6 +1148,7 @@ Minimum time to batch before sending out messages from the producer.
 
 Should rarely have to change this.
 
+
 .. setting:: producer_max_batch_size
 
 ``producer_max_batch_size``
@@ -1119,6 +1161,7 @@ Should rarely have to change this.
 Producer max batch size.
 
 Max size of each producer batch, in bytes.
+
 
 .. setting:: producer_max_request_size
 
@@ -1134,6 +1177,7 @@ Producer maximum request size.
 Maximum size of a request in bytes in the producer.
 
 Should rarely have to change this.
+
 
 .. setting:: producer_partitioner
 
@@ -1187,6 +1231,7 @@ and can be used as a template for your own partitioner:
        index %= len(all_partitions)
        return all_partitions[index]
 
+
 .. setting:: producer_request_timeout
 
 ``producer_request_timeout``
@@ -1203,6 +1248,7 @@ Producer request timeout.
 Timeout for producer operations.
 This is set high by default, as this is also the time when
 producer batches expire and will no longer be retried.
+
 
 
 .. _settings-rpc:
@@ -1226,6 +1272,7 @@ Set this to :const:`True` if you plan on using the RPC with agents.
 This will create the internal topic used for RPC replies on that
 instance at startup.
 
+
 .. setting:: reply_expires
 
 ``reply_expires``
@@ -1241,6 +1288,7 @@ The expiry time (in seconds :class:`float`,
 or :class:`~datetime.timedelta`), for how long replies will stay
 in the instances local reply topic before being removed.
 
+
 .. setting:: reply_to
 
 ``reply_to``
@@ -1255,6 +1303,7 @@ The name of the reply topic used by this instance.
 If not set one will be automatically generated when the app
 is created.
 
+
 .. setting:: reply_to_prefix
 
 ``reply_to_prefix``
@@ -1267,6 +1316,7 @@ is created.
 Reply address topic name prefix.
 
 The prefix used when generating reply topic names.
+
 
 
 .. _setting-stream:
@@ -1306,6 +1356,7 @@ from building up.
 A buffer size of 131_072 may let you process over 30,000 events
 a second as a baseline, but be careful with a buffer size that large
 when you also send messages or update tables.
+
 
 .. setting:: stream_processing_timeout
 
@@ -1358,6 +1409,7 @@ consider doing retries (send to separate topic):
            await stream.sleep(30)
            await send_request(value)
 
+
 .. setting:: stream_publish_on_commit
 
 ``stream_publish_on_commit``
@@ -1373,6 +1425,7 @@ source topic offset related to that processing is committed.
 This means when we do commit, we may have buffered up a LOT of messages
 so commit needs to happen frequently (make sure to decrease
 :setting:`broker_commit_every`).
+
 
 .. setting:: stream_recovery_delay
 
@@ -1395,6 +1448,7 @@ Number of seconds to sleep before continuing after rebalance.
 We wait for a bit to allow for more nodes to join/leave before
 starting recovery tables and then processing streams. This to minimize
 the chance of errors rebalancing loops.
+
 
 .. setting:: stream_wait_empty
 
@@ -1420,6 +1474,7 @@ By default we will wait for the currently active tasks, but if your
 streams are idempotent you can disable it using this setting.
 
 
+
 .. _settings-table:
 
 Advanced Table Settings
@@ -1437,6 +1492,7 @@ Advanced Table Settings
 Table cleanup interval.
 
 How often we cleanup tables to remove expired entries.
+
 
 .. setting:: table_key_index_size
 
@@ -1456,6 +1512,7 @@ table lookups.
 
 This setting configures the maximum size of that cache.
 
+
 .. setting:: table_standby_replicas
 
 ``table_standby_replicas``
@@ -1468,6 +1525,7 @@ This setting configures the maximum size of that cache.
 Table standby replicas.
 
 The number of standby replicas for each table.
+
 
 
 .. _settings-topic:
@@ -1497,6 +1555,7 @@ table changelog topics etc.
 Some Kafka managers does not allow services to create topics,
 in that case you should set this to :const:`False`.
 
+
 .. setting:: topic_disable_leader
 
 ``topic_disable_leader``
@@ -1514,6 +1573,7 @@ This setting disables the creation of the leader election topic.
 
 If you're not using the ``on_leader=True`` argument to task/timer/etc.,
 decorators then use this setting to disable creation of the topic.
+
 
 .. setting:: topic_partitions
 
@@ -1534,6 +1594,7 @@ Default number of partitions for new topics.
    workload of the application (also sometimes referred as the
    sharding factor of the application).
 
+
 .. setting:: topic_replication_factor
 
 ``topic_replication_factor``
@@ -1553,6 +1614,7 @@ The default replication factor for topics created by the application.
    replication factor for your Kafka cluster.
 
 
+
 .. _setting-web:
 
 Advanced Web Server Settings
@@ -1569,6 +1631,7 @@ Advanced Web Server Settings
 :default: ``'aiohttp://'``
 
 Web server driver to use.
+
 .. setting:: web_bind
 
 ``web_bind``
@@ -1589,6 +1652,7 @@ By default this will bind to all interfaces.
 
 This option is usually set by :option:`faust worker --web-bind`,
 not by passing it as a keyword argument to :class:`app`.
+
 
 .. setting:: web_cors_options
 
@@ -1627,6 +1691,7 @@ arguments to to ``@app.page`` and ``blueprint.route``.
 .. _`Cross-Origin Resource Sharing`:
    https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 
+
 .. setting:: web_enabled
 
 ``web_enabled``
@@ -1643,6 +1708,7 @@ Enable/disable internal web server.
 Enable web server and other web components.
 
 This option can also be set using :option:`faust worker --without-web`.
+
 
 .. setting:: web_host
 
@@ -1662,6 +1728,7 @@ the :setting:`canonical_url` setting.
 
 This option is usually set by :option:`faust worker --web-host`,
 not by passing it as a keyword argument to :class:`app`.
+
 
 .. setting:: web_in_thread
 
@@ -1684,6 +1751,7 @@ to be responsive when the worker is otherwise busy processing streams.
    Running the web server in a separate thread means web views
    and agents will not share the same event loop.
 
+
 .. setting:: web_port
 
 ``web_port``
@@ -1701,6 +1769,7 @@ A port number between 1024 and 65535 to use for the web server.
 
 This option is usually set by :option:`faust worker --web-port`,
 not by passing it as a keyword argument to :class:`app`.
+
 
 .. setting:: web_transport
 
@@ -1725,6 +1794,7 @@ the path to the file you want to create like this:
 This will create a new domain socket available
 in :file:`/tmp/server.sock`.
 
+
 .. setting:: canonical_url
 
 ``canonical_url``
@@ -1743,6 +1813,7 @@ You shouldn't have to set this manually.
 The canonical URL defines how to reach the web server on a running
 worker node, and is usually set by combining the
 :setting:`web_host` and :setting:`web_port` settings.
+
 
 
 .. _settings-worker:
@@ -1766,6 +1837,7 @@ Enable to have the worker redirect output to :data:`sys.stdout` and
 
 Enabled by default.
 
+
 .. setting:: worker_redirect_stdouts_level
 
 ``worker_redirect_stdouts_level``
@@ -1778,6 +1850,7 @@ Enabled by default.
 Level used when redirecting standard outputs.
 
 The logging level to use when redirect STDOUT/STDERR to logging.
+
 
 
 .. _settings-extending:
@@ -1810,6 +1883,7 @@ Example using the string path to a class::
 
    app = App(..., Agent='myproj.agents.Agent')
 
+
 .. setting:: Event
 
 ``Event``
@@ -1834,6 +1908,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., Event='myproj.events.Event')
+
 
 .. setting:: Schema
 
@@ -1860,6 +1935,7 @@ Example using the string path to a class::
 
    app = App(..., Schema='myproj.schemas.Schema')
 
+
 .. setting:: Stream
 
 ``Stream``
@@ -1884,6 +1960,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., Stream='myproj.streams.Stream')
+
 
 .. setting:: Table
 
@@ -1910,6 +1987,7 @@ Example using the string path to a class::
 
    app = App(..., Table='myproj.tables.Table')
 
+
 .. setting:: SetTable
 
 ``SetTable``
@@ -1934,6 +2012,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., Table='myproj.tables.MySetTable')
+
 
 .. setting:: GlobalTable
 
@@ -1960,6 +2039,7 @@ Example using the string path to a class::
 
    app = App(..., GlobalTable='myproj.tables.GlobalTable')
 
+
 .. setting:: SetGlobalTable
 
 ``SetGlobalTable``
@@ -1984,6 +2064,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., SetGlobalTable='myproj.tables.SetGlobalTable')
+
 
 .. setting:: TableManager
 
@@ -2012,6 +2093,7 @@ Example using the string path to a class::
 
    app = App(..., TableManager='myproj.tables.TableManager')
 
+
 .. setting:: Serializers
 
 ``Serializers``
@@ -2038,6 +2120,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., Serializers='myproj.serializers.Registry')
+
 
 .. setting:: Worker
 
@@ -2066,6 +2149,7 @@ Example using the string path to a class::
 
    app = faust.App(..., Worker='myproj.workers.Worker')
 
+
 .. setting:: PartitionAssignor
 
 ``PartitionAssignor``
@@ -2093,6 +2177,7 @@ Example using the string path to a class::
 
    app = App(..., Worker='myproj.assignor.PartitionAssignor')
 
+
 .. setting:: LeaderAssignor
 
 ``LeaderAssignor``
@@ -2119,6 +2204,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = App(..., Worker='myproj.assignor.LeaderAssignor')
+
 
 .. setting:: Router
 
@@ -2148,6 +2234,7 @@ Example using the string path to a class::
 
    app = App(..., Router='myproj.routers.Router')
 
+
 .. setting:: Topic
 
 ``Topic``
@@ -2174,6 +2261,7 @@ Example using a class::
 Example using the string path to a class::
 
    app = faust.App(..., Topic='myproj.topics.Topic')
+
 
 .. setting:: HttpClient
 
@@ -2203,6 +2291,7 @@ Example using the string path to a class::
 
    app = faust.App(..., HttpClient='myproj.http.HttpClient')
 
+
 .. setting:: Monitor
 
 ``Monitor``
@@ -2231,5 +2320,6 @@ Example using a class::
 Example using the string path to a class::
 
    app = faust.App(..., Monitor='myproj.monitors.Monitor')
+
 
 
