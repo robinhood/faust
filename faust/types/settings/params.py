@@ -507,15 +507,18 @@ class Number(Param[IT, OT]):
     """Number setting type (baseclass for int/float)."""
     min_value: Optional[int] = None
     max_value: Optional[int] = None
+    number_aliases: Mapping[IT, OT]
 
     def _init_options(self,
                       min_value: int = None,
                       max_value: int = None,
+                      number_aliases: Mapping[IT, OT] = None,
                       **kwargs: Any) -> None:
         if min_value is not None:
             self.min_value = min_value
         if max_value is not None:
             self.max_value = max_value
+        self.number_aliases = number_aliases or {}
 
     @abc.abstractmethod
     def convert(self, conf: _Settings, value: IT) -> OT:
@@ -525,7 +528,10 @@ class Number(Param[IT, OT]):
                   conf: _Settings,
                   value: IT) -> OT:
         """Convert given value to number."""
-        return self.convert(conf, value)
+        try:
+            return self.number_aliases[value]
+        except KeyError:
+            return self.convert(conf, value)
 
     def validate_after(self, value: OT) -> None:
         """Validate number value."""

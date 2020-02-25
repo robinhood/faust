@@ -1301,7 +1301,7 @@ class test_Producer:
         pytest.param({'api_version': '0.10'},
                      marks=pytest.mark.conf(
                          producer_api_version='0.10')),
-        pytest.param({'acks': 'all'},
+        pytest.param({'acks': -1},
                      marks=pytest.mark.conf(
                          producer_acks='all')),
         pytest.param({'bootstrap_servers': ['a:9092', 'b:9092']},

@@ -1163,6 +1163,7 @@ class Settings(base.SettingsRegistry):
         params.Int,
         env_name='PRODUCER_ACKS',
         default=-1,
+        number_aliases={'all': -1},
     )
     def producer_acks(self) -> int:
         """Producer Acks.

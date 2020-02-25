@@ -484,12 +484,12 @@ class test_Command:
         command.loglevel = None
         assert command.loglevel == DEFAULT_LOGLEVEL
 
-    def test_blocking_timeout(self, *, app, command, ctx):
+    def test_blocking_timeout(self, *, command, ctx):
         assert command.blocking_timeout == ctx.ensure_object().blocking_timeout
         command.blocking_timeout = 32.41
         assert command.blocking_timeout == 32.41
         command.blocking_timeout = None
-        assert command.blocking_timeout == app.conf.blocking_timeout
+        assert command.blocking_timeout == 0.0
 
     def test_console_port(self, *, command, ctx):
         assert command.console_port == ctx.ensure_object().console_port
@@ -521,6 +521,13 @@ class test_AppCommand:
         res = command._finalize_app(app)
         assert res is command._finalize_concrete_app.return_value
         command._finalize_concrete_app.assert_called_once_with(app)
+
+    def test_blocking_timeout(self, *, command, ctx):
+        assert command.blocking_timeout == ctx.ensure_object().blocking_timeout
+        command.blocking_timeout = 32.41
+        assert command.blocking_timeout == 32.41
+        command.blocking_timeout = None
+        assert command.blocking_timeout == command.app.conf.blocking_timeout
 
     def test_app_from_str(self, *, command):
         with patch('faust.cli.base.find_app') as find_app:
