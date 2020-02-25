@@ -12,8 +12,78 @@ please visit the :ref:`history` section.
 
 1.10.4
 ======
-:release-date: TBA
-:release-by: TBA
+:release-date: 2020-02-25 3:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+  + Now depends on :pypi:`robinhood-aiokafka` 1.1.6
+
+- Kafka: Fixed support for SASL authentication (Issue #468).
+
+    Fix contributed by Julien Surloppe :github_user:`jsurloppe`.
+
+- Adds ability to force enable block detection in production.
+
+    To start Faust with block detection enabled in production
+    add the following environment variables to the `faust worker` command:
+
+    .. sourcecode:: bash
+
+        F_BLOCKING_TIMEOUT='10.0'
+        F_FORCE_BLOCKING_TIMEOUT=1
+
+    The worker will now log an error if the event loop is blocked
+    for more than 10 seconds.
+
+    This is a temporary workaround until Faust version 1.11 is released,
+    it will stop working in that version.
+    To enable this in Faust 1.11 either use the BLOCKING_TIMEOUT environment
+    variable:
+
+    .. sourcecode:: bash
+
+        BLOCKING_TIMEOUT='10.0'
+
+            or use the new `blocking_timeout` setting:
+
+        app = faust.App(..., blocking_timeout=10.0)
+
+    Of interest is also the documentation for the new setting coming in
+    1.11:
+
+    Blocking timeout (in seconds).
+
+    When specified the worker will start a periodic signal based
+    timer that only triggers when the loop has been blocked
+    for a time exceeding this timeout.
+
+    This is the most safe way to detect blocking, but could have
+    adverse effects on libraries that do not automatically
+    retry interrupted system calls.
+
+    Python itself does retry all interrupted system calls
+    since version 3.5 (see :pep:`475`), but this might not
+    be the case with C extensions added to the worker by the user.
+
+    The blocking detector is a background thread
+    that periodically wakes up to either arm a timer, or cancel
+    an already armed timer. In pseudocode:
+
+    .. sourcecode:: python
+
+        while True:
+            # cancel previous alarm and arm new alarm
+            signal.signal(signal.SIGALRM, on_alarm)
+            signal.setitimer(signal.ITIMER_REAL, blocking_timeout)
+            # sleep to wakeup just before the timeout
+            await asyncio.sleep(blocking_timeout * 0.96)
+
+        def on_alarm(signum, frame):
+            logger.warning('Blocking detected: ...')
+
+    If the sleep does not wake up in time the alarm signal
+    will be sent to the process and a traceback will be logged.
 
 - Documentation improvements by:
 
