@@ -171,10 +171,9 @@ class FieldDescriptor(FieldDescriptorT[T]):
         self._to_python = self._compile_type_expression()
 
     def _prepare_type_expression(self) -> TypeExpression:
-        assert self.model is not None
         expr = TypeExpression(
             self.type,
-            user_types=self.model._options.coercions,
+            user_types=self.options['model_coercions'],
             date_parser=self.date_parser,
         )
         return expr

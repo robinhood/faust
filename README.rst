@@ -416,47 +416,11 @@ Can I use Faust with Twisted?
 Yes! Use the ``asyncio`` reactor implementation:
 https://twistedmatrix.com/documents/17.1.0/api/twisted.internet.asyncioreactor.html
 
-Will you support Python 3.5 or earlier?
----------------------------------------
+Will you support Python 2.7 or Python 3.5?
+------------------------------------------
 
-There are no immediate plans to support Python 3.5, but you are welcome to
-contribute to the project.
-
-Here are some of the steps required to accomplish this:
-
-- Source code transformation to rewrite variable annotations to comments
-
-  for example, the code::
-
-        class Point:
-            x: int = 0
-            y: int = 0
-
-   must be rewritten into::
-
-        class Point:
-            x = 0  # type: int
-            y = 0  # type: int
-
-- Source code transformation to rewrite async functions
-
-    for example, the code::
-
-        async def foo():
-            await asyncio.sleep(1.0)
-
-    must be rewritten into::
-
-        @coroutine
-        def foo():
-            yield from asyncio.sleep(1.0)
-
-Will you support Python 2?
---------------------------
-
-There are no plans to support Python 2, but you are welcome to contribute to
-the project (details in the question above is relevant also for Python 2).
-
+No. Faust requires Python 3.6 or later, since it heavily uses features that were
+introduced in Python 3.6 (`async`, `await`, variable type annotations).
 
 I get a maximum number of open files exceeded error by RocksDB when running a Faust app locally. How can I fix this?
 --------------------------------------------------------------------------------------------------------------------
@@ -482,24 +446,16 @@ Faust supports kafka with version >= 0.10.
 Getting Help
 ============
 
-.. _mailing-list:
-
-Mailing list
-------------
-
-For discussions about the usage, development, and future of Faust,
-please join the `faust-users`_ mailing list.
-
-.. _`faust-users`: https://groups.google.com/group/faust-users/
-
 .. _slack-channel:
 
 Slack
 -----
 
-Come chat with us on Slack:
+For discussions about the usage, development, and future of Faust,
+please join the `fauststream`_ Slack.
 
-https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg
+* https://fauststream.slack.com
+* Sign-up: https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg
 
 Resources
 =========
