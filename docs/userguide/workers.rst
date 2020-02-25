@@ -16,7 +16,7 @@ Managing individual instances
 This part describes managing individual instances and is more
 relevant in development.
 
-Make sure you also read the ref:`worker-cluster` section of this guide
+Make sure you also read the :ref:`worker-cluster` section of this guide
 for production deployments.
 
 .. _worker-starting:
