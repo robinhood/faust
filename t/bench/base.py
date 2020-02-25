@@ -41,7 +41,7 @@ class Benchmark:
         self.app.finalize()
         self.app.conf.producer_acks = ACKS
         self.app.conf.producer_max_batch_size = BSIZE
-        self.app.conf.producer_linger_ms = LINGER
+        self.app.conf.producer_linger = LINGER
 
     def install(self, main_name):
         self.create_benchmark_agent()

@@ -36,7 +36,7 @@ class Rst:
             if t is Any:
                 name = 'Any'
             else:
-                name = getattr(t, '_name', t.__name__)
+                name = getattr(t, '_name', None) or t.__name__
                 if name == 'List':
                     list_type = t.__args__ and t.__args__[0] or Any
                     return ' '.join([

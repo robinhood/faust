@@ -1315,7 +1315,7 @@ class test_Producer:
                          producer_compression_type='snappy')),
         pytest.param({'linger_ms': 9345},
                      marks=pytest.mark.conf(
-                         producer_linger_ms=9345)),
+                         producer_linger=9.345)),
         pytest.param({'max_batch_size': 41223},
                      marks=pytest.mark.conf(
                          producer_max_batch_size=41223)),

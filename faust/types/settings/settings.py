@@ -1170,19 +1170,21 @@ class Settings(base.SettingsRegistry):
         Valid values are `gzip`, `snappy`, `lz4`, or :const:`None`.
         """
 
-    # XXX Convert to seconds
     @sections.Producer.setting(
-        params.UnsignedInt,
-        env_name='PRODUCER_LINGER_MS',
-        default=0,
+        params.Seconds,
+        env_name='PRODUCER_LINGER',
     )
-    def producer_linger_ms(self) -> int:
+    def producer_linger(self) -> Optional[float]:
         """Producer batch linger configuration.
 
         Minimum time to batch before sending out messages from the producer.
 
         Should rarely have to change this.
         """
+
+    @producer_linger.on_set_default  # type: ignore
+    def _prepare_producer_linger(self) -> float:
+        return float(self._producer_linger_ms) / 1000.0
 
     @sections.Producer.setting(
         params.UnsignedInt,
@@ -2263,6 +2265,20 @@ class Settings(base.SettingsRegistry):
     )
     def stream_ack_exceptions(self) -> bool:
         """Deprecated setting has no effect."""
+
+    @sections.Producer.setting(
+        params.UnsignedInt,
+        env_name='PRODUCER_LINGER_MS',
+        version_deprecated='1.11',
+        deprecation_reason='use producer_linger in seconds instead.',
+        default=0,
+    )
+    def producer_linger_ms(self) -> int:
+        """Deprecated setting, please use :setting:`producer_linger` instead.
+
+        This used to be provided as milliseconds, the new setting
+        uses seconds.
+        """
 
     @sections.Common.setting(
         params.URL,

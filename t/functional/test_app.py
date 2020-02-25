@@ -267,8 +267,13 @@ class test_settings:
         ),
         EnvCase(
             env={'PRODUCER_LINGER_MS': '120392'},
-            setting=Settings.producer_linger_ms,
-            expected_value=120392,
+            setting=Settings.producer_linger,
+            expected_value=120.392,
+        ),
+        EnvCase(
+            env={'PRODUCER_LINGER': '12.345'},
+            setting=Settings.producer_linger,
+            expected_value=12.345,
         ),
         EnvCase(
             env={'PRODUCER_MAX_BATCH_SIZE': '120392'},
@@ -500,6 +505,7 @@ class test_settings:
                 Settings.producer_request_timeout.default)
         assert (conf.producer_api_version ==
                 Settings.broker_api_version.default)
+        assert conf.producer_linger == 0.0
         assert (conf.stream_publish_on_commit ==
                 Settings.stream_publish_on_commit.default)
         assert conf.stream_wait_empty
@@ -616,6 +622,7 @@ class test_settings:
                                  producer_partitioner=_dummy_partitioner,
                                  producer_request_timeout=2.66,
                                  producer_api_version='0.10',
+                                 producer_linger=3.0303,
                                  table_cleanup_interval=80.8,
                                  table_key_index_size=1999,
                                  key_serializer='str',
@@ -688,6 +695,7 @@ class test_settings:
             producer_partitioner=producer_partitioner,
             producer_request_timeout=producer_request_timeout,
             producer_api_version=producer_api_version,
+            producer_linger=producer_linger,
             table_cleanup_interval=table_cleanup_interval,
             table_key_index_size=table_key_index_size,
             key_serializer=key_serializer,
@@ -750,6 +758,7 @@ class test_settings:
         assert conf.producer_partitioner is producer_partitioner
         assert conf.producer_request_timeout == producer_request_timeout
         assert conf.producer_api_version == producer_api_version
+        assert conf.producer_linger == producer_linger
         assert conf.table_cleanup_interval == table_cleanup_interval
         assert conf.table_key_index_size == table_key_index_size
         assert conf.key_serializer == key_serializer
@@ -793,6 +802,10 @@ class test_settings:
         )
         assert app.conf.canonical_url == URL(
             f'http://{app.conf.web_host}:{app.conf.web_port}')
+
+    def test_producer_linger_ms__compat(self):
+        app = self.App(producer_linger_ms=30303)
+        assert app.conf.producer_linger == 30.303
 
     def test_id_no_version(self):
         assert self.App('id', version=1).conf.id == 'id'
