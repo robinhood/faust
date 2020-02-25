@@ -332,8 +332,7 @@ You can also pass a list of URLs:
 
    This setting is used as the default.
 
-Available Transports
-~~~~~~~~~~~~~~~~~~~~
+**Available Transports**
 
 - ``kafka://``
 
@@ -372,91 +371,81 @@ the broker.
 
 The default is to not use any authentication.
 
-.. _auth-sasl:
-
 SASL Authentication
-~~~~~~~~~~~~~~~~~~~
-
-You can enable SASL authentication via plain text:
-
-.. sourcecode:: python
-
-   app = faust.App(
-       broker_credentials=faust.SASLCredentials(
-           username='x',
-           password='y',
-       ))
-
-.. warning::
-
-   Do not use literal strings when specifying passwords in production,
-   as they can remain visible in stack traces.
-
-   Instead the best practice is to get the password from
-   a configuration file, or from the environment:
+   You can enable SASL authentication via plain text:
 
    .. sourcecode:: python
 
-       BROKER_USERNAME = os.environ.get('BROKER_USERNAME')
-       BROKER_PASSWORD = os.environ.get('BROKER_PASSWORD')
-
        app = faust.App(
            broker_credentials=faust.SASLCredentials(
-               username=BROKER_USERNAME,
-               password=BROKER_PASSWORD,
+               username='x',
+               password='y',
            ))
 
-.. _auth-gssapi:
+   .. warning::
+
+       Do not use literal strings when specifying passwords in
+       production, as they can remain visible in stack traces.
+
+       Instead the best practice is to get the password from
+       a configuration file, or from the environment:
+
+       .. sourcecode:: python
+
+           BROKER_USERNAME = os.environ.get('BROKER_USERNAME')
+           BROKER_PASSWORD = os.environ.get('BROKER_PASSWORD')
+
+           app = faust.App(
+               broker_credentials=faust.SASLCredentials(
+                   username=BROKER_USERNAME,
+                   password=BROKER_PASSWORD,
+               ))
 
 GSSAPI Authentication
-~~~~~~~~~~~~~~~~~~~~~
+   GSSAPI authentication over plain text:
 
-GSSAPI authentication over plain text:
+   .. sourcecode:: python
 
-.. sourcecode:: python
+       app = faust.App(
+           broker_credentials=faust.GSSAPICredentials(
+               kerberos_service_name='faust',
+               kerberos_domain_name='example.com',
+           ),
+       )
 
-   app = faust.App(
-       broker_credentials=faust.GSSAPICredentials(
-           kerberos_service_name='faust',
-           kerberos_domain_name='example.com',
-       ),
-   )
+   GSSAPI authentication over SSL:
 
-GSSAPI authentication over SSL:
+   .. sourcecode:: python
 
-.. sourcecode:: python
+       import ssl
+       ssl_context = ssl.create_default_context(
+           purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
+       ssl_context.load_cert_chain(
+           'client.cert', keyfile='client.key')
 
-   import ssl
-   ssl_context = ssl.create_default_context(
-       purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
-   ssl_context.load_cert_chain('client.cert', keyfile='client.key')
-
-   app = faust.App(
-       broker_credentials=faust.GSSAPICredentials(
-           kerberos_service_name='faust',
-           kerberos_domain_name='example.com',
-           ssl_context=ssl_context,
-       ),
-   )
-
-.. _auth-ssl:
+       app = faust.App(
+           broker_credentials=faust.GSSAPICredentials(
+               kerberos_service_name='faust',
+               kerberos_domain_name='example.com',
+               ssl_context=ssl_context,
+           ),
+       )
 
 SSL Authentication
-~~~~~~~~~~~~~~~~~~
+   Provide an SSL context for the Kafka broker connections.
 
-Provide an SSL context for the Kafka broker connections.
+   This allows Faust to use a secure SSL/TLS connection for the
+   Kafka connections and enabling certificate-based authentication.
 
-This allows Faust to use a secure SSL/TLS connection for the
-Kafka connections and enabling certificate-based authentication.
+   .. sourcecode:: python
 
-.. sourcecode:: python
+       import ssl
 
-   import ssl
-
-   ssl_context = ssl.create_default_context(
-       purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
-   ssl_context.load_cert_chain('client.cert', keyfile='client.key')
-   app = faust.App(..., broker_credentials=ssl_context)
+       ssl_context = ssl.create_default_context(
+           purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
+       ssl_context.load_cert_chain(
+           'client.cert', keyfile='client.key')
+       app = faust.App(..., broker_credentials=ssl_context)
 
 
 .. setting:: ssl_context
@@ -693,8 +682,7 @@ the protocol.
 
 Example Kafka uses:
 
-Disable sending headers for all messages produced
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Disable sending headers for all messages produced**
 
 Kafka headers support was added in Kafka 0.11, so you can specify
 ``broker_api_version="0.10"`` to remove the headers from messages.

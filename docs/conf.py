@@ -120,4 +120,4 @@ ignored_settings = {'ssl_context'}
 
 
 def configcheck_should_ignore(setting):
-    return setting in ignored_settings
+    return setting in ignored_settings or setting == 'id'
