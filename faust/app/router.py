@@ -71,7 +71,10 @@ class Router(RouterT):
         routed_url = request.url.with_host(host).with_port(int(port))
         async with app.http_client.get(routed_url) as response:
             return web.text(
-                await response.text(), content_type=response.content_type, status=response.status)
+                await response.text(),
+                content_type=response.content_type,
+                status=response.status,
+            )
 
     def _urlident(self, url: URL) -> Tuple[str, int]:
         return (
