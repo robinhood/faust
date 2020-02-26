@@ -20,3 +20,8 @@ please visit the :ref:`history` section.
   + Now depends on :ref:`Mode 4.3.2 <mode:version-4.3.2>`
 
   + Now depends on :pypi:`robinhood-aiokafka` 1.1.5
+
+- **Tables**: Table HTTP router now forwards HTTP status code
+  in responses.
+
+    Contributed by Wjatscheslaw Kewlin :github_user:`slawak`.
