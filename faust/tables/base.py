@@ -24,8 +24,7 @@ from typing import (
     no_type_check,
 )
 
-from inspect import iscoroutinefunction
-
+from mode.utils.futures import maybe_async
 from mode import Seconds, Service
 from yarl import URL
 
@@ -377,10 +376,7 @@ class Collection(Service, CollectionT):
 
     async def on_window_close(self, key: Any, value: Any) -> None:
         if self._on_window_close:
-            if(iscoroutinefunction(self._on_window_close)):
-                await self._on_window_close(key, value)
-            else:
-                self._on_window_close(key, value)
+            await maybe_async(self._on_window_close(key, value))
 
     def _should_expire_keys(self) -> bool:
         window = self.window
