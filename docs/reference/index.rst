@@ -47,6 +47,15 @@ Agents
     faust.agents.models
     faust.agents.replies
 
+Contrib
+=======
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.contrib
+    faust.contrib.sentry
+
 Fixups
 ======
 

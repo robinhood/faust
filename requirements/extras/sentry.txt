@@ -1,0 +1,3 @@
+raven>=6.10.0,<7.0
+raven-aiohttp>=0.7.0
+sentry_sdk>=0.7.10
