@@ -373,7 +373,7 @@ class BootStrategy(BootStrategyT):
 
     def tables(self) -> Iterable[ServiceT]:
         """Return list of table-related services."""
-        if self.enable_kafka_consumer:
+        if self._should_enable_kafka_consumer():
             return [self.app.tables]
         return []
 
