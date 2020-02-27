@@ -116,8 +116,8 @@ class worker(AppCommand):
         return list(filter(None, [
             ('id', app.conf.id),
             ('transport', f'{app.conf.broker} {transport_extra}'),
-            ('store', app.conf.store),
-            ('web', app.web.url) if app.conf.web_enabled else None,
+            ('store', f'{app.conf.store}'),
+            ('web', f'{app.web.url}') if app.conf.web_enabled else None,
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
             ('hostname', f'{socket.gethostname()}'),

@@ -13,9 +13,6 @@ try:
     import raven
 except ImportError:  # pragma: no cover
     raven = None        # noqa
-    _logging = None     # noqa
-else:
-    import raven.handlers.logging as _logging
 
 try:
     import sentry_sdk
@@ -23,7 +20,7 @@ except ImportError:  # pragma: no cover
     sentry_sdk = None       # noqa
     _sdk_aiohttp = None     # noqa
 else:
-    import sentry_sdk.integrations.aiohttp as _sdk_aiohttp
+    import sentry_sdk.integrations.aiohttp as _sdk_aiohttp  # type: ignore
 
 try:
     import raven_aiohttp
@@ -41,9 +38,9 @@ DEFAULT_LEVEL: int = logging.WARNING
 
 
 def _build_sentry_handler() -> Type[_SentryHandler]:
-    assert _logging is not None
+    from raven.handlers import logging as _logging
 
-    class FaustSentryHandler(_logging.SentryHandler):
+    class FaustSentryHandler(_logging.SentryHandler):  # type: ignore
         # 1) We override SentryHandler to write internal log messages
         #    mto sys.__stderr__ instead of sys.stderr, as the latter
         #    is redirected to a logger, causing noisy internal logs
@@ -63,10 +60,11 @@ def _build_sentry_handler() -> Type[_SentryHandler]:
         def _is_expected_cancel(self, record: logging.LogRecord) -> bool:
             # Returns true if this log record is associated with a
             # CancelledError.is_expected exception.
-            return bool(
-                record.exc_info and
-                issubclass(record.exc_info[0], asyncio.CancelledError) and
-                getattr(record.exc_info[1], 'is_expected', True))
+            if record.exc_info and record.exc_info[0] is not None:
+                return bool(
+                    issubclass(record.exc_info[0], asyncio.CancelledError) and
+                    getattr(record.exc_info[1], 'is_expected', True))
+            return False
 
         def emit(self, record: logging.LogRecord) -> None:
             try:
