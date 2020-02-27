@@ -83,4 +83,5 @@ class test_Router:
         app.router.key_store.return_value = URL('http://el.example.com:8181')
         response = await router.route_req('foo', 'k', web, request)
         assert response is web.text.return_value
-        web.text.assert_called_once_with(b'foobar', content_type=ANY)
+        web.text.assert_called_once_with(
+            b'foobar', content_type=ANY, status=ANY)
