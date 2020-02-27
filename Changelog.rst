@@ -25,3 +25,8 @@ please visit the :ref:`history` section.
   in responses.
 
     Contributed by Wjatscheslaw Kewlin :github_user:`slawak`.
+
+- **Tables**: Windowed tables may now have asynchronous ``on_window_close``
+  callbacks.
+
+    Contributed by Ramkumar M (:github_user:`billaram`).
