@@ -226,8 +226,11 @@ class test_Collection:
 
         on_window_close.assert_has_calls([
             call(('boo', (1.1, 1.4)), 'BOO'),
+            call.coro(('boo', (1.1, 1.4)), 'BOO'),
             call(('moo', (1.4, 1.6)), 'MOO'),
+            call.coro(('moo', (1.4, 1.6)), 'MOO'),
             call(('faa', (1.9, 2.0)), 'FAA'),
+            call.coro(('faa', (1.9, 2.0)), 'FAA'),
         ])
 
         table.last_closed_window = 8.0
