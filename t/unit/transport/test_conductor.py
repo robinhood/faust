@@ -76,6 +76,47 @@ class test_Conductor:
         cb.assert_called_once_with(message)
 
     @pytest.mark.asyncio
+    async def test_on_message_decoded_only_once(self, *, con):
+        """A message is decoded only once per (key_type, value_type)."""
+        def _chan(name, key_type, value_type):
+            chan = AsyncMock(name=name, autospec=Channel)
+            chan.key_type = key_type
+            chan.value_type = value_type
+            # needed to test chan.queue.put_nowait method
+            chan.queue.full = lambda: False
+            return chan
+
+        # those methods are not useful for the purpose of the test
+        # and they block it if not mocked.
+        con.app.producer.buffer.wait_until_ebb = AsyncMock()
+        con.app.flow_control.acquire = AsyncMock()
+        con.app.sensors.on_topic_buffer_full = AsyncMock()
+
+        chan1 = _chan('1', 1, 1)
+        chan2 = _chan('2', 1, 1)
+        chan3 = _chan('3', 2, 2)
+        chan4 = _chan('4', 2, 2)
+        message = Mock(name='message', autospec=Message)
+
+        # make sure the chan iteration is ordered, by using a list,
+        # to make later asserts relevant
+        cb = con._build_handler(TP1, [chan1, chan2, chan3, chan4])
+
+        await cb(message)
+
+        # ensure that chans reusing an already decoded message does not
+        # try to decode it and make sure they are sending it to their queue.
+        chan1.decode.assert_called_once()
+        chan2.decode.assert_not_called()
+        event1 = chan1.queue.put_nowait.call_args[0][0]
+        chan2.queue.put_nowait.assert_called_once_with(event1)
+
+        chan3.decode.assert_called_once()
+        chan4.decode.assert_not_called()
+        event3 = chan3.queue.put_nowait.call_args[0][0]
+        chan4.queue.put_nowait.assert_called_once_with(event3)
+
+    @pytest.mark.asyncio
     async def test_wait_for_subscriptions(self, *, con):
         with patch('asyncio.Future', AsyncMock()) as Future:
             con._subscription_done = None

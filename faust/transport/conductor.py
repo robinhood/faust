@@ -7,6 +7,7 @@ from collections import defaultdict
 from typing import (
     Any,
     Callable,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -77,8 +78,6 @@ class ConductorCompiler:  # pragma: no cover
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
                 message.incref(channels_n)
-                event: Optional[EventT] = None
-                event_keyid: Optional[Tuple[K, V]] = None
 
                 # forward message to all channels subscribing to this topic
 
@@ -87,37 +86,26 @@ class ConductorCompiler:  # pragma: no cover
                 # that error to the remaining channels.
                 delivered: Set[_Topic] = set()
                 full: List[Tuple[EventT, _Topic]] = []
+                # keep track of decoded messages by type of serialization
+                # we can reuse them if multiple channels are
+                # using the same serializer
+                decoded: Dict[Tuple[K, V], EventT] = {}
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
+                        event: Optional[EventT] = decoded.get(keyid)
+
                         if event is None:
-                            # first channel deserializes the payload:
                             event = await chan.decode(message, propagate=True)
-                            event_keyid = keyid
+                            decoded[keyid] = event
 
-                            queue = chan.queue
-                            if queue.full():
-                                full.append((event, chan))
-                                continue
-                            queue.put_nowait(event)
-                        else:
-                            # subsequent channels may have a different
-                            # key/value type pair, meaning they all can
-                            # deserialize the message in different ways
-
-                            dest_event: EventT
-                            if keyid == event_keyid:
-                                # Reuse the event if it uses the same keypair:
-                                dest_event = event
-                            else:
-                                dest_event = await chan.decode(
-                                    message, propagate=True)
-                            queue = chan.queue
-                            if queue.full():
-                                full.append((dest_event, chan))
-                                continue
-                            queue.put_nowait(dest_event)
+                        queue = chan.queue
+                        if queue.full():
+                            full.append((event, chan))
+                            continue
+                        queue.put_nowait(event)
                         delivered.add(chan)
+
                     if full:
                         for _, dest_chan in full:
                             on_topic_buffer_full(dest_chan)
