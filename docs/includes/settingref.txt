@@ -1018,6 +1018,25 @@ exists, e.g. when starting a new consumer for the first time.
 Options include 'earliest', 'latest', 'none'.
 
 
+.. setting:: consumer_group_instance_id
+
+``consumer_group_instance_id``
+------------------------------
+
+.. versionadded:: 2.1
+
+:type: :class:`str`
+:default: :const:`None`
+:environment: :envvar:`CONSUMER_GROUP_INSTANCE_ID`
+
+Consumer group instance id.
+
+The group_instance_id for static partition assignment.
+
+If not set, default assignment strategy is used. Otherwise,
+each consumer instance has to have a unique id.
+
+
 .. setting:: ConsumerScheduler
 
 ``ConsumerScheduler``
