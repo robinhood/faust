@@ -741,6 +741,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             consumer.seek(tp, offset)
             if offset > 0:
                 self.consumer._read_offset[tp] = offset
+            elif tp in self.consumer._read_offset.keys():
+                del self.consumer._read_offset[tp]
         await asyncio.gather(*[
             consumer.position(tp) for tp in partitions
         ])
