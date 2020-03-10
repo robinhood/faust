@@ -244,7 +244,7 @@ Use :meth:`~@channel` to create an in-memory communication channel:
 
     @app.timer(1.0)
     async def populate():
-        await channel.send(MyModel(303))
+        await channel.send(value=MyModel(303))
 
 .. seealso::
 
