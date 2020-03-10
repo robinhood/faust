@@ -435,7 +435,7 @@ Use the :meth:`~@agent` decorator to define an asynchronous stream processor:
     # examples/agent.py
     import faust
 
-    app = faust.App('stream-example')
+    app = faust.App('stream-example', value_serializer='raw')
 
     @app.agent()
     async def myagent(stream):
