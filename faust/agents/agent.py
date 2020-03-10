@@ -509,7 +509,7 @@ class Agent(AgentT, Service):
         # For example:
         #
         #   @app.agent(logs_topic, through='other-topic')
-        #   filter_log_errors_(stream):
+        #   def filter_log_errors_(stream):
         #       async for event in stream:
         #           if event.severity == 'error':
         #               yield event
