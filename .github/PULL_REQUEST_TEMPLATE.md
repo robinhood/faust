@@ -1,5 +1,5 @@
 *Note*: Before submitting this pull request, please review our [contributing
-guidelines](https://faust.readthedocs.io/en/master/contributing.html).
+guidelines](https://faust.readthedocs.io/en/latest/contributing.html).
 
 ## Description
 
