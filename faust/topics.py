@@ -477,6 +477,17 @@ class Topic(SerializedChannel, TopicT):
                     retention=self.retention,
                 )
 
+    def on_stop_iteration(self) -> None:
+        """Signal that iteration over this channel was stopped.
+
+        Tip:
+            Remember to call ``super`` when overriding this method.
+        """
+        super().on_stop_iteration()
+        if self.active_partitions is not None:
+            # Remove topics for isolated partitions from the Conductor.
+            self.app.topics.discard(cast(TopicT, self))
+
     def __aiter__(self) -> ChannelT:
         if self.is_iterator:
             return self
