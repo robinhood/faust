@@ -1,9 +1,9 @@
 import pytest
 from collections import Counter
 from pprint import pformat
-from typing import List, NamedTuple
+from typing import Any, List, Mapping, NamedTuple
 from faust.exceptions import ImproperlyConfigured
-from faust.types import EventT, StreamT
+from faust.types import AppT, EventT, Message as MessageT, StreamT
 from .helpers import AgentCase
 
 
@@ -49,6 +49,25 @@ async def test_agent_isolated_partitions__concurrency(*, app, logging):
         )
 
 
+@pytest.mark.asyncio
+async def test_agent_isolated_partitions_rebalancing(*, app, logging):
+    await AgentIsolatedRebalanceCase.run_test(
+        app=app,
+        num_messages=100,
+        concurrency=1,
+        partitions=[0, 1, 2, 3],
+        reassign_partitions={
+            10: [0],
+            20: [1],
+            30: [0, 1],
+            40: [2, 3],
+            50: [0, 1, 2, 3],
+            60: [4, 5, 6, 7],
+        },
+        isolated_partitions=True,
+    )
+
+
 class AgentIsolatedCase(AgentCase):
     name = 'test_agent_isolated_partitions'
 
@@ -86,3 +105,39 @@ class AgentIsolatedCase(AgentCase):
             if max_ is None:
                 max_ = total
             assert total == max_
+
+
+class AgentIsolatedRebalanceCase(AgentCase):
+    name = 'test_agent_isolated_partitions_rebalancing'
+
+    @classmethod
+    async def run_test(cls, app: AppT, *,
+                       reassign_partitions: Mapping[int, List[int]],
+                       **kwargs: Any) -> 'AgentCase':
+        return await super().run_test(app,
+                                      reassign_partitions=reassign_partitions,
+                                      **kwargs)
+
+    def __init__(self, app: AppT, *,
+                 reassign_partitions: Mapping[int, List[int]],
+                 **kwargs: Any):
+        super().__init__(app, **kwargs)
+        self.reassign_partitions = reassign_partitions
+
+    async def put(self, key: bytes, value: bytes, **kwargs: Any) -> MessageT:
+        message = await super().put(key, value, **kwargs)
+
+        new_partitions = self.reassign_partitions.get(int(message.key))
+        if new_partitions is not None:
+            await self.simulate_rebalance(new_partitions)
+
+        return message
+
+    async def simulate_rebalance(self, partitions: List[int]):
+        await self.sleep(.1)
+        self.partitions = sorted(partitions)
+        current_tps = set(self.tps)
+        self._set_tps_from_partitions()
+        assigned = set(self.tps)
+        revoked = current_tps - assigned
+        await self.conductor_setup(assigned=assigned, revoked=revoked)

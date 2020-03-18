@@ -53,9 +53,7 @@ class AgentCase(Service):
         self.isolated_partitions = isolated_partitions
 
         self.topic_name = self.name
-        self.tps = [TP(self.topic_name, p) for p in self.partitions]
-        self.next_tp = cycle(self.tps)
-        self.expected_tp = cycle(self.tps)
+        self._set_tps_from_partitions()
         self.seen_offsets = set()
         self.processed_total = 0
 
@@ -65,6 +63,11 @@ class AgentCase(Service):
         self.agent_started_processing = asyncio.Event(loop=self.loop)
         self.agent_stopped_processing = asyncio.Event(loop=self.loop)
         self.finished = asyncio.Event(loop=self.loop)
+
+    def _set_tps_from_partitions(self):
+        self.tps = [TP(self.topic_name, p) for p in self.partitions]
+        self.next_tp = cycle(self.tps)
+        self.expected_tp = cycle(self.tps)
 
     async def on_start(self) -> None:
         app = self.app
@@ -150,8 +153,9 @@ class AgentCase(Service):
 
         self.finished.set()
 
-    async def conductor_setup(self, assigned: Set[TP]) -> None:
-        await self.app.agents.on_rebalance(set(), assigned)
+    async def conductor_setup(self, assigned: Set[TP],
+                              revoked: Optional[Set[TP]] = None) -> None:
+        await self.app.agents.on_rebalance(revoked or set(), assigned)
         await self.app.topics._update_indices()
         await self.app.topics.on_partitions_assigned(assigned)
 
