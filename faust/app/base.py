@@ -494,8 +494,27 @@ class App(AppT, Service):
         # initialize fixups (automatically applied extensions,
         # such as Django integration).
         self.fixups = self._init_fixups()
+        
+        boot_options = {
+            "enable_web": None,
+            "enable_kafka": None,
+            "enable_kafka_producer": None,
+            "enable_kafka_consumer": None,
+            "enable_sensors": None
+        }
 
-        self.boot_strategy = self.BootStrategy(self)
+        if "enable_web" in options and isinstanceof(options["enable_web"], bool):
+            boot_options["enable_web"] = options["enable_web"]
+        if "enable_kafka" in options and isinstanceof(options["enable_kafka"], bool):
+            boot_options["enable_kafka"] = options["enable_kafka"]
+        if "enable_kafka_producer" in options and isinstanceof(options["enable_kafka_producer"], bool):
+            boot_options["enable_kafka_producer"] = options["enable_kafka_producer"]
+        if "enable_kafka_consumer" in options and isinstanceof(options["enable_kafka_consumer"], bool):
+            boot_options["enable_kafka_consumer"] = options["enable_kafka_consumer"]
+        if "enable_sensors" in options and isinstanceof(options["enable_sensors"], bool):
+            boot_options["enable_sensors"] = options["enable_sensors"]
+
+        self.boot_strategy = self.BootStrategy(self, **boot_options)
 
         Service.__init__(self, loop=loop, beacon=beacon)
 
