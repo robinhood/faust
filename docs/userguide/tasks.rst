@@ -1,8 +1,8 @@
 .. _guide-tasks:
 
-======================================================
- Tasks, Timers, Cron Jobs, Web Views, and CLI Commands
-======================================================
+==================================================================
+ Tasks, Timers, Cron Jobs, Web Views, WebSockets and CLI Commands
+==================================================================
 
 .. contents::
     :local:
@@ -85,7 +85,6 @@ something every day at 8pm.
     async def every_day_at_8_pm_pacific():
         print('WAKE UP AT 8:00pm PACIFIC TIME ONLY ON THE LEADER WORKER')
 
-
 .. _tasks-web-views:
 
 Web Views
@@ -165,7 +164,7 @@ verbs other than ``GET``:
 
         count: int = 0
 
-        async def get(self, request: Request) -> Response
+        async def get(self, request: Request) -> Response:
             return self.json({'count': self.count})
 
         async def post(self, request: Request) -> Response:
@@ -246,6 +245,39 @@ Table route based on key in query parameter:
         return web.json({
             word: word_counts[word],
         })
+
+.. _tasks-web-sockets:
+
+WebSockets
+==========
+
+In order to handle WebSockets you only have to specify the handler:
+
+.. sourcecode:: python
+
+    import aiohttp
+
+
+    @app.page('/ws')
+    async def websocket_handler(self, request):
+
+        ws = aiohttp.web.WebSocketResponse()
+        await ws.prepare(request)
+
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                if msg.data == 'close':
+                    await ws.close()
+                else:
+                    await ws.send_str(msg.data + '/answer')
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                print('ws connection closed with exception %s' %
+                    ws.exception())
+
+        print('websocket connection closed')
+
+        return ws
+
 
 .. _tasks-cli-commands:
 
