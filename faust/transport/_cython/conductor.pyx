@@ -56,10 +56,9 @@ cdef class ConductorHandler:
                         continue
                     delivered.add(chan)
                 if full:
-                    for event, chan in full:
-                        self.on_topic_buffer_full(chan)
-                        await chan.put(event)
-                        delivered.add(chan)
+                    await wait([self._handle_full(event, chan, delivered)
+                                        for event, chan in full],
+                                        return_when=ALL_COMPLETED)
             except KeyDecodeError as exc:
                 remaining = channels - delivered
                 message.ack(self.consumer, n=len(remaining))
@@ -72,6 +71,11 @@ cdef class ConductorHandler:
                 for channel in remaining:
                     await channel.on_value_decode_error(exc, message)
                     delivered.add(channel)
+
+    async def _handle_full(self, event, chan, delivered):
+        self.on_topic_buffer_full(chan)
+        await chan.put(event)
+        delivered.add(chan)
 
     cdef object _decode(self, object event, object channel, object event_keyid):
         keyid = channel.key_type, channel.value_type
