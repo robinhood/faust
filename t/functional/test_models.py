@@ -1422,14 +1422,12 @@ def test_custom_field_validation():
     assert Order2()
 
 
-def test_custom_field__internal_errot():
+def test_custom_field__internal_error():
 
     class XField(FieldDescriptor[str]):
 
-        def prepare_value(self, value, coerce=None):
-            if coerce:
-                raise RuntimeError()
-            return value
+        def validate_value(self, value):
+            raise RuntimeError()
 
     class Foo(Record, coerce=False):
         foo: str = XField()
@@ -1610,3 +1608,12 @@ def test_Secret(*, caplog):
 
     assert x.phone_number.get_value() not in caplog.text
     assert x.phone_number.mask in caplog.text
+
+
+def test_i467():
+
+    class Foo(Record):
+        my_int_field: int = IntegerField()
+
+    foo = Foo(my_int_field='12345')
+    assert list(foo.validate())

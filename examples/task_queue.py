@@ -41,9 +41,9 @@ class Request(faust.Record):
         return task_registry[self.name]
 
 
-app = faust.App('faust-celery', broker='kafka://localhost')
+app = faust.App('faust-celery', version=2, broker='kafka://localhost', blocking_timeut=2.0)
 
-task_queue_topic = app.topic('tasks', value_type=Request)
+task_queue_topic = app.topic('tasks2', value_type=Request)
 
 task_registry: MutableMapping[str, Callable[..., Awaitable]]
 task_registry = {}
@@ -52,10 +52,16 @@ task_registry = {}
 @app.agent(task_queue_topic)
 async def process_task(tasks: faust.Stream[Request]) -> None:
     """A "worker" stream processor that executes tasks."""
-    async for task in tasks:
+    i = 0
+    async for event in tasks.noack().events():
+        task = event.value
         print(f'Processing task: {task!r}')
         result = await task()
         print(f'Result of {task.id} is: {result!r}')
+        i += 1
+        if not i % 2:
+            await tasks.ack(event)
+
 
 
 class Task:
@@ -83,7 +89,7 @@ class Task:
             name=self.name,
             arguments=args,
             keyword_arguments=kwargs,
-        ))
+        ), partition=0)
 
 
 def task(fun: Callable) -> Task:

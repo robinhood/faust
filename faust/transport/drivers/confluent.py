@@ -30,9 +30,8 @@ from faust.transport.consumer import (
     ConsumerThread,
     RecordMap,
     ThreadDelegateConsumer,
-    ensure_TP,
-    ensure_TPset,
 )
+from faust.transport.utils import ensure_TP, ensure_TPset
 from faust.types import AppT, ConsumerMessage, HeadersArg, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 

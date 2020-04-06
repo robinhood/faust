@@ -212,24 +212,47 @@ class FieldDescriptor(FieldDescriptorT[T]):
         }
 
     def validate_all(self, value: Any) -> Iterable[ValidationError]:
-        need_coercion = not self.coerce
-        try:
-            v = self.prepare_value(value, coerce=need_coercion)
-        except (TypeError, ValueError) as exc:
-            vt = type(value)
-            yield self.validation_error(
-                f'{self.field} is not correct type for {self}, '
-                f'got {vt!r}: {exc!r}')
-        except Exception as exc:
-            yield self.validation_error(
-                f'{self.field} got internal error for value {value!r} '
-                f'{exc!r}')
+        if self.coerce:
+            # Coercion enabled
+            # This means for example x='123' will pass for IntegerField
+            try:
+                v = self.prepare_value(value, coerce=True)
+            except (TypeError, ValueError) as exc:
+                vt = type(value)
+                yield self.validation_error(
+                    f'{self.field} is not correct type for {self}, '
+                    f'got {vt!r}: {exc!r}')
+            except Exception as exc:
+                yield self.validation_error(
+                    f'{self.field} got internal error for value {value!r} '
+                    f'{exc!r}')
+            else:
+                if v is not None or self.required:
+                    yield from self.validate(cast(T, v))
         else:
-            if v is not None or self.required:
-                yield from self.validate(cast(T, v))
+            # Coercion disabled.
+            # For example x='123' is invalid for IntegerField.
+            try:
+                is_valid_type = self.validate_type(value)
+            except Exception as exc:
+                yield self.validation_error(
+                    f'{self.field} got internal error for value {value!r} '
+                    f'{exc!r}')
+            else:
+                if is_valid_type:
+                    if value is not None or self.required:
+                        yield from self.validate(cast(T, value))
+                else:
+                    vt = type(value)
+                    yield self.validation_error(
+                        f'{self.field} is not correct type for {self}, '
+                        f'got {value!r} ({vt!r})')
 
     def validate(self, value: T) -> Iterable[ValidationError]:
         return iter([])
+
+    def validate_type(self, value: Any) -> bool:
+        return True
 
     def to_python(self, value: Any) -> Optional[T]:
         to_python = self._to_python
@@ -319,6 +342,9 @@ class BooleanField(FieldDescriptor[bool]):
             yield self.validation_error(
                 f'{self.field} must be True or False, of type bool')
 
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, bool)
+
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[bool]:
         if self.should_coerce(value, coerce):
@@ -359,12 +385,18 @@ class NumberField(FieldDescriptor[T]):
 
 class IntegerField(NumberField[int]):
 
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, int)
+
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[int]:
         return int(value) if self.should_coerce(value, coerce) else value
 
 
 class FloatField(NumberField[float]):
+
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, float)
 
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[float]:
@@ -398,6 +430,9 @@ class DecimalField(NumberField[Decimal]):
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[Decimal]:
         return Decimal(value) if self.should_coerce(value, coerce) else value
+
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, Decimal)
 
     def validate(self, value: Decimal) -> Iterable[ValidationError]:
         if not value.is_finite():  # check for Inf/NaN/sNaN/qNaN
@@ -467,6 +502,9 @@ class CharField(FieldDescriptor[CharacterType]):
 
 class StringField(CharField[str]):
 
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, str)
+
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[str]:
         if self.should_coerce(value, coerce):
@@ -479,6 +517,9 @@ class StringField(CharField[str]):
 
 
 class DatetimeField(FieldDescriptor[datetime]):
+
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, datetime)
 
     def to_python(self, value: Any) -> Any:
         if self._to_python is None:
@@ -516,6 +557,9 @@ class BytesField(CharField[bytes]):
             errors=self.errors,
             **kwargs,
         )
+
+    def validate_type(self, value: Any) -> bool:
+        return isinstance(value, bytes)
 
     def prepare_value(self, value: Any, *,
                       coerce: bool = None) -> Optional[bytes]:

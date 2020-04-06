@@ -36,12 +36,6 @@ The Consumer is responsible for:
 
       - If the consumer marked an offset as committable this thread
         will advance the committed offset.
-
-      + To find the offset that it can safely advance to the commit thread
-        will traverse the _acked mapping of TP to list of acked offsets, by
-        finding a range of consecutive acked offsets (see note in
-        _new_offset).
-
 """
 import abc
 import asyncio
@@ -57,7 +51,6 @@ from typing import (
     ClassVar,
     Dict,
     Iterable,
-    Iterator,
     List,
     Mapping,
     MutableMapping,
@@ -92,8 +85,10 @@ from faust.types.transports import (
 )
 from faust.types.tuples import FutureMessage
 from faust.utils import terminal
-from faust.utils.functional import consecutive_numbers
 from faust.utils.tracing import traced_from_parent_span
+
+from .offsets import OffsetManager
+from .utils import ensure_TPset
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App as _App
@@ -122,16 +117,6 @@ class TopicPartitionGroup(NamedTuple):
     topic: str
     partition: int
     group: int
-
-
-def ensure_TP(tp: Any) -> TP:
-    """Convert aiokafka ``TopicPartition`` to Faust ``TP``."""
-    return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
-
-
-def ensure_TPset(tps: Iterable[Any]) -> Set[TP]:
-    """Convert set of aiokafka ``TopicPartition`` to Faust ``TP``."""
-    return {ensure_TP(tp) for tp in tps}
 
 
 class Fetcher(Service):
@@ -361,29 +346,14 @@ class Consumer(Service, ConsumerT):
     #: underlying consumer driver is stopped.
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = ()
 
-    # Mapping of TP to list of gap in offsets.
-    _gap: MutableMapping[TP, List[int]]
-
-    # Mapping of TP to list of acked offsets.
-    _acked: MutableMapping[TP, List[int]]
-
-    #: Fast lookup to see if tp+offset was acked.
-    _acked_index: MutableMapping[TP, Set[int]]
-
-    #: Keeps track of the currently read offset in each TP
-    _read_offset: MutableMapping[TP, Optional[int]]
-
-    #: Keeps track of the currently committed offset in each TP.
-    _committed_offset: MutableMapping[TP, Optional[int]]
-
-    #: The consumer.wait_empty() method will set this to be notified
-    #: when something acks a message.
-    _waiting_for_ack: Optional[asyncio.Future] = None
+    offsets: OffsetManager
 
     #: Used by .commit to ensure only one thread is comitting at a time.
     #: Other thread starting to commit while a commit is already active,
     #: will wait for the original request to finish, and do nothing.
     _commit_fut: Optional[asyncio.Future] = None
+
+    _need_commit: asyncio.Event
 
     #: Set of unacked messages: that is messages that we started processing
     #: and that we MUST attempt to complete processing of, before
@@ -397,7 +367,6 @@ class Consumer(Service, ConsumerT):
     _end_offset_monitor_interval: float
 
     _commit_every: Optional[int]
-    _n_acked: int = 0
 
     _active_partitions: Optional[Set[TP]]
     _paused_partitions: Set[TP]
@@ -431,14 +400,9 @@ class Consumer(Service, ConsumerT):
         self.commit_livelock_soft_timeout = (
             commit_livelock_soft_timeout or
             self.app.conf.broker_commit_livelock_soft_timeout)
-        self._gap = defaultdict(list)
-        self._acked = defaultdict(list)
-        self._acked_index = defaultdict(set)
-        self._read_offset = defaultdict(lambda: None)
-        self._committed_offset = defaultdict(lambda: None)
         self._unacked_messages = WeakSet()
         self._buffered_partitions = set()
-        self._waiting_for_ack = None
+        self.offsets = OffsetManager(self)
         self._time_start = monotonic()
         self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
@@ -451,6 +415,7 @@ class Consumer(Service, ConsumerT):
             beacon=self.beacon,
             loop=self.loop,
         )
+        self._need_commit = asyncio.Event()
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         """Return list of services this consumer depends on."""
@@ -503,18 +468,7 @@ class Consumer(Service, ConsumerT):
 
     async def perform_seek(self) -> None:
         """Seek all partitions to their current committed position."""
-        read_offset = self._read_offset
-        _committed_offsets = await self.seek_to_committed()
-        read_offset.update({
-            tp: offset if offset is not None and offset >= 0 else None
-            for tp, offset in _committed_offsets.items()
-        })
-        committed_offsets = {
-            ensure_TP(tp): offset if offset else None
-            for tp, offset in _committed_offsets.items()
-            if offset is not None
-        }
-        self._committed_offset.update(committed_offsets)
+        await self.seek_to_committed()
 
     @abc.abstractmethod
     async def seek_to_committed(self) -> Mapping[TP, int]:
@@ -526,8 +480,6 @@ class Consumer(Service, ConsumerT):
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
         await self._seek(partition, offset)
-        # set new read offset so we will reread messages
-        self._read_offset[ensure_TP(partition)] = offset if offset else None
 
     @abc.abstractmethod
     async def _seek(self, partition: TP, offset: int) -> None:
@@ -656,13 +608,14 @@ class Consumer(Service, ConsumerT):
 
         records_it = self.scheduler.iterate(records)
         to_message = self._to_message  # localize
+        track_tp_end_offset = self.app.monitor.track_tp_end_offset
         if self.flow_active:
             for tp, record in records_it:
                 if not self.flow_active:
                     break
                 if active_partitions is None or tp in active_partitions:
                     highwater_mark = self.highwater(tp)
-                    self.app.monitor.track_tp_end_offset(tp, highwater_mark)
+                    track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
                     yield tp, to_message(tp, record)
 
@@ -714,34 +667,11 @@ class Consumer(Service, ConsumerT):
             message.acked = True
             tp = message.tp
             offset = message.offset
+            self._unacked_messages.discard(message)
             if self.app.topics.acks_enabled_for(message.topic):
-                committed = self._committed_offset[tp]
-                try:
-                    if committed is None or offset > committed:
-                        acked_index = self._acked_index[tp]
-                        if offset not in acked_index:
-                            self._unacked_messages.discard(message)
-                            acked_index.add(offset)
-                            acked_for_tp = self._acked[tp]
-                            acked_for_tp.append(offset)
-                            self._n_acked += 1
-                            return True
-                finally:
-                    notify(self._waiting_for_ack)
+                if self.offsets.ack(tp, offset):
+                    return True
         return False
-
-    async def _wait_for_ack(self, timeout: float) -> None:
-        # arm future so that `ack()` can wake us up
-        self._waiting_for_ack = asyncio.Future(loop=self.loop)
-        try:
-            # wait for `ack()` to wake us up
-            await asyncio.wait_for(
-                self._waiting_for_ack, loop=self.loop, timeout=1)
-        except (asyncio.TimeoutError,
-                asyncio.CancelledError):  # pragma: no cover
-            pass
-        finally:
-            self._waiting_for_ack = None
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
@@ -760,10 +690,10 @@ class Consumer(Service, ConsumerT):
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
-            await T(self.commit)()
+            await T(self.commit)(start_new_transaction=False)
             if not self._unacked_messages:
                 break
-            await T(self._wait_for_ack)(timeout=1)
+            await T(self.offsets.wait_for_ack)(timeout=1)
             self._clean_unacked_messages()
 
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
@@ -793,7 +723,20 @@ class Consumer(Service, ConsumerT):
 
         await self.sleep(interval)
         async for sleep_time in self.itertimer(interval, name='commit'):
-            await self.commit()
+            self.commit_soon()
+            await self.sleep(0)
+
+    @Service.task
+    async def _committer(self) -> None:
+        need_commit = self._need_commit
+        while not self.should_stop:
+            await self.wait(need_commit)
+            need_commit.clear()
+            if not self.should_stop:
+                await self.commit()
+
+    def commit_soon(self) -> None:
+        self._need_commit.set()
 
     @Service.task
     async def _commit_livelock_detector(self) -> None:  # pragma: no cover
@@ -866,17 +809,25 @@ class Consumer(Service, ConsumerT):
         sensor_state = self.app.sensors.on_commit_initiated(self)
 
         # Go over the ack list in each topic/partition
-        commit_tps = list(self._filter_tps_with_pending_acks(topics))
         did_commit = await self._commit_tps(
-            commit_tps, start_new_transaction=start_new_transaction)
+            topics, start_new_transaction=start_new_transaction)
 
         self.app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
-    async def _commit_tps(self,
-                          tps: Iterable[TP],
+    async def _commit_tps(self, topics: TPorTopicSet,
                           start_new_transaction: bool) -> bool:
-        commit_offsets = self._filter_committable_offsets(tps)
+        tps: Set[TP]
+        if isinstance(topics, TP):
+            tps = {topics}
+        else:
+            tps = cast(Set[TP], topics)
+        if not tps:
+            tps = self.assignment()
+        if start_new_transaction:
+            commit_offsets = self.offsets.flush(tps)
+        else:
+            commit_offsets = self.offsets.flush_deep(tps)
         if commit_offsets:
             try:
                 # send all messages attached to the new offset
@@ -888,16 +839,6 @@ class Consumer(Service, ConsumerT):
                     commit_offsets,
                     start_new_transaction=start_new_transaction)
         return False
-
-    def _filter_committable_offsets(self, tps: Iterable[TP]) -> Dict[TP, int]:
-        commit_offsets = {}
-        for tp in tps:
-            # Find the latest offset we can commit in this tp
-            offset = self._new_offset(tp)
-            # check if we can commit to this offset
-            if offset is not None and self._should_commit(tp, offset):
-                commit_offsets[tp] = offset
-        return commit_offsets
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
@@ -959,63 +900,13 @@ class Consumer(Service, ConsumerT):
                 on_timeout.info('+tables.on_commit')
                 self.app.tables.on_commit(committable_offsets)
                 on_timeout.info('-tables.on_commit')
-        self._committed_offset.update(committable_offsets)
+        self.offsets.on_post_commit(committable_offsets)
         self.app.monitor.on_tp_commit(committable_offsets)
         return did_commit
-
-    def _filter_tps_with_pending_acks(
-            self, topics: TPorTopicSet = None) -> Iterator[TP]:
-        return (tp for tp in self._acked
-                if topics is None or tp in topics or tp.topic in topics)
-
-    def _should_commit(self, tp: TP, offset: int) -> bool:
-        committed = self._committed_offset[tp]
-        return committed is None or bool(offset) and offset > committed
-
-    def _new_offset(self, tp: TP) -> Optional[int]:
-        # get the new offset for this tp, by going through
-        # its list of acked messages.
-        acked = self._acked[tp]
-
-        # We iterate over it until we find a gap
-        # then return the offset before that.
-        # For example if acked[tp] is:
-        #   1 2 3 4 5 6 7 8 9
-        # the return value will be: 9
-        # If acked[tp] is:
-        #  34 35 36 40 41 42 43 44
-        #          ^--- gap
-        # the return value will be: 36
-        if acked:
-            max_offset = max(acked)
-            gap_for_tp = self._gap[tp]
-            if gap_for_tp:
-                gap_index = next((i for i, x in enumerate(gap_for_tp)
-                                  if x > max_offset), len(gap_for_tp))
-                gaps = gap_for_tp[:gap_index]
-                acked.extend(gaps)
-                gap_for_tp[:gap_index] = []
-            acked.sort()
-            # Note: acked is always kept sorted.
-            # find first list of consecutive numbers
-            batch = next(consecutive_numbers(acked))
-            # remove them from the list to clean up.
-            acked[:len(batch) - 1] = []
-            self._acked_index[tp].difference_update(batch)
-            # return the highest commit offset
-            return batch[-1]
-        return None
 
     async def on_task_error(self, exc: BaseException) -> None:
         """Call when processing a message failed."""
         await self.commit()
-
-    def _add_gap(self, tp: TP, offset_from: int, offset_to: int) -> None:
-        committed = self._committed_offset[tp]
-        gap_for_tp = self._gap[tp]
-        for offset in range(offset_from, offset_to):
-            if committed is None or offset > committed:
-                gap_for_tp.append(offset)
 
     async def _drain_messages(
             self, fetcher: ServiceT) -> None:  # pragma: no cover
@@ -1028,12 +919,11 @@ class Consumer(Service, ConsumerT):
         consumer_should_stop = cast(Service, self)._stopped.is_set
         fetcher_should_stop = cast(Service, fetcher)._stopped.is_set
 
-        get_read_offset = self._read_offset.__getitem__
-        set_read_offset = self._read_offset.__setitem__
+        get_read_offset = self.offsets.read_offset.__getitem__
+        set_read_offset = self.offsets.read_offset.__setitem__
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
-        commit_every = self._commit_every
         acks_enabled_for = self.app.topics.acks_enabled_for
 
         yield_every = 100
@@ -1063,11 +953,8 @@ class Consumer(Service, ConsumerT):
                             if gap > 1 and r_offset:
                                 acks_enabled = acks_enabled_for(message.topic)
                                 if acks_enabled:
-                                    self._add_gap(tp, r_offset + 1, offset)
-                            if commit_every is not None:
-                                if self._n_acked >= commit_every:
-                                    self._n_acked = 0
-                                    await self.commit()
+                                    self.offsets.add_gap(
+                                        tp, r_offset + 1, offset)
                             await callback(message)
                             set_read_offset(tp, offset)
                         else:

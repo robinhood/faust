@@ -2,6 +2,7 @@
 from typing import (
     Any,
     Dict,
+    Iterable,
     Iterator,
     List,
     Mapping,
@@ -18,7 +19,20 @@ __all__ = [
     'TopicIndexMap',
     'DefaultSchedulingStrategy',
     'TopicBuffer',
+    'ensure_TP',
+    'ensure_TPset',
 ]
+
+
+def ensure_TP(tp: Any) -> TP:
+    """Convert aiokafka ``TopicPartition`` to Faust ``TP``."""
+    return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
+
+
+def ensure_TPset(tps: Iterable[Any]) -> Set[TP]:
+    """Convert set of aiokafka ``TopicPartition`` to Faust ``TP``."""
+    return {ensure_TP(tp) for tp in tps}
+
 
 # But we want to process records from topics in round-robin order.
 # We convert records into a mapping from topic-name to "chain-of-buffers":

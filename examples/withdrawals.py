@@ -31,18 +31,22 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 app = faust.App(
     'faust-withdrawals',
-    version=5,
+    version=8,
+    debug=True,
     broker='aiokafka://',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
+    broker_max_poll_interval=1.0,
     # processing_guarantee='exactly_once',
 )
-withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 user_to_total = app.Table(
     'user_to_total', default=int,
 ).tumbling(3600).relative_to_stream()
+
+gtable = app.GlobalTable('global', default=int)
 
 country_to_total = app.Table(
     'country_to_total', default=int,
@@ -53,6 +57,7 @@ country_to_total = app.Table(
 async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
+        gtable['TOTAL'] += withdrawal.amount
 
 
 @app.agent()

@@ -574,7 +574,7 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_perform_seek(self, *, consumer):
         consumer._read_offset.update(TP1=3001, TP2=3002)
-        consumer._committed_offset.update(TP1=301, TP2=302)
+        consumer.offsets._pending_offset.update(TP1=301, TP2=302)
         consumer.seek_to_committed = AsyncMock(return_value={
             TP1: 4001,
             TP2: 0,
@@ -585,8 +585,8 @@ class test_Consumer:
         assert consumer._read_offset[TP1] == 4001
         assert consumer._read_offset[TP2] == 0
 
-        assert consumer._committed_offset[TP1] == 4001
-        assert consumer._committed_offset[TP2] is None
+        assert consumer.offsets._pending_offset[TP1] == 4001
+        assert consumer.offsets._pending_offset.get(TP2) is None
 
     @pytest.mark.asyncio
     async def test_commit__client_only(self, *, consumer):
@@ -639,9 +639,6 @@ class test_Consumer:
 
     def test_read_offset_default(self, *, consumer):
         assert consumer._read_offset[TP1] is None
-
-    def test_committed_offset_default(self, *, consumer):
-        assert consumer._committed_offset[TP1] is None
 
     def test_is_changelog_tp(self, *, app, consumer):
         app.tables = Mock(name='tables', autospec=TableManager)
@@ -696,7 +693,7 @@ class test_Consumer:
         message.acked = False
         consumer.app = Mock(name='app', autospec=App)
         consumer.app.topics.acks_enabled_for.return_value = True
-        consumer._committed_offset[message.tp] = 3
+        consumer.offsets._pending_offset[message.tp] = 3
         message.offset = offset
         consumer._acked_index[message.tp] = set()
         consumer.ack(message)
@@ -753,7 +750,7 @@ class test_Consumer:
         consumer._acked = {
             TP1: [1, 2, 3, 4, 5],
         }
-        consumer._committed_offset = {
+        consumer.offsets._pending_offset = {
             TP1: 2,
         }
         await consumer.force_commit({TP1})
@@ -818,7 +815,7 @@ class test_Consumer:
             TP1: [1, 2, 3, 4, 7, 8],
             TP2: [30, 31, 32, 33, 34, 35, 36, 40],
         }
-        consumer._committed_offset = {
+        consumer.offsets._pending_offset = {
             TP1: 4,
             TP2: 30,
         }
@@ -954,7 +951,7 @@ class test_Consumer:
         (TP1, 100, 8, True),
     ])
     def test_should_commit(self, tp, offset, committed, should, *, consumer):
-        consumer._committed_offset[tp] = committed
+        consumer.offsets._pending_offset[tp] = committed
         assert consumer._should_commit(tp, offset) == should
 
     @pytest.mark.parametrize('tp,acked,expected_offset', [
@@ -989,14 +986,14 @@ class test_Consumer:
 
     def test__add_gap(self, *, consumer):
         tp = TP1
-        consumer._committed_offset[tp] = 299
+        consumer.offsets._pending_offset[tp] = 299
         consumer._add_gap(TP1, 300, 343)
 
         assert consumer._gap[tp] == list(range(300, 343))
 
     def test__add_gap__previous_to_committed(self, *, consumer):
         tp = TP1
-        consumer._committed_offset[tp] = 400
+        consumer.offsetss._pending_offset[tp] = 400
         consumer._add_gap(TP1, 300, 343)
 
         assert consumer._gap[tp] == []

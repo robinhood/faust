@@ -117,19 +117,9 @@ cdef class StreamIterator:
                     tp = message.tp
                     offset = message.offset
                     if self.acks_enabled_for(message.topic):
-                        committed = consumer._committed_offset[tp]
-                        try:
-                            if committed is None or offset > committed:
-                                acked_index = consumer._acked_index[tp]
-                                if offset not in acked_index:
-                                    self.unacked.discard(message)
-                                    acked_index.add(offset)
-                                    acked_for_tp = consumer._acked[tp]
-                                    acked_for_tp.append(offset)
-                                    consumer._n_acked += 1
-                                    last_stream_to_ack = True
-                        finally:
-                            notify(consumer._waiting_for_ack)
+                        self.unacked.discard(message)
+                        if consumer.offsets.ack(tp, offset):
+                            last_stream_to_ack = True
             tp = event.message.tp
             offset = event.message.offset
             self.on_stream_event_out(

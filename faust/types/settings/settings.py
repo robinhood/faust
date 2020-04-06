@@ -97,6 +97,7 @@ class Settings(base.SettingsRegistry):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            broker_commit_future: bool = None,
             broker_credentials: CredentialsArg = None,
             broker_heartbeat_interval: Seconds = None,
             broker_max_poll_interval: Seconds = None,
@@ -831,6 +832,18 @@ class Settings(base.SettingsRegistry):
 
         How long time it takes before we warn that the Kafka commit offset has
         not advanced (only when processing messages).
+        """
+
+    @sections.Broker.setting(
+        params.Bool,
+        env_name='BROKER_COMMIT_FUTURE',
+        default=True,
+    )
+    def broker_commit_future(self) -> bool:
+        """Commit future offset or current offset.
+
+        The Kafka best practice is to commit the offset that you will read
+        next.
         """
 
     @sections.Common.setting(

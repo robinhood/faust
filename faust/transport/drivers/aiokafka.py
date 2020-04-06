@@ -69,8 +69,8 @@ from faust.transport.consumer import (
     ConsumerThread,
     RecordMap,
     ThreadDelegateConsumer,
-    ensure_TPset,
 )
+from faust.transport.utils import ensure_TP, ensure_TPset
 from faust.types import ConsumerMessage, HeadersArg, RecordMetadata, TP
 from faust.types.auth import CredentialsT
 from faust.types.transports import (
@@ -514,9 +514,86 @@ class AIOKafkaConsumerThread(ConsumerThread):
         )
 
     async def seek_to_committed(self) -> Mapping[TP, int]:
-        """Seek partitions to the last committed offset."""
-        return await self.call_thread(
-            self._ensure_consumer().seek_to_committed)
+        """Seek partitions to the last committed offset.
+
+        Returns:
+            Mapping: of topic+partition to offset, where the
+                offset value is always the actual offset of the last
+                processed message.  This means that when
+                :setting:`broker_commit_future` is enabled
+                this mapping will contain ``comitted_offset - 1`` to
+                always point to the last message that was processed.
+        """
+        offsets = await self.call_thread(
+            self._ensure_consumer().seek_to_committed, skew=self._seek_skew)
+        # convert offset number to actual offset of message last processed.
+        committed_offsets = self._to_committed_offsets(offsets)
+        self.consumer.offsets.on_seek_partitions(committed_offsets)
+        return committed_offsets
+
+    @cached_property
+    def _commit_skew(self) -> int:
+        """Number added to offset when committing.
+
+        Kafka best practices say you should commit offset + 1
+        to commit the next offset the consumer should read.
+        """
+        return 1 if self._commit_future else 0
+
+    @cached_property
+    def _seek_skew(self) -> int:
+        """Used when :setting:`broker_commit_future` is False.
+
+        At this point the committed offset will be the offset of the
+        processed event, so when we seek we want to seek to the next
+        event after that offset (:attr:`seek_skew` will be 1).
+        """
+        return 0 if self._commit_future else 1
+
+    @cached_property
+    def _commit_future(self) -> bool:
+        return self.app.conf.broker_commit_future
+
+    def _to_committed_offsets(
+            self, offsets: Mapping[TP, int]) -> Mapping[TP, int]:
+        to_committed_offset = self._to_committed_offset
+        return {
+            ensure_TP(tp): to_committed_offset(offset)
+            for tp, offset in offsets.items()
+        }
+
+    def _to_committed_offset(self, offset: Optional[int]) -> Optional[int]:
+        """Convert committed offset to the offset of the last processed
+        message.
+
+        Notes:
+            When :setting:`broker_commit_future` is enabled and we commit
+            offset 1321, we will actually be committing the offset of the
+            next message to process (1322).
+
+            This converts the offset back to the offset of the message
+            that was last processed.
+        """
+        if offset is not None:
+            if self._commit_future:
+                if offset <= 0:
+                    return None
+                else:
+                    return offset - 1
+            else:
+                return offset
+        return None
+
+    def _to_next_offset(self, offset: Optional[int]) -> Optional[int]:
+        """Convert committed offset to the next offset to process.
+
+        See :meth:`_to_committed_offset`.
+        """
+        offset = self._to_committed_offset(offset)
+        if offset is None or offset < 0:
+            return 0
+        else:
+            return offset + self._seek_skew
 
     async def commit(self, offsets: Mapping[TP, int]) -> bool:
         """Commit topic offsets."""
@@ -525,16 +602,21 @@ class AIOKafkaConsumerThread(ConsumerThread):
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         consumer = self._ensure_consumer()
         now = monotonic()
+        skew = 1 if self.app.conf.broker_commit_future else 0
         try:
             aiokafka_offsets = {
-                tp: OffsetAndMetadata(offset, '')
+                _TopicPartition(tp.topic, tp.partition):
+                    OffsetAndMetadata(offset + skew, '')
                 for tp, offset in offsets.items()
+                if offset is not None and offset >= 0
             }
             self.tp_last_committed_at.update({
                 tp: now
-                for tp in offsets
+                for tp, offset in offsets.items()
+                if offset is not None and offset >= 0
             })
-            await consumer.commit(aiokafka_offsets)
+            if aiokafka_offsets:
+                await consumer.commit(aiokafka_offsets)
         except CommitFailedError as exc:
             if 'already rebalanced' in str(exc):
                 return False
@@ -560,10 +642,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
         monitor = app.monitor
         acks_enabled_for = app.topics.acks_enabled_for
         secs_since_started = now - self.time_started
+        get_committed_offset = parent.offsets.get_committed_offset
 
         if monitor is not None:  # need for .stream_inbound_time
             highwater = self.highwater(tp)
-            committed_offset = parent._committed_offset.get(tp)
+            committed_offset = get_committed_offset(tp)
             has_acks = acks_enabled_for(tp.topic)
             if highwater is None:
                 if secs_since_started >= self.tp_stream_timeout_secs:
@@ -725,8 +808,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
 
     async def seek_to_beginning(self, *partitions: _TopicPartition) -> None:
         """Seek list of offsets to the first available offset."""
-        await self.call_thread(
-            self._ensure_consumer().seek_to_beginning, *partitions)
+        # this is currently unused
+        # and we do not update self.offsets for this yet.
+        raise NotImplementedError()
 
     async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
         """Seek partitions to specific offset and wait for operation."""
@@ -737,17 +821,22 @@ class AIOKafkaConsumerThread(ConsumerThread):
                          consumer: Consumer,
                          partitions: Mapping[TP, int]) -> None:
         for tp, offset in partitions.items():
-            self.log.dev('SEEK %r -> %r', tp, offset)
-            consumer.seek(tp, offset)
-            if offset > 0:
-                self.consumer._read_offset[tp] = offset
+            committed_offset = self._to_committed_offset(offset)
+            next_offset = self._to_next_offset(offset)
+            self.log.dev('SEEK %r -> %r', tp, next_offset)
+            consumer.seek(tp, next_offset)
+            self.consumer.offsets.on_seek_partition(tp, committed_offset)
+
         await asyncio.gather(*[
             consumer.position(tp) for tp in partitions
         ])
 
     def seek(self, partition: TP, offset: int) -> None:
         """Seek partition to specific offset."""
-        self._ensure_consumer().seek(partition, offset)
+        committed_offset = self._to_committed_offset(offset)
+        next_offset = self._to_next_offset(offset)
+        self._ensure_consumer().seek(partition, next_offset)
+        self.offsets.on_seek_partition(partition, committed_offset)
 
     def assignment(self) -> Set[TP]:
         """Return the current assignment."""
