@@ -868,7 +868,7 @@ class App(AppT, Service):
                 supervisor_strategy=supervisor_strategy,
                 sink=sink,
                 isolated_partitions=isolated_partitions,
-                on_error=self._on_agent_error,
+                on_error=kwargs.pop('on_error', None) or self._on_agent_error,
                 use_reply_headers=use_reply_headers,
                 help=fun.__doc__,
                 **kwargs)
