@@ -210,6 +210,12 @@ class CollectionT(ServiceT, JoinableT):
         ...
 
     @abc.abstractmethod
+    def session(self, size: Seconds,
+                expires: Seconds = None,
+                key_index: bool = False) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
     def as_ansitable(self, **kwargs: Any) -> str:
         ...
 
