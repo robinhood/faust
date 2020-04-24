@@ -261,6 +261,7 @@ class Recovery(Service):
         self.active_tps.clear()
         self.actives_for_table.clear()
         self.standbys_for_table.clear()
+        self.buffer_sizes.clear()
 
         for tp in assigned_standbys:
             table = self.tables._changelogs.get(tp.topic)
