@@ -20,7 +20,6 @@ from typing import (
 from mode import Seconds
 from mode.utils.typing import NoReturn
 
-from faust import windows
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
 from faust.types import EventT, FieldDescriptorT
@@ -219,17 +218,8 @@ class WindowSet(WindowSetT[KT, VT]):
         setting used (:meth:`relative_to_now`, :meth:`relative_to_stream`,
         :meth:`relative_to_field`, etc.)
         """
-        table = cast(_Table, self.table)
-        event = cast(EventT, event or self.event)
-
-        is_session_window = isinstance(table.window, windows.SessionWindow)
-
-        if is_session_window:
-            return table._windowed_keyed_timestamp(
-                self.key, self.wrapper.get_timestamp(event), event.key)
-        else:
-            return table._windowed_timestamp(
-                self.key, self.wrapper.get_timestamp(event))
+        return cast(_Table, self.table)._windowed_timestamp(
+            self.key, self.wrapper.get_timestamp(event or self.event))
 
     def now(self) -> VT:
         """Return current value, using the current system time."""
@@ -432,9 +422,7 @@ class WindowWrapper(WindowWrapperT):
         if not isinstance(value, WindowSetT):
             table = cast(_Table, self.table)
             self.on_set_key(key, value)
-            is_session_window = isinstance(table.window, windows.SessionWindow)
-            event = current_event() if is_session_window else None
-            table._set_windowed(key, value, self.get_timestamp(), event)
+            table._set_windowed(key, value, self.get_timestamp())
 
     def on_set_key(self, key: Any, value: Any) -> None:
         """Call when the value for a key in this table is set."""

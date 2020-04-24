@@ -296,7 +296,7 @@ class test_WindowWrapper:
         wtable['foo'] = 300
         wtable.get_timestamp.assert_called_once_with()
         table._set_windowed.assert_called_once_with(
-            'foo', 300, wtable.get_timestamp(), None,
+            'foo', 300, wtable.get_timestamp(),
         )
 
     def test_setitem__key_is_WindowSet(self, *, wtable):
