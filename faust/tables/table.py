@@ -46,6 +46,11 @@ class Table(TableT[KT, VT], Collection):
             key_index=key_index,
         )
 
+    def session(self, size: Seconds) -> WindowWrapperT:
+        return self.using_window(
+            windows.SessionWindow(size=size),
+        )
+
     def __missing__(self, key: KT) -> VT:
         if self.default is not None:
             return self.default()

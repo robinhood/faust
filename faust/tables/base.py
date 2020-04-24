@@ -50,6 +50,7 @@ from faust.types.streams import JoinableT, StreamT
 from faust.types.tables import (
     ChangelogEventCallback,
     CollectionT,
+    KT,
     RecoverCallback,
     RelativeHandler,
     WindowCloseCallback,
@@ -490,9 +491,13 @@ class Collection(Service, CollectionT):
         for window_range in self._window_ranges(timestamp):
             set_((key, window_range), op(get_((key, window_range)), value))
 
-    def _set_windowed(self, key: Any, value: Any, timestamp: float) -> None:
+    def _set_windowed(self, key: Any, value: Any,
+                      timestamp: float, event: EventT = None) -> None:
         for window_range in self._window_ranges(timestamp):
-            self._set_key((key, window_range), value)
+            if event:
+                self._set_key((key, window_range, event.key), value)
+            else:
+                self._set_key((key, window_range), value)
 
     def _del_windowed(self, key: Any, timestamp: float) -> None:
         for window_range in self._window_ranges(timestamp):
@@ -538,6 +543,11 @@ class Collection(Service, CollectionT):
     def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
         window = cast(WindowT, self.window)
         return self._get_key((key, window.current(timestamp)))
+
+    def _windowed_keyed_timestamp(self, key: Any, timestamp: float,
+                                  event_key: KT) -> Any:
+        window = cast(WindowT, self.window)
+        return self._get_key((key, window.current(timestamp), event_key))
 
     def _windowed_contains(self, key: Any, timestamp: float) -> bool:
         window = cast(WindowT, self.window)

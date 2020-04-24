@@ -13,6 +13,7 @@ __all__ = [
     'HoppingWindow',
     'TumblingWindow',
     'SlidingWindow',
+    'SessionWindow',
 ]
 
 NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
@@ -159,3 +160,29 @@ if not NO_CYTHON:  # pragma: no cover
         Window.register(SlidingWindow)
 else:  # pragma: no cover
     SlidingWindow = _PySlidingWindow
+
+
+class _PySessionWindow(HoppingWindow):
+    """Hopping window type.
+
+    Fixed-size, non-overlapping keyed windows.
+    """
+
+    size: float
+
+    def __init__(self, size: Seconds, expires: Seconds = None) -> None:
+        super(SessionWindow, self).__init__(size, size, expires)
+
+
+if typing.TYPE_CHECKING:
+    SessionWindow = _PySessionWindow
+else:
+    if not NO_CYTHON:  # pragma: no cover
+        try:
+            from ._cython.windows import HoppingWindow
+        except ImportError:
+            SessionWindow = _PySessionWindow
+        else:
+            Window.register(SessionWindow)
+    else:  # pragma: no cover
+        SessionWindow = _PySessionWindow
