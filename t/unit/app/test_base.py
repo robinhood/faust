@@ -179,6 +179,7 @@ class test_App:
     async def assert_stop_consumer(self, app):
         consumer = app._consumer = Mock(
             wait_empty=AsyncMock(),
+            stop_flow=AsyncMock(),
         )
         consumer.assignment.return_value = set()
         app.tables = Mock()
@@ -279,6 +280,7 @@ class test_App:
         app.on_partitions_revoked = Mock(send=AsyncMock())
         consumer = app.consumer = Mock(
             wait_empty=AsyncMock(),
+            stop_flow=AsyncMock(),
             transactions=Mock(
                 on_partitions_revoked=AsyncMock(),
             ),
@@ -934,6 +936,7 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
+        app.consumer.stop_flow = AsyncMock()
         app.topics.wait_for_subscriptions = AsyncMock()
         app.maybe_start = AsyncMock(name='app.maybe_start')
         await app.start_client()
