@@ -348,7 +348,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stop_flow(self) -> None:
+    async def stop_flow(self) -> None:
         ...
 
     @abc.abstractmethod

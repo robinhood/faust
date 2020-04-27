@@ -1317,7 +1317,7 @@ class App(AppT, Service):
         """
         self.client_only = True
         await self.maybe_start()
-        self.consumer.stop_flow()
+        await self.consumer.stop_flow()
         await self.topics.wait_for_subscriptions()
         await self.topics.on_client_only_start()
         self.consumer.resume_flow()
@@ -1487,7 +1487,7 @@ class App(AppT, Service):
             else:
                 if assignment:
                     self.tables.on_partitions_revoked(assignment)
-                    consumer.stop_flow()
+                    await consumer.stop_flow()
                     self.flow_control.suspend()
                     consumer.pause_partitions(assignment)
                     self.flow_control.clear()
@@ -1563,7 +1563,7 @@ class App(AppT, Service):
                 assignment = consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
-                    T(consumer.stop_flow)()
+                    await T(consumer.stop_flow)()
                     T(self.flow_control.suspend)()
                     on_timeout.info('consumer.pause_partitions')
                     T(consumer.pause_partitions)(assignment)
