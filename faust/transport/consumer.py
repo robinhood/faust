@@ -536,6 +536,7 @@ class Consumer(Service, ConsumerT):
         """Allow consumer to process messages."""
         self.flow_active = True
         self.can_resume_flow.set()
+        self.consumer_waiting.clear()
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
         """Pause fetching from partitions."""
