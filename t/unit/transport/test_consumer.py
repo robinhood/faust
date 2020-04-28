@@ -607,7 +607,7 @@ class test_Consumer:
     async def test_stop_flow(self, *, consumer):
         consumer.flow_active = True
         consumer.can_resume_flow.set()
-        consumer.consumer_waiting.set()
+        consumer.can_stop_flow.set()
 
         await consumer.stop_flow()
 

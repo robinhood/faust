@@ -407,7 +407,7 @@ class Consumer(Service, ConsumerT):
 
     #: Ensures consumer isn't in middle of writing
     #: records into queue during rebalance
-    consumer_waiting: Event
+    can_stop_flow: Event
 
     def __init__(self,
                  transport: TransportT,
@@ -445,7 +445,7 @@ class Consumer(Service, ConsumerT):
         self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
         self.can_resume_flow = Event()
-        self.consumer_waiting = Event()
+        self.can_stop_flow = Event()
         self._reset_state()
         super().__init__(loop=loop or self.transport.loop, **kwargs)
         self.transactions = self.transport.create_transaction_manager(
@@ -467,7 +467,7 @@ class Consumer(Service, ConsumerT):
         self._active_partitions = None
         self._paused_partitions = set()
         self.can_resume_flow.clear()
-        self.consumer_waiting.clear()
+        self.can_stop_flow.clear()
         self.flow_active = True
         self._time_start = monotonic()
 
@@ -530,13 +530,13 @@ class Consumer(Service, ConsumerT):
         """Block consumer from processing any more messages."""
         self.flow_active = False
         self.can_resume_flow.clear()
-        await self.wait(self.consumer_waiting)
+        await self.wait(self.can_stop_flow)
 
     def resume_flow(self) -> None:
         """Allow consumer to process messages."""
         self.flow_active = True
         self.can_resume_flow.set()
-        self.consumer_waiting.clear()
+        self.can_stop_flow.clear()
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
         """Pause fetching from partitions."""
@@ -666,7 +666,7 @@ class Consumer(Service, ConsumerT):
                                            Optional[Set[TP]]]:
         if not self.flow_active:
             self.log.dev('Flow is inactive. Waiting to resume...')
-            self.consumer_waiting.set()
+            self.can_stop_flow.set()
             await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
 
@@ -1093,6 +1093,7 @@ class Consumer(Service, ConsumerT):
             self.log.exception('Drain messages raised: %r', exc)
             raise
         finally:
+            self.can_stop_flow.set()
             unset_flag(flag_consumer_fetching)
 
     def close(self) -> None:
