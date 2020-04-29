@@ -530,7 +530,7 @@ class Consumer(Service, ConsumerT):
         """Block consumer from processing any more messages."""
         self.flow_active = False
         self.can_resume_flow.clear()
-        await self.wait(self.can_stop_flow)
+        await self.wait(self.can_stop_flow, timeout=5)
 
     def resume_flow(self) -> None:
         """Allow consumer to process messages."""
