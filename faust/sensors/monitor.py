@@ -21,7 +21,7 @@ from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter, Deque
 
 from faust import web
-from faust.types import AppT, CollectionT, EventT, StreamT, TopicT
+from faust.types import AppT, CollectionT, EventT, StreamT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
@@ -153,7 +153,7 @@ class Monitor(Sensor, KeywordReduce):
     assignment_latency: Deque[float] = cast(Deque[float], None)
 
     #: Counter of times a topics buffer was full
-    topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
+    topic_buffer_full: Counter[TP] = cast(Counter[TP], None)
 
     #: Arbitrary counts added by apps
     metric_counts: Counter[str] = cast(Counter[str], None)
@@ -224,7 +224,7 @@ class Monitor(Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
-                 topic_buffer_full: Counter[TopicT] = None,
+                 topic_buffer_full: Counter[TP] = None,
                  rebalances: int = None,
                  rebalance_return_latency: Deque[float] = None,
                  rebalance_end_latency: Deque[float] = None,
