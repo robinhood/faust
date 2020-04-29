@@ -459,9 +459,9 @@ class Monitor(Sensor, KeywordReduce):
             deque_pushpopmax(
                 self.events_runtime, time_total, self.max_avg_history)
 
-    def on_topic_buffer_full(self, topic: TopicT) -> None:
+    def on_topic_buffer_full(self, tp: TP) -> None:
         """Call when conductor topic buffer is full and has to wait."""
-        self.topic_buffer_full[topic] += 1
+        self.topic_buffer_full[tp] += 1
 
     def on_message_out(self,
                        tp: TP,

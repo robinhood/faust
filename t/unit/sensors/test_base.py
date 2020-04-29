@@ -86,8 +86,8 @@ class test_Sensor:
     def test_on_message_out(self, *, sensor, message):
         sensor.on_message_out(TP1, 3, message)
 
-    def test_on_topic_buffer_full(self, *, sensor, topic):
-        sensor.on_topic_buffer_full(topic)
+    def test_on_topic_buffer_full(self, *, sensor):
+        sensor.on_topic_buffer_full(TP1)
 
     def test_on_table_get(self, *, sensor, table):
         sensor.on_table_get(table, 'key')
@@ -167,9 +167,9 @@ class test_SensorDelegate:
         sensor.on_stream_event_out.assert_called_once_with(
             TP1, 303, stream, event, state[sensor])
 
-    def test_on_topic_buffer_full(self, *, sensors, sensor, topic):
-        sensors.on_topic_buffer_full(topic)
-        sensor.on_topic_buffer_full.assert_called_once_with(topic)
+    def test_on_topic_buffer_full(self, *, sensors, sensor):
+        sensors.on_topic_buffer_full(TP1)
+        sensor.on_topic_buffer_full.assert_called_once_with(TP1)
 
     def test_on_message_out(self, *, sensors, sensor, message):
         sensors.on_message_out(TP1, 303, message)

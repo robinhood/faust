@@ -207,11 +207,11 @@ class test_Monitor:
         # should not be an error
         mon.on_stream_event_out(TP1, 3, stream, event, None)
 
-    def test_on_topic_buffer_full(self, *, mon, topic):
+    def test_on_topic_buffer_full(self, *, mon):
         for i in range(1, 11):
-            mon.on_topic_buffer_full(topic)
+            mon.on_topic_buffer_full(TP1)
 
-            assert mon.topic_buffer_full[topic] == i
+            assert mon.topic_buffer_full[TP1] == i
 
     def test_on_message_out(self, *, message, mon, time):
         mon.messages_active = 10
