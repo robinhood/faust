@@ -1,3 +1,36 @@
+"""Consumer offset management.
+
+In Faust messages can be acked in any order, but not in Kafka,
+there a single offset number marks the last message read.
+
+To allow for random order acks Faust used to keep a list of
+offsets and find the first valid consecutive number range.
+This meant that committing was a complicated operation that need
+to find the value of the current offset before being able to commit.
+
+The current version of this implementation is constant-time.
+Instead of keeping a list of offsets per TP, we keep buckets
+of offsets (100 in each), that when filled will advance the offset
+by 100 events.  Filling happens during ack, so there is no separate
+flush operation.
+
+Periodically (and at shutdown) we also do a deep/accurate flush,
+which is more complex.
+
+This is good for:
+
+- Very fast streams (offsets move rapidly)
+
+This is not good for:
+
+- Slow streams (offsets move slowly)
+
+    For slow streams there may be latency between an event is processed
+    to when it is committed.
+
+    Future versions should disable fast flush when streams are slow.
+"""
+
 import asyncio
 import os
 from collections import defaultdict

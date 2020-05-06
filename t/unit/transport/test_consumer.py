@@ -993,7 +993,7 @@ class test_Consumer:
 
     def test__add_gap__previous_to_committed(self, *, consumer):
         tp = TP1
-        consumer.offsetss._pending_offset[tp] = 400
+        consumer.offsets._pending_offset[tp] = 400
         consumer._add_gap(TP1, 300, 343)
 
         assert consumer._gap[tp] == []

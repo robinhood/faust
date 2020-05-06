@@ -1036,10 +1036,31 @@ class Producer(base.Producer):
             group_id: str,
             start_new_transaction: bool = True) -> None:
         """Commit transactions."""
+        commit_skew = self._commit_skew
+        if commit_skew:
+            # Skew offsets when commit future is enabled.
+            # In Kafka the best practice is to commit offset + 1, so
+            # the consumer group will seek to this offset to read the next
+            # unprocessed message.
+            tid_to_offset_map = {
+                tid: {
+                    tp: offset + commit_skew
+                    for tp, offset in offset_map.items()
+                }
+                for tid, offset_map in tid_to_offset.items()
+            }
         await self._ensure_producer().commit(
             tid_to_offset_map, group_id,
             start_new_transaction=start_new_transaction,
         )
+
+    @cached_property
+    def _commit_skew(self) -> int:
+        return 1 if self._commit_future else 0
+
+    @cached_property
+    def _commit_future(self) -> bool:
+        return self.app.conf.broker_commit_future
 
     def _settings_extra(self) -> Mapping[str, Any]:
         if self.app.in_transaction:
