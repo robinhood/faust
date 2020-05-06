@@ -608,16 +608,22 @@ class Consumer(Service, ConsumerT):
 
         records_it = self.scheduler.iterate(records)
         to_message = self._to_message  # localize
-        track_tp_end_offset = self.app.monitor.track_tp_end_offset
         if self.flow_active:
             for tp, record in records_it:
                 if not self.flow_active:
                     break
                 if active_partitions is None or tp in active_partitions:
-                    highwater_mark = self.highwater(tp)
-                    track_tp_end_offset(tp, highwater_mark)
-                    # convert timestamp to seconds from int milliseconds.
                     yield tp, to_message(tp, record)
+
+    @Service.task
+    async def _track_end_offset(self) -> None:
+        highwater = self.highwater
+        track_tp_end_offset = self.app.monitor.track_tp_end_offset
+        async for sleep_time in self.itertimer(1.5,
+                                               name='track_end_offset'):
+            for tp in self.offsets:
+                highwater_mark = highwater(tp)
+                track_tp_end_offset(tp, highwater_mark)
 
     async def _wait_next_records(
             self, timeout: float) -> Tuple[Optional[RecordMap],
