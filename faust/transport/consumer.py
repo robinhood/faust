@@ -603,6 +603,11 @@ class Consumer(Service, ConsumerT):
         #
         # We solve this by going round-robin through each topic.
         records, active_partitions = await self._wait_next_records(timeout)
+
+        # make copy to make sure any buffer full changes will not remove
+        # it while draining the buffer.
+        active_partitions = set(active_partitions)
+
         if records is None or self.should_stop:
             return
 
