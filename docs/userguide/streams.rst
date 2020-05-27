@@ -503,7 +503,7 @@ manually, or use the echo recipe below:
     @app.agent()
     async def process(stream):
         async for value in stream:
-            await other_topic.send(value)
+            await other_topic.send(value=value)
 
 .. _stream-filter:
 
