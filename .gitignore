@@ -40,3 +40,10 @@ htmlcov/
 *.so
 faust/_cython/*.c
 faust/transport/_cython/*.c
+
+# virtualenvs
+/env
+/venv
+
+# ide
+.vscode/
