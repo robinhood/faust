@@ -20,11 +20,11 @@ class test_PrometheusMonitor:
     @patch("faust.sensors.prometheus.Summary")
     @patch("faust.sensors.prometheus.Gauge")
     @patch("faust.sensors.prometheus.Counter")
-    @patch.object(PrometheusMonitor, 'start_client')
-    def prometheus_client(self, counter, gauge, summary, time=None):
+    @patch.object(PrometheusMonitor, 'expose_metrics')
+    def prometheus_client(self, app, counter, gauge, summary, time=None):
         time = time or self.time()
 
-        return PrometheusMonitor(time=time)
+        return PrometheusMonitor(app, time=time)
 
     @pytest.fixture()
     def stream(self):
@@ -50,10 +50,10 @@ class test_PrometheusMonitor:
     def view(self):
         return Mock(name='view', autospec=web.View)
 
-    def test_prometheus_client_not_installed(self, *, monkeypatch):
+    def test_prometheus_client_not_installed(self, app, monkeypatch):
         monkeypatch.setattr('faust.sensors.prometheus.prometheus_client', None)
         with pytest.raises(ImproperlyConfigured):
-            PrometheusMonitor()
+            PrometheusMonitor(app)
 
     def test_on_message_in_out(self):
         message = Mock(name='message')

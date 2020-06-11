@@ -4,6 +4,8 @@ import typing
 from faust.exceptions import ImproperlyConfigured
 from faust import web
 
+from aiohttp.web import Response
+
 from faust.types.assignor import PartitionAssignorT
 from faust.types.transports import ConsumerT, ProducerT
 from faust.types import (
@@ -21,7 +23,8 @@ from .monitor import Monitor, TPOffsetMapping
 
 try:
     import prometheus_client
-    from prometheus_client import start_wsgi_server, Counter, Gauge, Summary
+    from prometheus_client import (
+        Counter, Gauge, Summary, generate_latest, REGISTRY)
 except ImportError:  # pragma: no cover
     prometheus_client = None
 
@@ -37,15 +40,16 @@ class PrometheusMonitor(Monitor):
     KEYS_UPDATED = 'keys_updated'
     KEYS_DELETED = 'keys_deleted'
 
-    def __init__(self, port: int = 8125, **kwargs) -> None:
-        self.port = port
+    def __init__(self, app: AppT, pattern: str = '/metrics', **kwargs) -> None:
+        self.app = app
+        self.pattern = pattern
 
         if prometheus_client is None:
             raise ImproperlyConfigured(
                 'prometheus_client requires `pip install prometheus_client`.')
 
         self._initialize_metrics()
-        self.start_client()
+        self.expose_metrics()
         super().__init__(**kwargs)
 
     def _initialize_metrics(self) -> None:
@@ -312,6 +316,13 @@ class PrometheusMonitor(Monitor):
         self.http_latency.observe(
             self.ms_since(state['time_end']))
 
-    def start_client(self) -> None:
-        """Start promethues client."""
-        return start_wsgi_server(self.port)
+    def expose_metrics(self) -> None:
+        """Expose promethues metrics using the current aiohttp application."""
+        @self.app.page(self.pattern)
+        async def metrics_handler(self, request):
+            headers = {
+                'Content-Type': 'text/plain; version=0.0.4; charset=utf-8'
+            }
+
+            return Response(
+                body=generate_latest(REGISTRY), headers=headers, status=200)
