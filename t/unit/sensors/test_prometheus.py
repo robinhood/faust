@@ -17,11 +17,11 @@ class test_PrometheusMonitor:
         timefun.return_value = 101.1
         return timefun
 
-    @patch("faust.sensors.prometheus.Summary")
+    @patch("faust.sensors.prometheus.Histogram")
     @patch("faust.sensors.prometheus.Gauge")
     @patch("faust.sensors.prometheus.Counter")
     @patch.object(PrometheusMonitor, 'expose_metrics')
-    def prometheus_client(self, app, counter, gauge, summary, time=None):
+    def prometheus_client(self, app, counter, gauge, histogram, time=None):
         time = time or self.time()
 
         return PrometheusMonitor(app, time=time)

@@ -24,7 +24,7 @@ from .monitor import Monitor, TPOffsetMapping
 try:
     import prometheus_client
     from prometheus_client import (
-        Counter, Gauge, Summary, generate_latest, REGISTRY)
+        Counter, Gauge, Histogram, generate_latest, REGISTRY)
 except ImportError:  # pragma: no cover
     prometheus_client = None
 
@@ -33,6 +33,19 @@ __all__ = ['PrometheusMonitor']
 
 
 class PrometheusMonitor(Monitor):
+    """
+    Prometheus Faust Sensor.
+
+    This sensor, records statistics using prometheus_client and expose
+    them using the aiohttp server running under /metrics by default
+
+    Usage:
+        import faust
+        from faust.sensors.prometheus import PrometheusMonitor
+
+        app = faust.App('example', broker='kafka://')
+        app.monitor = PrometheusMonitor(app, pattern='/metrics')
+    """
 
     ERROR = 'error'
     COMPLETED = 'completed'
@@ -67,7 +80,7 @@ class PrometheusMonitor(Monitor):
         self.messages_received_per_topics_partition = Gauge(
             'messages_received_per_topics_partition',
             'Messages received per topic/partition', ['topic', 'partition'])
-        self.events_runtime_latency = Summary(
+        self.events_runtime_latency = Histogram(
             'events_runtime_ms', 'Events runtime in ms')
 
         # On Event Stream in
@@ -89,11 +102,11 @@ class PrometheusMonitor(Monitor):
             'topic_messages_sent', 'Total messages sent per topic', ['topic'])
         self.total_sent_messages = Counter(
             'total_sent_messages', 'Total messages sent')
-        self.producer_send_latency = Summary(
+        self.producer_send_latency = Histogram(
             'producer_send_latency', 'Producer send latency in ms')
         self.total_error_messages_sent = Counter(
             'total_error_messages_sent', 'Total error messages sent')
-        self.producer_error_send_latency = Summary(
+        self.producer_error_send_latency = Histogram(
             'producer_error_send_latency', 'Producer error send latency in ms')
 
         # Assignment
@@ -101,7 +114,7 @@ class PrometheusMonitor(Monitor):
             'assignment_operations',
             'Total assigment operations (completed/error)',
             ['operation'])
-        self.assign_latency = Summary(
+        self.assign_latency = Histogram(
             'assign_latency', 'Assignment latency in ms')
 
         # Revalances
@@ -109,10 +122,10 @@ class PrometheusMonitor(Monitor):
             'total_rebalances', 'Total rebalances')
         self.total_rebalances_recovering = Gauge(
             'total_rebalances_recovering', 'Total rebalances recovering')
-        self.revalance_done_consumer_latency = Summary(
+        self.revalance_done_consumer_latency = Histogram(
             'revalance_done_consumer_latency',
             'Consumer replying that rebalance is done to broker in ms')
-        self.revalance_done_latency = Summary(
+        self.revalance_done_latency = Histogram(
             'revalance_done_latency',
             'Revalance finished latency in ms')
 
@@ -127,7 +140,7 @@ class PrometheusMonitor(Monitor):
             'http_status_codes',
             'Total http_status code',
             ['status_code'])
-        self.http_latency = Summary(
+        self.http_latency = Histogram(
             'http_latency',
             'Http response latency in ms')
 
@@ -140,7 +153,7 @@ class PrometheusMonitor(Monitor):
             'topic_partition_offset_commited',
             'Offset commited per topic/partition',
             ['topic', 'partition'])
-        self.consumer_commit_latency = Summary(
+        self.consumer_commit_latency = Histogram(
             'consumer_commit_latency', 'Consumer commit latency in ms')
 
     def on_message_in(self, tp: TP, offset: int, message: Message) -> None:

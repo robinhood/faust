@@ -1,7 +1,7 @@
 """Monitor using datadog."""
 import re
 
-from typing import Any, Dict, List, Optional, Pattern, cast
+from typing import Any, Dict, List, Optional, cast
 
 from mode.utils.objects import cached_property
 

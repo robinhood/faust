@@ -1,8 +1,7 @@
 """Monitor using Statsd."""
-import re
 import typing
 
-from typing import Any, Dict, Optional, Pattern, cast
+from typing import Any, Dict, Optional, cast
 
 from mode.utils.objects import cached_property
 
