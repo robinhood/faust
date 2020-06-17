@@ -301,7 +301,7 @@ class BootStrategy(BootStrategyT):
         )
 
     def _chain(self, *arguments: Iterable[ServiceT]) -> Iterable[ServiceT]:
-        return cast(Iterable[ServiceT], chain(*arguments))
+        return cast(Iterable[ServiceT], chain.from_iterable(arguments))
 
     def sensors(self) -> Iterable[ServiceT]:
         """Return list of services required to start sensors."""
