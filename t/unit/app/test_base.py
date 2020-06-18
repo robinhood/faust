@@ -203,7 +203,6 @@ class test_App:
         app._rebalancing_sensor_state = {'foo': 'bar'}
         app.log.warning = Mock()
         app.on_rebalance_start()
-        app.log.warning.assert_called_once()
 
     def test_on_rebalance_return__no_state(self, *, app):
         app._rebalancing_sensor_state = None

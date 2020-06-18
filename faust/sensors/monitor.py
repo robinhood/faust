@@ -21,7 +21,7 @@ from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter, Deque
 
 from faust import web
-from faust.types import AppT, CollectionT, EventT, StreamT, TopicT
+from faust.types import AppT, CollectionT, EventT, StreamT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
@@ -153,7 +153,7 @@ class Monitor(Sensor, KeywordReduce):
     assignment_latency: Deque[float] = cast(Deque[float], None)
 
     #: Counter of times a topics buffer was full
-    topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
+    topic_buffer_full: Counter[TP] = cast(Counter[TP], None)
 
     #: Arbitrary counts added by apps
     metric_counts: Counter[str] = cast(Counter[str], None)
@@ -224,7 +224,7 @@ class Monitor(Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
-                 topic_buffer_full: Counter[TopicT] = None,
+                 topic_buffer_full: Counter[TP] = None,
                  rebalances: int = None,
                  rebalance_return_latency: Deque[float] = None,
                  rebalance_end_latency: Deque[float] = None,
@@ -434,6 +434,7 @@ class Monitor(Sensor, KeywordReduce):
                            event: EventT) -> Optional[Dict]:
         """Call when stream starts processing an event."""
         self.events_total += 1
+        self.stream_inbound_time[tp] = monotonic()
         self.events_by_stream[str(stream)] += 1
         self.events_by_task[str(stream.task_owner)] += 1
         self.events_active += 1
@@ -458,9 +459,9 @@ class Monitor(Sensor, KeywordReduce):
             deque_pushpopmax(
                 self.events_runtime, time_total, self.max_avg_history)
 
-    def on_topic_buffer_full(self, topic: TopicT) -> None:
+    def on_topic_buffer_full(self, tp: TP) -> None:
         """Call when conductor topic buffer is full and has to wait."""
-        self.topic_buffer_full[topic] += 1
+        self.topic_buffer_full[tp] += 1
 
     def on_message_out(self,
                        tp: TP,

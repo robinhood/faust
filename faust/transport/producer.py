@@ -115,7 +115,7 @@ class Producer(Service, ProducerT):
         self.app = self.transport.app
         conf = self.transport.app.conf
         self.client_id = conf.broker_client_id
-        self.linger_ms = conf.producer_linger_ms
+        self.linger_ms = int(conf.producer_linger * 1000)
         self.max_batch_size = conf.producer_max_batch_size
         self.acks = conf.producer_acks
         self.max_request_size = conf.producer_max_request_size

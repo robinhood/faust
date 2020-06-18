@@ -206,6 +206,22 @@ async def test_stream_filter(app):
 
 
 @pytest.mark.asyncio
+async def test_stream_filter__async(app):
+    i = 0
+    values = [1000, 3000, 99, 5000, 3, 9999]
+
+    async def myfilter(value):
+        return value > 1000
+
+    async with app.stream(values).filter(myfilter) as s:
+        async for value in s:
+            i += 1
+            assert value > 1000
+
+    assert i == 3
+
+
+@pytest.mark.asyncio
 async def test_events(app):
     async with new_stream(app) as stream:
         for i in range(100):

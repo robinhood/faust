@@ -459,16 +459,18 @@ class Topic(SerializedChannel, TopicT):
         partitions = self.partitions
         if partitions is None:
             partitions = self.app.conf.topic_partitions
-        replicas = self.replicas
-        if not replicas:
+        replicas: int
+        if self.replicas is None:
             replicas = self.app.conf.topic_replication_factor
+        else:
+            replicas = self.replicas
         if self.app.conf.topic_allow_declare:
             producer = await self._get_producer()
             for topic in self.topics:
                 await producer.create_topic(
                     topic=topic,
                     partitions=partitions,
-                    replication=replicas,
+                    replication=replicas or 0,
                     config=self.config,
                     compacting=self.compacting,
                     deleting=self.deleting,

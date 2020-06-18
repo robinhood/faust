@@ -401,6 +401,7 @@ class Consumer(Service, ConsumerT):
 
     _active_partitions: Optional[Set[TP]]
     _paused_partitions: Set[TP]
+    _buffered_partitions: Set[TP]
 
     flow_active: bool = True
     can_resume_flow: Event
@@ -436,6 +437,7 @@ class Consumer(Service, ConsumerT):
         self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
         self._unacked_messages = WeakSet()
+        self._buffered_partitions = set()
         self._waiting_for_ack = None
         self._time_start = monotonic()
         self._end_offset_monitor_interval = self.commit_interval * 2
@@ -461,6 +463,7 @@ class Consumer(Service, ConsumerT):
     def _reset_state(self) -> None:
         self._active_partitions = None
         self._paused_partitions = set()
+        self._buffered_partitions = set()
         self.can_resume_flow.clear()
         self.flow_active = True
         self._time_start = monotonic()
@@ -481,6 +484,16 @@ class Consumer(Service, ConsumerT):
         xtps = self._active_partitions = ensure_TPset(tps)  # copy
         xtps.difference_update(self._paused_partitions)
         return xtps
+
+    def on_buffer_full(self, tp: TP) -> None:
+        self._active_partitions.discard(tp)
+        self._buffered_partitions.add(tp)
+
+    def on_buffer_drop(self, tp: TP) -> None:
+        buffered_partitions = self._buffered_partitions
+        if tp in buffered_partitions:
+            self._active_partitions.add(tp)
+            buffered_partitions.discard(tp)
 
     @abc.abstractmethod
     async def _commit(

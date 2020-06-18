@@ -17,7 +17,8 @@ VULTURE_MIN_CONFIDENCE ?= 100
 PRE_COMMIT ?= pre-commit
 DMYPY ?= dmypy
 BANDIT ?= bandit
-
+RENDER_CONFIGREF ?= extra/tools/render_configuration_reference.py
+CONFIGREF_TARGET ?= docs/includes/settingref.txt
 TESTDIR ?= t
 EXAMPLESDIR ?= examples
 SPHINX_DIR ?= docs/
@@ -59,6 +60,7 @@ help:
 	@echo "    vulture          - Run vulture to find unused code."
 	@echo "readme               - Regenerate README.rst file."
 	@echo "contrib              - Regenerate CONTRIBUTING.rst file"
+	@echo "configref            - Regenerate docs/userguide/settings.rst"
 	@echo "coc                  - Regenerate CODE_OF_CONDUCT.rst file"
 	@echo "clean-dist --------- - Clean all distribution build artifacts."
 	@echo "  clean-git-force    - Remove all uncommitted files."
@@ -150,6 +152,9 @@ $(CONTRIBUTING):
 	$(SPHINX2RST) "$(CONTRIBUTING_SRC)" > $@
 
 contrib: clean-contrib $(CONTRIBUTING)
+
+configref:
+	$(PYTHON) $(RENDER_CONFIGREF) > $(CONFIGREF_TARGET)
 
 clean-coc:
 	-rm -f "$(COC)"

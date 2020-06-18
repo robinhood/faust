@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     MutableMapping,
     MutableSet,
     Optional,
@@ -61,10 +60,47 @@ class ConductorCompiler:  # pragma: no cover
 
         topic, partition = tp
         app = conductor.app
-        on_topic_buffer_full = app.sensors.on_topic_buffer_full
-        acquire_flow_control: Callable = app.flow_control.acquire
-        wait_until_producer_ebb = app.producer.buffer.wait_until_ebb
         len_: Callable[[Any], int] = len
+
+        # We divide `stream_buffer_maxsize` with Queue.pressure_ratio
+        # find a limit to the number of messages we will buffer
+        # before considering the buffer to be under high pressure.
+        # When the buffer is under high pressure, we call
+        # Consumer.on_buffer_full(tp) to remove this topic partition
+        # from the fetcher.
+        # We still accept anything that's currently in the fetcher (it's
+        # already in memory so we are just moving the data) without blocking,
+        # but signal the fetcher to stop retrieving any more data for this
+        # partition.
+        consumer_on_buffer_full = app.consumer.on_buffer_full
+
+        # when the buffer drops down to half we re-enable fetching
+        # from the partition.
+        consumer_on_buffer_drop = app.consumer.on_buffer_drop
+
+        # flow control will completely block the streams from processing
+        # more data, and is used during rebalancing.
+        acquire_flow_control: Callable = app.flow_control.acquire
+
+        # when streams send new messages as a side effect, the producer
+        # buffer can sometimes fill up, in that case we block
+        # the streams to wait until the buffer is free.
+        wait_until_producer_ebb = app.producer.buffer.wait_until_ebb
+
+        # This sensor method is called every time the buffer is full.
+        on_topic_buffer_full = app.sensors.on_topic_buffer_full
+
+        # callback called when the queue is under high pressure/
+        # about to become full.
+        def on_pressure_high():
+            on_topic_buffer_full(tp)
+            consumer_on_buffer_full(tp)
+
+        # callback used when pressure drops.
+        # added to Queue._pending_pressure_drop_callbacks
+        # when the buffer is under high pressure/full.
+        def on_pressure_drop():
+            consumer_on_buffer_drop(tp)
 
         async def on_message(message: Message) -> None:
             # when a message is received we find all channels
@@ -86,7 +122,6 @@ class ConductorCompiler:  # pragma: no cover
                 # so that if a DecodeError is raised we can propagate
                 # that error to the remaining channels.
                 delivered: Set[_Topic] = set()
-                full: List[Tuple[EventT, _Topic]] = []
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
@@ -96,10 +131,11 @@ class ConductorCompiler:  # pragma: no cover
                             event_keyid = keyid
 
                             queue = chan.queue
-                            if queue.full():
-                                full.append((event, chan))
-                                continue
-                            queue.put_nowait(event)
+                            queue.put_nowait_enhanced(
+                                event,
+                                on_pressure_high=on_pressure_high,
+                                on_pressure_drop=on_pressure_drop,
+                            )
                         else:
                             # subsequent channels may have a different
                             # key/value type pair, meaning they all can
@@ -113,19 +149,13 @@ class ConductorCompiler:  # pragma: no cover
                                 dest_event = await chan.decode(
                                     message, propagate=True)
                             queue = chan.queue
-                            if queue.full():
-                                full.append((dest_event, chan))
-                                continue
-                            queue.put_nowait(dest_event)
+                            queue.put_nowait_enhanced(
+                                dest_event,
+                                on_pressure_high=on_pressure_high,
+                                on_pressure_drop=on_pressure_drop,
+                            )
                         delivered.add(chan)
-                    if full:
-                        for _, dest_chan in full:
-                            on_topic_buffer_full(dest_chan)
-                        await asyncio.wait(
-                            [dest_chan.put(dest_event)
-                             for dest_event, dest_chan in full],
-                            return_when=asyncio.ALL_COMPLETED,
-                        )
+
                 except KeyDecodeError as exc:
                     remaining = channels - delivered
                     message.ack(app.consumer, n=len(remaining))
@@ -190,8 +220,11 @@ class Conductor(ConductorT, Service):
         self._subscription_changed = None
         self._subscription_done = None
         self._compiler = ConductorCompiler()
-        # we compile the closure used for receive messages
-        # (this just optimizes symbol lookups, localizing variables etc).
+
+        # This callback is called whenever the Consumer has
+        # fetched a new record from Kafka.
+        # We compile this down to a closure having variables already
+        # localized as an optimization.
         self.on_message: ConsumerCallback
         self.on_message = self._compile_message_handler()
 

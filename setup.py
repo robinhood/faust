@@ -36,6 +36,7 @@ BUNDLES = {
     'orjson',
     'redis',
     'rocksdb',
+    'sentry',
     'setproctitle',
     'statsd',
     'uvloop',

@@ -1,13 +1,11 @@
 =====================================================
- ``faust.types.settings``
+ ``faust.contrib``
 =====================================================
 
 .. contents::
     :local:
+.. currentmodule:: faust.contrib
 
-.. currentmodule:: faust.types.settings
-
-.. automodule:: faust.types.settings
+.. automodule:: faust.contrib
     :members:
     :undoc-members:
-

@@ -1301,7 +1301,7 @@ class test_Producer:
         pytest.param({'api_version': '0.10'},
                      marks=pytest.mark.conf(
                          producer_api_version='0.10')),
-        pytest.param({'acks': 'all'},
+        pytest.param({'acks': -1},
                      marks=pytest.mark.conf(
                          producer_acks='all')),
         pytest.param({'bootstrap_servers': ['a:9092', 'b:9092']},
@@ -1315,7 +1315,7 @@ class test_Producer:
                          producer_compression_type='snappy')),
         pytest.param({'linger_ms': 9345},
                      marks=pytest.mark.conf(
-                         producer_linger_ms=9345)),
+                         producer_linger=9.345)),
         pytest.param({'max_batch_size': 41223},
                      marks=pytest.mark.conf(
                          producer_max_batch_size=41223)),

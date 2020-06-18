@@ -9,7 +9,6 @@ from faust.types import AppT, CollectionT, EventT, StreamT
 from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.sensors import SensorDelegateT, SensorT
-from faust.types.topics import TopicT
 from faust.types.transports import ConsumerT, ProducerT
 
 __all__ = ['Sensor', 'SensorDelegate']
@@ -52,7 +51,7 @@ class Sensor(SensorT, Service):
         """All streams finished processing message."""
         ...
 
-    def on_topic_buffer_full(self, topic: TopicT) -> None:
+    def on_topic_buffer_full(self, tp: TP) -> None:
         """Topic buffer full so conductor had to wait."""
         ...
 
@@ -189,10 +188,10 @@ class SensorDelegate(SensorDelegateT):
             sensor.on_stream_event_out(tp, offset, stream, event,
                                        sensor_state.get(sensor))
 
-    def on_topic_buffer_full(self, topic: TopicT) -> None:
+    def on_topic_buffer_full(self, tp: TP) -> None:
         """Call when conductor topic buffer is full and has to wait."""
         for sensor in self._sensors:
-            sensor.on_topic_buffer_full(topic)
+            sensor.on_topic_buffer_full(tp)
 
     def on_message_out(self,
                        tp: TP,

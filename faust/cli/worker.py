@@ -3,7 +3,7 @@ import asyncio
 import os
 import platform
 import socket
-from typing import Any, List, Optional, Type, cast
+from typing import Any, List, Optional, Tuple, Type, cast
 
 from mode import ServiceT, Worker
 from mode.utils.imports import symbol_by_name
@@ -13,6 +13,7 @@ from yarl import URL
 from faust.worker import Worker as FaustWorker
 from faust.types import AppT
 from faust.types._env import WEB_BIND, WEB_PORT, WEB_TRANSPORT
+from faust.utils.terminal.tables import TableDataT
 
 from . import params
 from .base import AppCommand, now_builtin_worker_options, option
@@ -92,46 +93,58 @@ class worker(AppCommand):
 
     def banner(self, worker: Worker) -> str:
         """Generate the text banner emitted before the worker starts."""
+        return self._format_banner_table(
+            self._banner_data(worker))
+
+    def _format_banner_table(self, data: TableDataT) -> str:
+        table = self.table(
+            [(self.bold(x), str(y)) for x, y in data],
+            title=self._banner_title(),
+        )
+        table.inner_heading_row_border = False
+        table.inner_row_border = False
+        return table.table
+
+    def _banner_title(self) -> str:
+        return self.faust_ident()
+
+    def _banner_data(self, worker: Worker) -> TableDataT:
         app = cast(FaustWorker, worker).app
-        loop = worker.loop
-        transport_extra = ''
-        # uvloop didn't leave us with any way to identify itself,
-        # and also there's no uvloop.__version__ attribute.
-        if loop.__class__.__module__ == 'uvloop':
-            transport_extra = '+uvloop'
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
-        compiler = platform.python_compiler()
-        cython_info = None
-        try:
-            import faust._cython.windows  # noqa: F401
-        except ImportError:
-            pass
-        else:
-            cython_info = ('       +', f'Cython ({compiler})')
-        data = list(filter(None, [
+        transport_extra = self._human_transport_info(worker.loop)
+        return list(filter(None, [
             ('id', app.conf.id),
             ('transport', f'{app.conf.broker} {transport_extra}'),
-            ('store', app.conf.store),
-            ('web', app.web.url) if app.conf.web_enabled else None,
+            ('store', f'{app.conf.store}'),
+            ('web', f'{app.web.url}') if app.conf.web_enabled else None,
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
             ('hostname', f'{socket.gethostname()}'),
             ('platform', self.platform()),
-            cython_info if cython_info else None,
+            self._human_cython_info(),
             ('drivers', ''),
             ('  transport', app.transport.driver_version),
             ('  web', app.web.driver_version),
             ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
             ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]))
-        table = self.table(
-            [(self.bold(x), str(y)) for x, y in data],
-            title=self.faust_ident(),
-        )
-        table.inner_heading_row_border = False
-        table.inner_row_border = False
-        return table.table
+
+    def _human_cython_info(self) -> Optional[Tuple[str, str]]:
+        try:
+            import faust._cython.windows  # noqa: F401
+        except ImportError:
+            return None
+        else:
+            compiler = platform.python_compiler()
+            return ('       +', f'Cython ({compiler})')
+
+    def _human_transport_info(self, loop: Any) -> str:
+        # uvloop didn't leave us with any way to identify itself,
+        # and also there's no uvloop.__version__ attribute.
+        if loop.__class__.__module__ == 'uvloop':
+            return '+uvloop'
+        return ''
 
     def _driver_versions(self, app: AppT) -> List[str]:
         return [

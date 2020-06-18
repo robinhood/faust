@@ -1,13 +1,11 @@
 =====================================================
- ``faust.types.settings``
+ ``faust.types.settings.base``
 =====================================================
 
 .. contents::
     :local:
+.. currentmodule:: faust.types.settings.base
 
-.. currentmodule:: faust.types.settings
-
-.. automodule:: faust.types.settings
+.. automodule:: faust.types.settings.base
     :members:
     :undoc-members:
-

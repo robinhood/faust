@@ -1,5 +1,6 @@
 import socket
 import sys
+from typing import Any, Mapping, NamedTuple
 from pathlib import Path
 
 import faust
@@ -7,6 +8,7 @@ import mode
 import pytest
 import pytz
 
+from mode.supervisors import OneForAllSupervisor
 from mode.utils.mocks import patch
 from yarl import URL
 
@@ -19,8 +21,9 @@ from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
 from faust.transport.utils import DefaultSchedulingStrategy
-from faust.types import settings
 from faust.types.enums import ProcessingGuarantee
+from faust.types.settings import Settings
+from faust.types.settings.params import Param
 from faust.types.web import ResourceOptions
 
 TABLEDIR: Path
@@ -41,6 +44,12 @@ def _dummy_partitioner(a, b, c):
     return 0
 
 
+class EnvCase(NamedTuple):
+    env: Mapping[str, str]
+    setting: Param
+    expected_value: Any
+
+
 class test_settings:
 
     def App(self, id='myid', **kwargs):
@@ -48,57 +57,485 @@ class test_settings:
         app.finalize()
         return app
 
+    def test_env_with_prefix(self):
+        env = {
+            'FOO_BROKER_URL': 'foobar://',
+        }
+        app = self.App(env=env, env_prefix='FOO_', broker='xaz://')
+        assert app.conf.broker == [URL('foobar://')]
+
+    @pytest.mark.parametrize('env,setting,expected_value', [
+        EnvCase(
+            env={'APP_DATADIR': '/foo/bar/baz'},
+            setting=Settings.datadir,
+            expected_value=Path('/foo/bar/baz'),
+        ),
+        EnvCase(
+            env={'APP_TABLEDIR': '/foo/bar/bax'},
+            setting=Settings.tabledir,
+            expected_value=Path('/foo/bar/bax'),
+        ),
+        EnvCase(
+            env={'APP_DEBUG': 'yes'},
+            setting=Settings.debug,
+            expected_value=True,
+        ),
+        EnvCase(
+            env={'APP_DEBUG': 'no'},
+            setting=Settings.debug,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'APP_DEBUG': '0'},
+            setting=Settings.debug,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'APP_DEBUG': ''},
+            setting=Settings.debug,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'TIMEZONE': 'Europe/Berlin'},
+            setting=Settings.timezone,
+            expected_value=pytz.timezone('Europe/Berlin'),
+        ),
+        EnvCase(
+            env={'APP_VERSION': '3'},
+            setting=Settings.version,
+            expected_value=3,
+        ),
+        EnvCase(
+            env={'AGENT_SUPERVISOR': 'mode.supervisors.OneForAllSupervisor'},
+            setting=Settings.agent_supervisor,
+            expected_value=OneForAllSupervisor,
+        ),
+        EnvCase(
+            env={'BLOCKING_TIMEOUT': '0.0'},
+            setting=Settings.blocking_timeout,
+            expected_value=0.0,
+        ),
+        EnvCase(
+            env={'BLOCKING_TIMEOUT': '3.03'},
+            setting=Settings.blocking_timeout,
+            expected_value=3.03,
+        ),
+        EnvCase(
+            env={'BROKER_URL': 'foo://'},
+            setting=Settings.broker,
+            expected_value=[URL('foo://')],
+        ),
+        EnvCase(
+            env={'BROKER_URL': 'foo://a;foo://b;foo://c'},
+            setting=Settings.broker,
+            expected_value=[URL('foo://a'), URL('foo://b'), URL('foo://c')],
+        ),
+        EnvCase(
+            env={'BROKER_URL': 'foo://a;foo://b;foo://c'},
+            setting=Settings.broker_consumer,
+            expected_value=[URL('foo://a'), URL('foo://b'), URL('foo://c')],
+        ),
+        EnvCase(
+            env={'BROKER_URL': 'foo://a;foo://b;foo://c'},
+            setting=Settings.broker_producer,
+            expected_value=[URL('foo://a'), URL('foo://b'), URL('foo://c')],
+        ),
+        EnvCase(
+            env={'BROKER_CONSUMER_URL': 'foo://a;foo://b;foo://c'},
+            setting=Settings.broker_consumer,
+            expected_value=[URL('foo://a'), URL('foo://b'), URL('foo://c')],
+        ),
+        EnvCase(
+            env={'BROKER_PRODUCER_URL': 'foo://a;foo://b;foo://c'},
+            setting=Settings.broker_producer,
+            expected_value=[URL('foo://a'), URL('foo://b'), URL('foo://c')],
+        ),
+        EnvCase(
+            env={'BROKER_API_VERSION': '1.12'},
+            setting=Settings.broker_api_version,
+            expected_value='1.12',
+        ),
+        EnvCase(
+            env={'BROKER_API_VERSION': '1.12'},
+            setting=Settings.consumer_api_version,
+            expected_value='1.12',
+        ),
+        EnvCase(
+            env={'CONSUMER_API_VERSION': '1.13'},
+            setting=Settings.consumer_api_version,
+            expected_value='1.13',
+        ),
+        EnvCase(
+            env={'BROKER_API_VERSION': '1.12'},
+            setting=Settings.producer_api_version,
+            expected_value='1.12',
+        ),
+        EnvCase(
+            env={'PRODUCER_API_VERSION': '1.14'},
+            setting=Settings.producer_api_version,
+            expected_value='1.14',
+        ),
+        EnvCase(
+            env={'BROKER_CHECK_CRCS': 'no'},
+            setting=Settings.broker_check_crcs,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'BROKER_CLIENT_ID': 'x-y-z'},
+            setting=Settings.broker_client_id,
+            expected_value='x-y-z',
+        ),
+        EnvCase(
+            env={'BROKER_COMMIT_EVERY': '10'},
+            setting=Settings.broker_commit_every,
+            expected_value=10,
+        ),
+        EnvCase(
+            env={'BROKER_COMMIT_INTERVAL': '10'},
+            setting=Settings.broker_commit_interval,
+            expected_value=10.0,
+        ),
+        EnvCase(
+            env={'BROKER_COMMIT_INTERVAL': '10.1234'},
+            setting=Settings.broker_commit_interval,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_COMMIT_LIVELOCK_SOFT_TIMEOUT': '10.1234'},
+            setting=Settings.broker_commit_livelock_soft_timeout,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_HEARTBEAT_INTERVAL': '10.1234'},
+            setting=Settings.broker_heartbeat_interval,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_MAX_POLL_INTERVAL': '10.1234'},
+            setting=Settings.broker_max_poll_interval,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_MAX_POLL_RECORDS': '30'},
+            setting=Settings.broker_max_poll_records,
+            expected_value=30,
+        ),
+        EnvCase(
+            env={'BROKER_REBALANCE_TIMEOUT': '10.1234'},
+            setting=Settings.broker_rebalance_timeout,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_REQUEST_TIMEOUT': '10.1234'},
+            setting=Settings.broker_request_timeout,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'BROKER_SESSION_TIMEOUT': '10.1234'},
+            setting=Settings.broker_session_timeout,
+            expected_value=10.1234,
+        ),
+        EnvCase(
+            env={'CONSUMER_MAX_FETCH_SIZE': '123942012'},
+            setting=Settings.consumer_max_fetch_size,
+            expected_value=123942012,
+        ),
+        EnvCase(
+            env={'CONSUMER_AUTO_OFFSET_RESET': 'latest'},
+            setting=Settings.consumer_auto_offset_reset,
+            expected_value='latest',
+        ),
+        EnvCase(
+            env={'APP_KEY_SERIALIZER': 'yaml'},
+            setting=Settings.key_serializer,
+            expected_value='yaml',
+        ),
+        EnvCase(
+            env={'APP_VALUE_SERIALIZER': 'yaml'},
+            setting=Settings.value_serializer,
+            expected_value='yaml',
+        ),
+        EnvCase(
+            env={'PRODUCER_ACKS': '0'},
+            setting=Settings.producer_acks,
+            expected_value=0,
+        ),
+        EnvCase(
+            env={'PRODUCER_ACKS': '1'},
+            setting=Settings.producer_acks,
+            expected_value=1,
+        ),
+        EnvCase(
+            env={'PRODUCER_ACKS': '-1'},
+            setting=Settings.producer_acks,
+            expected_value=-1,
+        ),
+        EnvCase(
+            env={'PRODUCER_COMPRESSION_TYPE': 'snappy'},
+            setting=Settings.producer_compression_type,
+            expected_value='snappy',
+        ),
+        EnvCase(
+            env={'PRODUCER_LINGER_MS': '120392'},
+            setting=Settings.producer_linger,
+            expected_value=120.392,
+        ),
+        EnvCase(
+            env={'PRODUCER_LINGER': '12.345'},
+            setting=Settings.producer_linger,
+            expected_value=12.345,
+        ),
+        EnvCase(
+            env={'PRODUCER_MAX_BATCH_SIZE': '120392'},
+            setting=Settings.producer_max_batch_size,
+            expected_value=120392,
+        ),
+        EnvCase(
+            env={'PRODUCER_MAX_REQUEST_SIZE': '120392'},
+            setting=Settings.producer_max_request_size,
+            expected_value=120392,
+        ),
+        EnvCase(
+            env={'PRODUCER_REQUEST_TIMEOUT': '120.392'},
+            setting=Settings.producer_request_timeout,
+            expected_value=120.392,
+        ),
+        EnvCase(
+            env={'APP_REPLY_CREATE_TOPIC': '1'},
+            setting=Settings.reply_create_topic,
+            expected_value=True,
+        ),
+        EnvCase(
+            env={'APP_REPLY_EXPIRES': '13.321'},
+            setting=Settings.reply_expires,
+            expected_value=13.321,
+        ),
+        EnvCase(
+            env={'APP_REPLY_TO_PREFIX': 'foo-bar-baz'},
+            setting=Settings.reply_to_prefix,
+            expected_value='foo-bar-baz',
+        ),
+        EnvCase(
+            env={'PROCESSING_GUARANTEE': 'exactly_once'},
+            setting=Settings.processing_guarantee,
+            expected_value=ProcessingGuarantee.EXACTLY_ONCE,
+        ),
+        EnvCase(
+            env={'PROCESSING_GUARANTEE': 'at_least_once'},
+            setting=Settings.processing_guarantee,
+            expected_value=ProcessingGuarantee.AT_LEAST_ONCE,
+        ),
+        EnvCase(
+            env={'STREAM_BUFFER_MAXSIZE': '16384'},
+            setting=Settings.stream_buffer_maxsize,
+            expected_value=16384,
+        ),
+        EnvCase(
+            env={'STREAM_PROCESSING_TIMEOUT': '12.312'},
+            setting=Settings.stream_processing_timeout,
+            expected_value=12.312,
+        ),
+        EnvCase(
+            env={'STREAM_RECOVERY_DELAY': '12.312'},
+            setting=Settings.stream_recovery_delay,
+            expected_value=12.312,
+        ),
+        EnvCase(
+            env={'STREAM_WAIT_EMPTY': 'no'},
+            setting=Settings.stream_wait_empty,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'STREAM_WAIT_EMPTY': 'yes'},
+            setting=Settings.stream_wait_empty,
+            expected_value=True,
+        ),
+        EnvCase(
+            env={'APP_STORE': 'rocksdb://'},
+            setting=Settings.store,
+            expected_value=URL('rocksdb://'),
+        ),
+        EnvCase(
+            env={'TABLE_CLEANUP_INTERVAL': '60.03'},
+            setting=Settings.table_cleanup_interval,
+            expected_value=60.03,
+        ),
+        EnvCase(
+            env={'TABLE_KEY_INDEX_SIZE': '32030'},
+            setting=Settings.table_key_index_size,
+            expected_value=32030,
+        ),
+        EnvCase(
+            env={'TABLE_STANDBY_REPLICAS': '10'},
+            setting=Settings.table_standby_replicas,
+            expected_value=10,
+        ),
+        EnvCase(
+            env={'TOPIC_ALLOW_DECLARE': '0'},
+            setting=Settings.topic_allow_declare,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'TOPIC_ALLOW_DECLARE': '1'},
+            setting=Settings.topic_allow_declare,
+            expected_value=True,
+        ),
+        EnvCase(
+            env={'TOPIC_DISABLE_LEADER': '0'},
+            setting=Settings.topic_disable_leader,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'TOPIC_DISABLE_LEADER': '1'},
+            setting=Settings.topic_disable_leader,
+            expected_value=True,
+        ),
+        EnvCase(
+            env={'TOPIC_PARTITIONS': '100'},
+            setting=Settings.topic_partitions,
+            expected_value=100,
+        ),
+        EnvCase(
+            env={'TOPIC_REPLICATION_FACTOR': '100'},
+            setting=Settings.topic_replication_factor,
+            expected_value=100,
+        ),
+        EnvCase(
+            env={'CACHE_URL': 'redis://'},
+            setting=Settings.cache,
+            expected_value=URL('redis://'),
+        ),
+        EnvCase(
+            env={'WEB_BIND': '0.0.0.0'},
+            setting=Settings.web_bind,
+            expected_value='0.0.0.0',
+        ),
+        EnvCase(
+            env={'APP_WEB_ENABLED': 'no'},
+            setting=Settings.web_enabled,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'WEB_HOST': 'foo.bar.com'},
+            setting=Settings.web_host,
+            expected_value='foo.bar.com',
+        ),
+        EnvCase(
+            env={'WEB_HOST': 'foo.bar.com'},
+            setting=Settings.canonical_url,
+            expected_value=URL('http://foo.bar.com:6066'),
+        ),
+        EnvCase(
+            env={'WEB_PORT': '303'},
+            setting=Settings.web_port,
+            expected_value=303,
+        ),
+        EnvCase(
+            env={'WEB_PORT': '303', 'WEB_HOST': 'foo.bar.com'},
+            setting=Settings.canonical_url,
+            expected_value=URL('http://foo.bar.com:303'),
+        ),
+        EnvCase(
+            env={'WORKER_REDIRECT_STDOUTS': 'no'},
+            setting=Settings.worker_redirect_stdouts,
+            expected_value=False,
+        ),
+        EnvCase(
+            env={'WORKER_REDIRECT_STDOUTS_LEVEL': 'error'},
+            setting=Settings.worker_redirect_stdouts_level,
+            expected_value='error',
+        ),
+    ])
+    def test_env(self, env, setting, expected_value):
+        app = self.App(env=env)
+        self.assert_expected(setting.__get__(app.conf), expected_value)
+
+        # env prefix passed as argument
+        prefixed_env = {'FOO_' + k: v for k, v in env.items()}
+        app2 = self.App(env=prefixed_env, env_prefix='FOO_')
+        self.assert_expected(setting.__get__(app2.conf), expected_value)
+
+        # env prefix set in ENV
+        prefixed_env2 = {'BAR_' + k: v for k, v in env.items()}
+        prefixed_env2['APP_ENV_PREFIX'] = 'BAR_'
+        app3 = self.App(env=prefixed_env2)
+        assert app3.conf.env_prefix == 'BAR_'
+        self.assert_expected(setting.__get__(app3.conf), expected_value)
+
+    def assert_expected(self, value, expected_value):
+        if expected_value is None:
+            assert value is None
+        elif expected_value is True:
+            assert value is True
+        elif expected_value is False:
+            assert value is False
+        else:
+            assert value == expected_value
+
     def test_defaults(self):
         app = self.App()
         conf = app.conf
         assert not conf.debug
-        assert conf.broker == [URL(settings.BROKER_URL)]
-        assert conf.broker_consumer == [URL(settings.BROKER_URL)]
-        assert conf.broker_producer == [URL(settings.BROKER_URL)]
-        assert conf.store == URL(settings.STORE_URL)
-        assert conf.cache == URL(settings.CACHE_URL)
-        assert conf.web == URL(settings.WEB_URL)
+        assert conf.broker == [URL(Settings.DEFAULT_BROKER_URL)]
+        assert conf.broker_consumer == [URL(Settings.DEFAULT_BROKER_URL)]
+        assert conf.broker_producer == [URL(Settings.DEFAULT_BROKER_URL)]
+        assert conf.store == URL(Settings.store.default)
+        assert conf.cache == URL(Settings.cache.default)
+        assert conf.web == URL(Settings.web.default)
         assert conf.web_enabled
         assert not conf.web_in_thread
-        assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
-        assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
-        assert conf.processing_guarantee == settings.PROCESSING_GUARANTEE
-        assert conf.broker_api_version == settings.BROKER_API_VERSION
-        assert conf.broker_client_id == settings.BROKER_CLIENT_ID
-        assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
-        assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
+        assert conf.datadir == Path('myid-data')
+        assert conf.tabledir == Path('myid-data/v1/tables')
+        assert conf.blocking_timeout is None
+        assert conf.processing_guarantee == ProcessingGuarantee.AT_LEAST_ONCE
+        assert conf.broker_api_version == Settings.broker_api_version.default
+        assert conf.broker_client_id == Settings.broker_client_id.default
+        assert (conf.broker_request_timeout ==
+                Settings.broker_request_timeout.default)
+        assert (conf.broker_session_timeout ==
+                Settings.broker_session_timeout.default)
         assert (conf.broker_rebalance_timeout ==
-                settings.BROKER_REBALANCE_TIMEOUT)
+                Settings.broker_rebalance_timeout.default)
         assert (conf.broker_heartbeat_interval ==
-                settings.BROKER_HEARTBEAT_INTERVAL)
-        assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
-        assert conf.broker_commit_every == settings.BROKER_COMMIT_EVERY
+                Settings.broker_heartbeat_interval.default)
+        assert (conf.broker_commit_interval ==
+                Settings.broker_commit_interval.default)
+        assert (conf.broker_commit_every ==
+                Settings.broker_commit_every.default)
         assert (conf.broker_commit_livelock_soft_timeout ==
-                settings.BROKER_LIVELOCK_SOFT)
+                Settings.broker_commit_livelock_soft_timeout.default)
         assert conf.broker_check_crcs
-        assert conf.consumer_api_version == settings.BROKER_API_VERSION
-        assert conf.timezone is settings.TIMEZONE
-        assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
-        assert conf.table_key_index_size == settings.TABLE_KEY_INDEX_SIZE
-        assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
-        assert conf.reply_expires == settings.REPLY_EXPIRES
-        assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
-        assert conf.stream_recovery_delay == settings.STREAM_RECOVERY_DELAY
-        assert conf.stream_processing_timeout == (
-            settings.STREAM_PROCESSING_TIMEOUT)
-        assert conf.producer_partitioner is None
+        assert (conf.consumer_api_version ==
+                Settings.broker_api_version.default)
+        assert conf.timezone is Settings.timezone.default
+        assert (conf.table_cleanup_interval ==
+                Settings.table_cleanup_interval.default)
+        assert (conf.table_key_index_size ==
+                Settings.table_key_index_size.default)
+        assert conf.reply_to_prefix == Settings.reply_to_prefix.default
+        assert conf.reply_expires == Settings.reply_expires.default
+        assert (conf.stream_buffer_maxsize ==
+                Settings.stream_buffer_maxsize.default)
+        assert (conf.stream_recovery_delay ==
+                Settings.stream_recovery_delay.default)
+        assert (conf.stream_processing_timeout ==
+                Settings.stream_processing_timeout.default)
+        assert (conf.producer_partitioner ==
+                Settings.producer_partitioner.default)
         assert (conf.producer_request_timeout ==
-                settings.PRODUCER_REQUEST_TIMEOUT)
-        assert conf.producer_api_version == settings.BROKER_API_VERSION
+                Settings.producer_request_timeout.default)
+        assert (conf.producer_api_version ==
+                Settings.broker_api_version.default)
+        assert conf.producer_linger == 0.0
         assert (conf.stream_publish_on_commit ==
-                settings.STREAM_PUBLISH_ON_COMMIT)
+                Settings.stream_publish_on_commit.default)
         assert conf.stream_wait_empty
         assert (conf.broker_max_poll_records ==
-                settings.BROKER_MAX_POLL_RECORDS)
+                Settings.broker_max_poll_records.default)
         assert (conf.broker_max_poll_interval ==
-                settings.BROKER_MAX_POLL_INTERVAL)
+                Settings.broker_max_poll_interval.default)
         assert (conf.consumer_auto_offset_reset ==
-                settings.CONSUMER_AUTO_OFFSET_RESET)
+                Settings.consumer_auto_offset_reset.default)
         assert not conf.autodiscover
         assert conf.origin is None
         assert conf.key_serializer == 'raw'
@@ -116,7 +553,7 @@ class test_settings:
         assert conf.canonical_url == URL(f'http://{socket.gethostname()}:6066')
         assert conf.web_bind == '0.0.0.0'
         assert conf.web_port == 6066
-        assert conf.web_transport == settings.WEB_TRANSPORT
+        assert conf.web_transport == Settings.web_transport.default
         assert conf.web_cors_options is None
         assert conf.worker_redirect_stdouts
         assert conf.worker_redirect_stdouts_level == 'WARN'
@@ -191,6 +628,7 @@ class test_settings:
                                  datadir=str(DATADIR),
                                  tabledir=str(TABLEDIR),
                                  processing_guarantee='exactly_once',
+                                 blocking_timeout=3.03,
                                  broker_api_version='0.1',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
@@ -206,6 +644,7 @@ class test_settings:
                                  producer_partitioner=_dummy_partitioner,
                                  producer_request_timeout=2.66,
                                  producer_api_version='0.10',
+                                 producer_linger=3.0303,
                                  table_cleanup_interval=80.8,
                                  table_key_index_size=1999,
                                  key_serializer='str',
@@ -259,6 +698,7 @@ class test_settings:
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
+            blocking_timeout=blocking_timeout,
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
@@ -278,6 +718,7 @@ class test_settings:
             producer_partitioner=producer_partitioner,
             producer_request_timeout=producer_request_timeout,
             producer_api_version=producer_api_version,
+            producer_linger=producer_linger,
             table_cleanup_interval=table_cleanup_interval,
             table_key_index_size=table_key_index_size,
             key_serializer=key_serializer,
@@ -312,6 +753,7 @@ class test_settings:
         assert conf.broker == [URL(broker)]
         assert conf.broker_consumer == [URL(broker_consumer)]
         assert conf.broker_producer == [URL(broker_producer)]
+        assert conf.blocking_timeout == blocking_timeout
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))
@@ -340,6 +782,7 @@ class test_settings:
         assert conf.producer_partitioner is producer_partitioner
         assert conf.producer_request_timeout == producer_request_timeout
         assert conf.producer_api_version == producer_api_version
+        assert conf.producer_linger == producer_linger
         assert conf.table_cleanup_interval == table_cleanup_interval
         assert conf.table_key_index_size == table_key_index_size
         assert conf.key_serializer == key_serializer
@@ -383,6 +826,10 @@ class test_settings:
         )
         assert app.conf.canonical_url == URL(
             f'http://{app.conf.web_host}:{app.conf.web_port}')
+
+    def test_producer_linger_ms__compat(self):
+        app = self.App(producer_linger_ms=30303)
+        assert app.conf.producer_linger == 30.303
 
     def test_id_no_version(self):
         assert self.App('id', version=1).conf.id == 'id'
@@ -449,7 +896,7 @@ class test_settings:
     def test_broker_with_no_scheme_set(self):
         app = self.App(broker='example.com:3123')
         url = app.conf.broker[0]
-        assert url.scheme == settings.DEFAULT_BROKER_SCHEME
+        assert url.scheme == Settings.broker.default_scheme
         assert url.host == 'example.com'
         assert url.port == 3123
 

@@ -61,7 +61,7 @@ __all__ = [
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
-WindowCloseCallback = Callable[[Any, Any], None]
+WindowCloseCallback = Callable[[Any, Any], Union[None, Awaitable[None]]]
 RelativeArg = Optional[Union[
     _FieldDescriptorT,
     RelativeHandler,
@@ -164,7 +164,7 @@ class CollectionT(ServiceT, JoinableT):
         ...
 
     @abc.abstractmethod
-    def on_window_close(self, key: Any, value: Any) -> None:
+    async def on_window_close(self, key: Any, value: Any) -> None:
         ...
 
     @abc.abstractmethod
