@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from typing import Iterator
 
 CONSUMER_BIN = 'kafka-console-consumer'
@@ -25,12 +26,14 @@ async def kafka_console_consume(
     )
 
     stdout, stderr = await proc.communicate()
-    assert not proc.returncode
     if stderr:
         error = stderr.decode()
         if 'TimeoutException' not in error:
             if 'Processed a total' not in error:
-                print(f'Command {cmd} gave error: {error}')
+                print(f'Command {cmd} gave error: {error}', file=sys.stderr)
+    if proc.returncode:
+        print(f'Process exited with error status {proc.returncode}',
+              file=sys.stderr)
     return stdout.splitlines()
 
 

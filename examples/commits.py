@@ -9,7 +9,7 @@ from faust.utils.kafka.tools import kafka_console_consume
 from mode.utils.futures import notify
 from mode.utils.logging import get_logger
 
-VERSION = 15
+VERSION = 16
 TOPIC_PARTITIONS = 1
 logger = get_logger(__name__)
 
@@ -147,6 +147,24 @@ async def process_receipts(offsets):
         if current_value:
             print(f'Already processed for key {key!r}')
         offsets_table[key] = info
+
+
+@app.command(
+    option('--partition',
+           type=int,
+           help='Partition number'),
+)
+async def verify(self, partition):
+    assert partition is not None
+    offsets = await kafka_console_consume(
+        'localhost', '9092',
+        receipts_topic.get_topic_name(),
+        partition,
+    )
+    for i, offset in enumerate(offsets):
+        offsetinfo = OffsetInfo.loads(offset, serializer='json')
+        assert offsetinfo.offset == i
+    print(f'last offet: {offset}')
 
 
 @app.command(
