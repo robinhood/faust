@@ -70,6 +70,7 @@ def traced_from_parent_span(parent_span: opentracing.Span = None,
     """Decorate function to be traced from parent span."""
     def _wrapper(fun: Callable, **more_context: Any) -> Callable:
         operation_name = operation_name_from_fun(fun)
+
         @wraps(fun)
         def _inner(*args: Any, **kwargs: Any) -> Any:
             parent = parent_span
