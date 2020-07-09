@@ -399,7 +399,7 @@ class Consumer(Service, ConsumerT):
     _commit_every: Optional[int]
     _n_acked: int = 0
 
-    _active_partitions: Optional[Set[TP]]
+    _active_partitions: Set[TP]
     _paused_partitions: Set[TP]
     _buffered_partitions: Set[TP]
 
