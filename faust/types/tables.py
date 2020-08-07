@@ -204,6 +204,12 @@ class CollectionT(ServiceT, JoinableT):
         ...
 
     @abc.abstractmethod
+    def sliding(self, before: Seconds, after: Seconds,
+                expires: Seconds = None,
+                key_index: bool = False) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
     def tumbling(self, size: Seconds,
                  expires: Seconds = None,
                  key_index: bool = False) -> 'WindowWrapperT':
