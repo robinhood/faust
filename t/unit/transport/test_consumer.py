@@ -823,7 +823,8 @@ class test_Consumer:
             TP2: 30,
         }
         assert consumer._filter_committable_offsets({TP1, TP2}) == {
-            TP2: 36,
+            TP1: 5,
+            TP2: 37,
         }
 
     @pytest.mark.asyncio
@@ -959,10 +960,10 @@ class test_Consumer:
 
     @pytest.mark.parametrize('tp,acked,expected_offset', [
         (TP1, [], None),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], 8),
-        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], 4),
-        (TP1, [1, 3, 4, 6, 7, 8, 10], 1),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 11),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], 9),
+        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], 5),
+        (TP1, [1, 3, 4, 6, 7, 8, 10], 2),
     ])
     def test_new_offset(self, tp, acked, expected_offset, *, consumer):
         consumer._acked[tp] = acked
@@ -970,10 +971,10 @@ class test_Consumer:
 
     @pytest.mark.parametrize('tp,acked,gaps,expected_offset', [
         (TP1, [], [], None),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [], 10),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], [9], 10),
-        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], [5], 8),
-        (TP1, [1, 3, 4, 6, 7, 8, 10], [2, 5, 9], 10),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [], 11),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], [9], 11),
+        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], [5], 9),
+        (TP1, [1, 3, 4, 6, 7, 8, 10], [2, 5, 9], 11),
     ])
     def test_new_offset_with_gaps(self, tp, acked, gaps,
                                   expected_offset, *, consumer):
