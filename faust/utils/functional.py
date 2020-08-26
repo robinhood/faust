@@ -32,19 +32,19 @@ def consecutive_numbers(it: Iterable[int]) -> Iterator[Sequence[int]]:
         yield [a[1] for a in g]
 
 
-def deque_prune(l: Deque[T], max: int = None) -> Optional[T]:
+def deque_prune(llo: Deque[T], max: int = None) -> Optional[T]:
     """Prune oldest element in deque if size exceeds ``max``."""
     if max is not None:
-        size = len(l)
+        size = len(llo)
         if size > max:
-            return l.popleft()
+            return llo.popleft()
     return None
 
 
-def deque_pushpopmax(l: Deque[T], item: T, max: int = None) -> Optional[T]:
+def deque_pushpopmax(llo: Deque[T], item: T, max: int = None) -> Optional[T]:
     """Append to deque and remove oldest element if size exceeds ``max``."""
-    l.append(item)
-    return deque_prune(l, max)
+    llo.append(item)
+    return deque_prune(llo, max)
 
 
 def translate(table: Mapping, s: str) -> str:

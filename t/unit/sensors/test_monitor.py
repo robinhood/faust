@@ -51,21 +51,21 @@ class test_Monitor:
         return Monitor(**kwargs)
 
     def create_populated_monitor(self,
-            messages_active=101,
-            messages_received_total=1001,
-            messages_sent=303,
-            messages_s=1000,
-            messages_received_by_topic={'foo': 103},  # noqa
-            events_active=202,
-            events_total=2002,
-            events_s=3000,
-            events_runtime_avg=0.03,
-            events_by_task={'mytask': 105},  # noqa
-            events_by_stream={'stream': 105},  # noqa
-            commit_latency=[1.03, 2.33, 16.33],  # noqa
-            send_latency=[0.01, 0.04, 0.06, 0.010],  # noqa
-            topic_buffer_full={'topic': 808},  # noqa
-            **kwargs):
+        messages_active=101,
+        messages_received_total=1001,
+        messages_sent=303,
+        messages_s=1000,
+        messages_received_by_topic={'foo': 103},  # noqa
+        events_active=202,
+        events_total=2002,
+        events_s=3000,
+        events_runtime_avg=0.03,
+        events_by_task={'mytask': 105},  # noqa
+        events_by_stream={'stream': 105},  # noqa
+        commit_latency=[1.03, 2.33, 16.33],  # noqa
+        send_latency=[0.01, 0.04, 0.06, 0.010],  # noqa
+        topic_buffer_full={'topic': 808},  # noqa
+        **kwargs):
         return self.create_monitor(
             messages_active=messages_active,
             messages_received_total=messages_received_total,
