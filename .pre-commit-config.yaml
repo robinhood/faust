@@ -6,4 +6,3 @@ repos:
       entry: flake8
       language: system
       files: .*\.py$
-      python_version: python3.6
