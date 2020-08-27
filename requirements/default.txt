@@ -1,7 +1,6 @@
 aiohttp>=3.5.2,<4.0
 aiohttp_cors>=0.7,<2.0
-#robinhood-aiokafka>=1.1.6,<1.2
-git+git://github.com/DomainTools/aiokafka@1.1.7-dt
+git+git://github.com/DomainTools/aiokafka@v1.1.7.dt#egg=aiokafka
 click>=6.7,<8.0
 colorclass>=2.2,<3.0
 mode>=4.3.2,<4.4
