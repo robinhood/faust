@@ -22,7 +22,7 @@ else:
 if os.environ.get('NO_CYTHON'):
     USE_CYTHON = False
 
-NAME = 'faust'
+NAME = 'dt-faust'
 BUNDLES = {
     'aiodns',
     'aiomonitor',
@@ -147,8 +147,8 @@ with open(here / NAME / '__init__.py') as meta_fh:
 # -*- Installation Requires -*-
 
 
-def strip_comments(l):
-    return l.split('#', 1)[0].strip()
+def strip_comments(lin):
+    return lin.split('#', 1)[0].strip()
 
 
 def _pip_requirement(req, *root):
@@ -161,8 +161,8 @@ def _pip_requirement(req, *root):
 def _reqs(*f):
     path = (Path.cwd() / 'requirements').joinpath(*f)
     with path.open() as fh:
-        reqs = [strip_comments(l) for l in fh.readlines()]
-        return [_pip_requirement(r, *f[:-1]) for r in reqs if r]
+        reqs = [strip_comments(line) for line in fh.readlines()]
+        return [_pip_requirement(req, *f[:-1]) for req in reqs if req]
 
 
 def reqs(*f):
