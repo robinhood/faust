@@ -22,7 +22,8 @@ else:
 if os.environ.get('NO_CYTHON'):
     USE_CYTHON = False
 
-NAME = 'dt-faust'
+NAME = 'faust'
+PACKAGE_NAME = 'dt-faust'
 BUNDLES = {
     'aiodns',
     'aiomonitor',
@@ -192,7 +193,7 @@ else:
 
 def do_setup(**kwargs):
     setup(
-        name=NAME,
+        name=PACKAGE_NAME,
         version=meta['version'],
         description=meta['doc'],
         long_description=long_description,
