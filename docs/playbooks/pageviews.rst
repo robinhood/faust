@@ -99,7 +99,7 @@ Create the agent:
     processing of some partition to another node, the counts for that
     partition (hence, those page ids) also move together.
 
-Now that we written our project, let's try running it to see the counts
+Now that we have written our project, let's try running it to see the counts
 update in the changelog topic for the table.
 
 Starting Kafka
