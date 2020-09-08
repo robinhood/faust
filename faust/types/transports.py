@@ -417,6 +417,14 @@ class ConsumerT(ServiceT):
     def unacked(self) -> Set[Message]:
         ...
 
+    @abc.abstractmethod
+    def on_buffer_full(self, tp: TP) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_buffer_drop(self, tp: TP) -> None:
+        ...
+
 
 class ConductorT(ServiceT, MutableSet[TopicT]):
 
