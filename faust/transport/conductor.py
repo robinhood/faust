@@ -131,12 +131,12 @@ class ConductorCompiler:  # pragma: no cover
                             event_keyid = keyid
 
                             queue = chan.queue
-                            # queue.put_nowait_enhanced(
-                            #     event,
-                            #     on_pressure_high=on_pressure_high,
-                            #     on_pressure_drop=on_pressure_drop,
-                            # )
-                            queue.put_nowait(event)
+                            queue.put_nowait_enhanced(
+                                event,
+                                on_pressure_high=on_pressure_high,
+                                on_pressure_drop=on_pressure_drop,
+                            )
+                            # queue.put_nowait(event)
                         else:
                             # subsequent channels may have a different
                             # key/value type pair, meaning they all can
@@ -150,12 +150,12 @@ class ConductorCompiler:  # pragma: no cover
                                 dest_event = await chan.decode(
                                     message, propagate=True)
                             queue = chan.queue
-                            # queue.put_nowait_enhanced(
-                            #     dest_event,
-                            #     on_pressure_high=on_pressure_high,
-                            #     on_pressure_drop=on_pressure_drop,
-                            # )
-                            queue.put_nowait(dest_event)
+                            queue.put_nowait_enhanced(
+                                dest_event,
+                                on_pressure_high=on_pressure_high,
+                                on_pressure_drop=on_pressure_drop,
+                            )
+                            # queue.put_nowait(dest_event)
                         delivered.add(chan)
 
                 except KeyDecodeError as exc:
