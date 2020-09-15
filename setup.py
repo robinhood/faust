@@ -49,8 +49,8 @@ LDFLAGS = []
 LIBRARIES = []
 E_UNSUPPORTED_PYTHON = NAME + ' 1.0 requires Python %%s or later!'
 
-if sys.version_info < (3, 6):
-    raise Exception(E_UNSUPPORTED_PYTHON % ('3.6',))  # NOQA
+if sys.version_info < (3, 8):
+    raise Exception(E_UNSUPPORTED_PYTHON % ('3.8',))  # NOQA
 
 from pathlib import Path  # noqa
 
@@ -207,7 +207,7 @@ def do_setup(**kwargs):
         # PEP-561: https://www.python.org/dev/peps/pep-0561/
         package_data={'faust': ['py.typed']},
         include_package_data=True,
-        python_requires='>=3.6.0',
+        python_requires='>=3.8.0',
         zip_safe=False,
         install_requires=reqs('default.txt'),
         tests_require=reqs('test.txt'),
