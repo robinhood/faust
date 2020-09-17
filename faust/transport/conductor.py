@@ -125,8 +125,10 @@ class ConductorCompiler:  # pragma: no cover
                 delivered: Set[_Topic] = set()
                 full: List[Tuple[EventT, _Topic]] = []
                 #
-                # NOTE: reverting to old no-wait behavior, pressure handling isn't working
-                # TODO: put this back when we figure out the backpressure stuff.
+                # NOTE: reverting to old no-wait behavior, pressure
+                # handling isn't working
+                # TODO: put this back when we figure out the backpressure
+                # stuff.
                 #
                 try:
                     for chan in channels:
@@ -137,11 +139,11 @@ class ConductorCompiler:  # pragma: no cover
                             event_keyid = keyid
 
                             queue = chan.queue
-                            #queue.put_nowait_enhanced(
+                            # queue.put_nowait_enhanced(
                             #    event,
                             #    on_pressure_high=on_pressure_high,
                             #    on_pressure_drop=on_pressure_drop,
-                            #)
+                            # )
                             if queue.full():
                                 full.append((event, chan))
                                 continue
@@ -159,13 +161,13 @@ class ConductorCompiler:  # pragma: no cover
                                 dest_event = await chan.decode(
                                     message, propagate=True)
                             queue = chan.queue
-                            #queue.put_nowait_enhanced(
+                            # queue.put_nowait_enhanced(
                             #    dest_event,
                             #    on_pressure_high=on_pressure_high,
                             #    on_pressure_drop=on_pressure_drop,
-                            #)
+                            # )
                             if queue.full():
-                                full.append((event, chan))
+                                full.append((dest_event, chan))
                                 continue
                             queue.put_nowait(dest_event)
                         delivered.add(chan)
