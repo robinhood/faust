@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    List,
     MutableMapping,
     MutableSet,
     Optional,
@@ -122,6 +123,11 @@ class ConductorCompiler:  # pragma: no cover
                 # so that if a DecodeError is raised we can propagate
                 # that error to the remaining channels.
                 delivered: Set[_Topic] = set()
+                full: List[Tuple[EventT, _Topic]] = []
+                #
+                # NOTE: reverting to old no-wait behavior, pressure handling isn't working
+                # TODO: put this back when we figure out the backpressure stuff.
+                #
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
@@ -131,12 +137,15 @@ class ConductorCompiler:  # pragma: no cover
                             event_keyid = keyid
 
                             queue = chan.queue
-                            queue.put_nowait_enhanced(
-                                event,
-                                on_pressure_high=on_pressure_high,
-                                on_pressure_drop=on_pressure_drop,
-                            )
-                            # queue.put_nowait(event)
+                            #queue.put_nowait_enhanced(
+                            #    event,
+                            #    on_pressure_high=on_pressure_high,
+                            #    on_pressure_drop=on_pressure_drop,
+                            #)
+                            if queue.full():
+                                full.append((event, chan))
+                                continue
+                            queue.put_nowait(event)
                         else:
                             # subsequent channels may have a different
                             # key/value type pair, meaning they all can
@@ -150,13 +159,24 @@ class ConductorCompiler:  # pragma: no cover
                                 dest_event = await chan.decode(
                                     message, propagate=True)
                             queue = chan.queue
-                            queue.put_nowait_enhanced(
-                                dest_event,
-                                on_pressure_high=on_pressure_high,
-                                on_pressure_drop=on_pressure_drop,
-                            )
-                            # queue.put_nowait(dest_event)
+                            #queue.put_nowait_enhanced(
+                            #    dest_event,
+                            #    on_pressure_high=on_pressure_high,
+                            #    on_pressure_drop=on_pressure_drop,
+                            #)
+                            if queue.full():
+                                full.append((event, chan))
+                                continue
+                            queue.put_nowait(dest_event)
                         delivered.add(chan)
+                    if full:
+                        for _, dest_chan in full:
+                            on_topic_buffer_full(dest_chan)
+                        await asyncio.wait(
+                            [dest_chan.put(dest_event)
+                             for dest_event, dest_chan in full],
+                            return_when=asyncio.ALL_COMPLETED,
+                        )
 
                 except KeyDecodeError as exc:
                     remaining = channels - delivered
