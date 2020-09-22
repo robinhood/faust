@@ -427,6 +427,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             pass
         else:
             cls = span.__class__
+
             class LazySpan(cls):
 
                 def finish() -> None:
@@ -538,7 +539,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         except CommitFailedError as exc:
             if 'already rebalanced' in str(exc):
                 return False
-            self.log.exception(f'Committing raised exception: %r', exc)
+            self.log.exception('Committing raised exception: %r', exc)
             await self.crash(exc)
             return False
         except IllegalStateError as exc:
@@ -1181,11 +1182,11 @@ class Transport(base.Transport):
                 timeout=timeout,
             )
             if wait_result.stopped:
-                owner.log.info(f'Shutting down - skipping creation.')
+                owner.log.info('Shutting down - skipping creation.')
                 return None
             response = wait_result.result
             return response.controller_id
-        raise Exception(f'Controller node not found')
+        raise Exception('Controller node not found')
 
     async def _really_create_topic(
             self,
@@ -1233,7 +1234,7 @@ class Transport(base.Transport):
             timeout=timeout,
         )
         if wait_result.stopped:
-            owner.log.debug(f'Shutting down - skipping creation.')
+            owner.log.debug('Shutting down - skipping creation.')
             return
         response = wait_result.result
 

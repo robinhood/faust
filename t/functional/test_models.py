@@ -1043,7 +1043,7 @@ def test_list_field_refers_to_self():
 
     class X(Record):
         id: int
-        xs: List['X']
+        xs: List['X']  # noqa: F821
 
     x = X(1, [X(2, [X(3, [])])])
 

@@ -612,7 +612,8 @@ class Monitor(Sensor, KeywordReduce):
                            *,
                            view: web.View = None) -> None:
         """Web server finished working on request."""
-        status_code = HTTPStatus(response.status if response is not None else 500)
+        status_code = HTTPStatus(
+            response.status if response is not None else 500)
         time_start = state['time_start']
         time_end = self.time()
         latency_end = time_end - time_start
