@@ -405,7 +405,7 @@ class NamedTupleNode(Node):
         fields = ', '.join(
             '{0}={1}'.format(
                 field, self.root.build(var[i], typ))
-            for i, (field, typ) in enumerate(tup._field_types.items())
+            for i, (field, typ) in enumerate(tup.__annotations__.items())
         )
         return f'{self.local_name}({fields})'
 
