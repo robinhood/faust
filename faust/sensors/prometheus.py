@@ -1,6 +1,8 @@
 """Monitor using Promethus."""
 import typing
 
+from typing import Any, cast
+
 from faust.exceptions import ImproperlyConfigured
 from faust import web
 
@@ -8,6 +10,7 @@ from aiohttp.web import Response
 
 from faust.types.assignor import PartitionAssignorT
 from faust.types.transports import ConsumerT, ProducerT
+from faust import web as _web
 from faust.types import (
     AppT,
     CollectionT,
@@ -53,7 +56,8 @@ class PrometheusMonitor(Monitor):
     KEYS_UPDATED = 'keys_updated'
     KEYS_DELETED = 'keys_deleted'
 
-    def __init__(self, app: AppT, pattern: str = '/metrics', **kwargs) -> None:
+    def __init__(self, app: AppT,
+                 pattern: str = '/metrics', **kwargs: Any) -> None:
         self.app = app
         self.pattern = pattern
 
@@ -332,10 +336,12 @@ class PrometheusMonitor(Monitor):
     def expose_metrics(self) -> None:
         """Expose promethues metrics using the current aiohttp application."""
         @self.app.page(self.pattern)
-        async def metrics_handler(self, request):
+
+        async def metrics_handler(self: _web.View,
+                                  request: _web.Request) -> _web.Response:
             headers = {
-                'Content-Type': 'text/plain; version=0.0.4; charset=utf-8'
+                'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
             }
 
-            return Response(
-                body=generate_latest(REGISTRY), headers=headers, status=200)
+            return cast(_web.Response, Response(
+                body=generate_latest(REGISTRY), headers=headers, status=200))

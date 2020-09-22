@@ -1204,15 +1204,15 @@ class App(AppT, Service):
                        help: str = None,
                        **kwargs: Any) -> TableT:
         """Table of sets (global)."""
-        table = cast(TableT, self.conf.SetGlobalTable(  # type: ignore
-            self,
-            name=name,
-            beacon=self.tables.beacon,
-            partitions=partitions,
-            start_manager=start_manager,
-            help=help,
-            **kwargs))
-        table = self.tables.add(table)
+        table = self.tables.add(
+            cast(TableT, self.conf.SetGlobalTable(  # type: ignore
+                self,
+                name=name,
+                beacon=self.tables.beacon,
+                partitions=partitions,
+                start_manager=start_manager,
+                help=help,
+                **kwargs)))
         return cast(TableT, table.using_window(window) if window else table)
 
     def page(self, path: str, *,
@@ -1884,9 +1884,9 @@ class App(AppT, Service):
     def monitor(self) -> Monitor:
         """Monitor keeps stats about what's going on inside the worker."""
         if self._monitor is None:
-            self._monitor = cast(Monitor,
-                                self.conf.Monitor(  # type: ignore
-                                     loop=self.loop, beacon=self.beacon))
+            self._monitor = cast(
+                Monitor, self.conf.Monitor(  # type: ignore
+                    loop=self.loop, beacon=self.beacon))
         return self._monitor
 
     @monitor.setter
@@ -1977,7 +1977,7 @@ class App(AppT, Service):
         # lets you extend Faust with support for additional
         # serialization formats.
         self.finalize()  # easiest way to autofinalize for topic.send
-        serializers =  self.conf.Serializers(  # type: ignore
+        serializers = self.conf.Serializers(  # type: ignore
             key_serializer=self.conf.key_serializer,
             value_serializer=self.conf.value_serializer,
         )

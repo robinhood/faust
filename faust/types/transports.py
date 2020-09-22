@@ -425,6 +425,7 @@ class ConsumerT(ServiceT):
     def on_buffer_drop(self, tp: TP) -> None:
         ...
 
+
 class ConductorT(ServiceT, MutableSet[TopicT]):
 
     # The topic conductor delegates messages from the Consumer

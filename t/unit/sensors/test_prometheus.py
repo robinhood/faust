@@ -17,9 +17,9 @@ class test_PrometheusMonitor:
         timefun.return_value = 101.1
         return timefun
 
-    @patch("faust.sensors.prometheus.Histogram")
-    @patch("faust.sensors.prometheus.Gauge")
-    @patch("faust.sensors.prometheus.Counter")
+    @patch('faust.sensors.prometheus.Histogram')
+    @patch('faust.sensors.prometheus.Gauge')
+    @patch('faust.sensors.prometheus.Counter')
     @patch.object(PrometheusMonitor, 'expose_metrics')
     def prometheus_client(self, app, counter, gauge, histogram, time=None):
         time = time or self.time()
@@ -79,13 +79,13 @@ class test_PrometheusMonitor:
         client.total_events.inc.assert_called_once()
         client.total_active_events.inc.assert_called_once()
         client.total_events_per_stream.labels.assert_called_once_with(
-            stream='stream.topic_foo.events'
+            stream='stream.topic_foo.events',
         )
 
         client.on_stream_event_out(TP1, 401, stream, event, state)
         client.total_active_events.dec.assert_called_once()
         client.events_runtime_latency.observe.assert_called_once_with(
-            client.secs_to_ms(client.events_runtime[-1])
+            client.secs_to_ms(client.events_runtime[-1]),
         )
 
     def test_on_table_get(self, table):
@@ -93,10 +93,10 @@ class test_PrometheusMonitor:
         client.on_table_get(table, 'key')
 
         client.table_operations.labels.assert_called_once_with(
-            table='table.table1', operation='keys_retrieved'
+            table='table.table1', operation='keys_retrieved',
         )
         client.table_operations.labels(
-            table='table.table1', operation='keys_retrieved'
+            table='table.table1', operation='keys_retrieved',
         ).inc.assert_called_once()
 
     def test_on_table_set(self, table):
@@ -104,10 +104,10 @@ class test_PrometheusMonitor:
         client.on_table_set(table, 'key', 'value')
 
         client.table_operations.labels.assert_called_once_with(
-            table='table.table1', operation='keys_updated'
+            table='table.table1', operation='keys_updated',
         )
         client.table_operations.labels(
-            table='table.table1', operation='keys_updated'
+            table='table.table1', operation='keys_updated',
         ).inc.assert_called_once()
 
     def test_on_table_del(self, table):
@@ -115,10 +115,10 @@ class test_PrometheusMonitor:
         client.on_table_del(table, 'key')
 
         client.table_operations.labels.assert_called_once_with(
-            table='table.table1', operation='keys_deleted'
+            table='table.table1', operation='keys_deleted',
         )
         client.table_operations.labels(
-            table='table.table1', operation='keys_deleted'
+            table='table.table1', operation='keys_deleted',
         ).inc.assert_called_once()
 
     def test_on_commit_completed(self):
