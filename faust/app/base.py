@@ -1204,7 +1204,7 @@ class App(AppT, Service):
                        help: str = None,
                        **kwargs: Any) -> TableT:
         """Table of sets (global)."""
-        table = cast(SetGlobalTable, self.conf.SetGlobalTable(  # type: ignore
+        table = cast(TableT, self.conf.SetGlobalTable(  # type: ignore
             self,
             name=name,
             beacon=self.tables.beacon,
