@@ -393,7 +393,7 @@ class Store(base.SerializedStore):
 
     def _dbs_for_actives(self) -> Iterator[DB]:
         actives = self.app.assignor.assigned_actives()
-        topic = self.table._changelog_topic_name()
+        topic = self.table.changelog_topic_name
         for partition, db in self._dbs.items():
             tp = TP(topic=topic, partition=partition)
             # for global tables, keys from all
