@@ -89,7 +89,7 @@ class worker(AppCommand):
     @property
     def _Worker(self) -> Type[Worker]:
         # using Faust worker to start the app, not command code.
-        return self.app.conf.Worker
+        return cast(Type[Worker], self.app.conf.Worker)
 
     def banner(self, worker: Worker) -> str:
         """Generate the text banner emitted before the worker starts."""

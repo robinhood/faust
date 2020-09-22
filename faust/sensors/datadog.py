@@ -25,7 +25,7 @@ try:
     import datadog
     from datadog.dogstatsd import DogStatsd
 except ImportError:  # pragma: no cover
-    datadog = None
+    datadog = None  # type: ignore
     class DogStatsD: ...  # noqa
 
 __all__ = ['DatadogMonitor']
@@ -49,7 +49,7 @@ class DatadogStatsClient:
                  prefix: str = 'faust-app',
                  rate: float = 1.0,
                  **kwargs: Any) -> None:
-        self.client = DogStatsd(
+        self.client = DogStatsd(  # type: ignore
             host=host,
             port=port,
             namespace=prefix,

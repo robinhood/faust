@@ -92,14 +92,14 @@ class ConductorCompiler:  # pragma: no cover
 
         # callback called when the queue is under high pressure/
         # about to become full.
-        def on_pressure_high():
+        def on_pressure_high() -> None:
             on_topic_buffer_full(tp)
             consumer_on_buffer_full(tp)
 
         # callback used when pressure drops.
         # added to Queue._pending_pressure_drop_callbacks
         # when the buffer is under high pressure/full.
-        def on_pressure_drop():
+        def on_pressure_drop() -> None:
             consumer_on_buffer_drop(tp)
 
         async def on_message(message: Message) -> None:

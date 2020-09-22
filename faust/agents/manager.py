@@ -58,7 +58,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
             await agent.maybe_start()
         self._agents_started.set()
 
-    def tracebacks(self) -> Mapping[str, List[str]]:
+    def actor_tracebacks(self) -> Mapping[str, List[str]]:
         return {
             name: agent.actor_tracebacks()
             for name, agent in self.items()
@@ -72,7 +72,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
                     name=name,
                     traceback=traceback,
                 )
-                for name, traceback in self.tracebacks().items()
+                for name, traceback in self.actor_tracebacks().items()
             ),
             self.traceback_footer,
         ])
