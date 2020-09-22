@@ -301,7 +301,7 @@ class BootStrategy(BootStrategyT):
         )
 
     def _chain(self, *arguments: Iterable[ServiceT]) -> Iterable[ServiceT]:
-        return cast(Iterable[ServiceT], chain(*arguments))
+        return cast(Iterable[ServiceT], chain.from_iterable(arguments))
 
     def sensors(self) -> Iterable[ServiceT]:
         """Return list of services required to start sensors."""
@@ -780,7 +780,7 @@ class App(AppT, Service):
         See Also:
             :class:`faust.topics.Topic`
         """
-        return self.conf.Topic(
+        return cast(TopicT, self.conf.Topic(  # type: ignore
             self,
             topics=topics,
             pattern=pattern,
@@ -800,7 +800,7 @@ class App(AppT, Service):
             allow_empty=allow_empty,
             has_prefix=has_prefix,
             loop=loop,
-        )
+        ))
 
     def channel(self,
                 *,
@@ -859,7 +859,7 @@ class App(AppT, Service):
 
         """
         def _inner(fun: AgentFun[_T]) -> AgentT[_T]:
-            agent = self.conf.Agent(
+            agent = cast(AgentT, self.conf.Agent(  # type: ignore
                 fun,
                 name=name,
                 app=self,
@@ -871,7 +871,7 @@ class App(AppT, Service):
                 on_error=self._on_agent_error,
                 use_reply_headers=use_reply_headers,
                 help=fun.__doc__,
-                **kwargs)
+                **kwargs))
             self.agents[agent.name] = agent
             # This connects the agent to the topic conductor
             # to make the graph more pretty.
@@ -1088,11 +1088,11 @@ class App(AppT, Service):
             faust.Stream:
                 to iterate over events in the stream.
         """
-        return self.conf.Stream(
+        return cast(StreamT, self.conf.Stream(  # type: ignore
             app=self,
             channel=aiter(channel) if channel is not None else None,
             beacon=beacon or self.beacon,
-            **kwargs)
+            **kwargs))
 
     def Table(self,
               name: str,
@@ -1122,14 +1122,14 @@ class App(AppT, Service):
             2
         """
         table = self.tables.add(
-            self.conf.Table(
+            cast(TableT, self.conf.Table(  # type: ignore
                 self,
                 name=name,
                 default=default,
                 beacon=self.tables.beacon,
                 partitions=partitions,
                 help=help,
-                **kwargs))
+                **kwargs)))
         return cast(TableT, table.using_window(window) if window else table)
 
     def GlobalTable(self,
@@ -1160,7 +1160,7 @@ class App(AppT, Service):
             2
         """
         gtable = self.tables.add(
-            self.conf.GlobalTable(
+            cast(GlobalTableT, self.conf.GlobalTable(  # type: ignore
                 self,
                 name=name,
                 default=default,
@@ -1171,7 +1171,7 @@ class App(AppT, Service):
                 standby_buffer_size=1,
                 is_global=True,
                 help=help,
-                **kwargs))
+                **kwargs)))
         return cast(GlobalTableT,
                     gtable.using_window(window) if window else gtable)
 
@@ -1185,14 +1185,14 @@ class App(AppT, Service):
                  **kwargs: Any) -> TableT:
         """Table of sets."""
         table = self.tables.add(
-            self.conf.SetTable(
+            cast(TableT, self.conf.SetTable(  # type: ignore
                 self,
                 name=name,
                 beacon=self.tables.beacon,
                 partitions=partitions,
                 start_manager=start_manager,
                 help=help,
-                **kwargs))
+                **kwargs)))
         return cast(TableT, table.using_window(window) if window else table)
 
     def SetGlobalTable(self,
@@ -1204,15 +1204,15 @@ class App(AppT, Service):
                        help: str = None,
                        **kwargs: Any) -> TableT:
         """Table of sets (global)."""
-        table = self.tables.add(
-            self.conf.SetGlobalTable(
-                self,
-                name=name,
-                beacon=self.tables.beacon,
-                partitions=partitions,
-                start_manager=start_manager,
-                help=help,
-                **kwargs))
+        table = cast(TableT, self.conf.SetGlobalTable(  # type: ignore
+            self,
+            name=name,
+            beacon=self.tables.beacon,
+            partitions=partitions,
+            start_manager=start_manager,
+            help=help,
+            **kwargs))
+        table = self.tables.add(table)
         return cast(TableT, table.using_window(window) if window else table)
 
     def page(self, path: str, *,
@@ -1307,7 +1307,9 @@ class App(AppT, Service):
                      headers: HeadersArg,
                      message: Message) -> EventT:
         """Create new :class:`faust.Event` object."""
-        return self.conf.Event(self, key, value, headers, message)
+        event = self.conf.Event(  # type: ignore
+            self, key, value, headers, message)
+        return cast(EventT, event)
 
     async def start_client(self) -> None:
         """Start the app in Client-Only mode necessary for RPC requests.
@@ -1708,7 +1710,8 @@ class App(AppT, Service):
 
     def Worker(self, **kwargs: Any) -> _Worker:
         """Return application worker instance."""
-        return self.conf.Worker(self, **kwargs)
+        worker = self.conf.Worker(self, **kwargs)  # type: ignore
+        return cast(_Worker, worker)
 
     def on_webserver_init(self, web: Web) -> None:
         """Call when the Web server is initializing."""
@@ -1857,11 +1860,12 @@ class App(AppT, Service):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        return self.conf.TableManager(
+        manager = self.conf.TableManager(  # type: ignore
             app=self,
             loop=self.loop,
             beacon=self.beacon,
         )
+        return cast(TableManagerT, manager)
 
     @cached_property
     def topics(self) -> ConductorT:
@@ -1881,7 +1885,7 @@ class App(AppT, Service):
         """Monitor keeps stats about what's going on inside the worker."""
         if self._monitor is None:
             self._monitor = cast(Monitor,
-                                 self.conf.Monitor(
+                                self.conf.Monitor(  # type: ignore
                                      loop=self.loop, beacon=self.beacon))
         return self._monitor
 
@@ -1913,7 +1917,8 @@ class App(AppT, Service):
     def http_client(self) -> HttpClientT:
         """HTTP client Session."""
         if self._http_client is None:
-            self._http_client = self.conf.HttpClient()
+            client = self.conf.HttpClient()  # type: ignore
+            self._http_client = cast(HttpClientT, client)
         return self._http_client
 
     @http_client.setter
@@ -1926,8 +1931,9 @@ class App(AppT, Service):
 
         Responsible for partition assignment.
         """
-        return self.conf.PartitionAssignor(
+        assignor = self.conf.PartitionAssignor(  # type: ignore
             self, replicas=self.conf.table_standby_replicas)
+        return cast(PartitionAssignorT, assignor)
 
     @cached_property
     def _leader_assignor(self) -> LeaderAssignorT:
@@ -1939,8 +1945,9 @@ class App(AppT, Service):
         exclusively on one node at a time. Excellent for things that would
         traditionally require a lock/mutex.
         """
-        return self.conf.LeaderAssignor(
+        assignor = self.conf.LeaderAssignor(  # type: ignore
             self, loop=self.loop, beacon=self.beacon)
+        return cast(LeaderAssignorT, assignor)
 
     @cached_property
     def router(self) -> RouterT:
@@ -1951,7 +1958,8 @@ class App(AppT, Service):
         Faust worker responsible for any account.  Used by the
         ``@app.table_route`` decorator.
         """
-        return self.conf.Router(self)
+        router = self.conf.Router(self)  # type: ignore
+        return cast(RouterT, router)
 
     @cached_property
     def web(self) -> Web:
@@ -1969,10 +1977,11 @@ class App(AppT, Service):
         # lets you extend Faust with support for additional
         # serialization formats.
         self.finalize()  # easiest way to autofinalize for topic.send
-        return self.conf.Serializers(
+        serializers =  self.conf.Serializers(  # type: ignore
             key_serializer=self.conf.key_serializer,
             value_serializer=self.conf.value_serializer,
         )
+        return cast(RegistryT, serializers)
 
     @property
     def label(self) -> str:

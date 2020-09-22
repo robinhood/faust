@@ -54,8 +54,8 @@ with open(here / NAME / '__init__.py') as meta_fh:
 # -*- Installation Requires -*-
 
 
-def strip_comments(l):
-    return l.split('#', 1)[0].strip()
+def strip_comments(line):
+    return line.split('#', 1)[0].strip()
 
 
 def _pip_requirement(req):
@@ -68,7 +68,7 @@ def _pip_requirement(req):
 def _reqs(*f):
     path = (Path.cwd() / 'requirements').joinpath(*f)
     with path.open() as fh:
-        reqs = [strip_comments(l) for l in fh.readlines()]
+        reqs = [strip_comments(line) for line in fh.readlines()]
         return [_pip_requirement(r) for r in reqs if r]
 
 

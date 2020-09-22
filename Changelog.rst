@@ -30,3 +30,5 @@ please visit the :ref:`history` section.
   callbacks.
 
     Contributed by Ramkumar M (:github_user:`billaram`).
+
+.. _version-1.10.4:
