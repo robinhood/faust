@@ -336,7 +336,6 @@ class PrometheusMonitor(Monitor):
     def expose_metrics(self) -> None:
         """Expose promethues metrics using the current aiohttp application."""
         @self.app.page(self.pattern)
-
         async def metrics_handler(self: _web.View,
                                   request: _web.Request) -> _web.Response:
             headers = {

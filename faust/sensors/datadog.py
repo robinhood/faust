@@ -40,7 +40,7 @@ class DatadogStatsClient:
                  prefix: str = 'faust-app',
                  rate: float = 1.0,
                  **kwargs: Any) -> None:
-        self.client = DogStatsd(  # type: ignore
+        self.client = DogStatsd(
             host=host,
             port=port,
             namespace=prefix,
@@ -76,7 +76,7 @@ class DatadogStatsClient:
                   metric: str,
                   value: float = 1.0,
                   labels: Dict = None) -> float:
-        return self.client.decrement(
+        return self.client.decrement(  # type: ignore
             metric,
             value=value,
             tags=self._encode_labels(labels),
@@ -88,7 +88,7 @@ class DatadogStatsClient:
         self.decrement(metric, value=count)
 
     def timing(self, metric: str, value: float, labels: Dict = None) -> None:
-        self.client.timing(
+        self.client.timing(  # type: ignore
             metric,
             value=value,
             tags=self._encode_labels(labels),
@@ -99,7 +99,7 @@ class DatadogStatsClient:
               metric: str = None,
               labels: Dict = None,
               use_ms: bool = None) -> float:
-        return self.client.timed(
+        return self.client.timed(  # type: ignore
             metric=metric,
             tags=self._encode_labels(labels),
             sample_rate=self.rate,
@@ -108,7 +108,7 @@ class DatadogStatsClient:
 
     def histogram(self, metric: str, value: float,
                   labels: Dict = None) -> None:
-        self.client.histogram(
+        self.client.histogram(  # type: ignore
             metric,
             value=value,
             tags=self._encode_labels(labels),
