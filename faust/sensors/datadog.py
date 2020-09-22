@@ -1,7 +1,7 @@
 """Monitor using datadog."""
 import re
 
-from typing import Any, Dict, List, Optional, Pattern, cast
+from typing import Any, Dict, List, Optional, cast
 
 from mode.utils.objects import cached_property
 
@@ -29,15 +29,6 @@ except ImportError:  # pragma: no cover
     class DogStatsD: ...  # noqa
 
 __all__ = ['DatadogMonitor']
-
-# This regular expression is used to generate stream ids in Statsd.
-# It converts for example
-#    'Stream: <Topic: withdrawals>'
-# -> 'Stream_Topic_withdrawals'
-#
-# See StatsdMonitor._normalize()
-RE_NORMALIZE = re.compile(r'[\<\>:\s]+')
-RE_NORMALIZE_SUBSTITUTION = '_'
 
 
 class DatadogStatsClient:
@@ -348,12 +339,6 @@ class DatadogMonitor(Monitor):
         self.client.timing(
             'http_response_latency',
             self.ms_since(state['time_end']))
-
-    def _normalize(self, name: str,
-                   *,
-                   pattern: Pattern = RE_NORMALIZE,
-                   substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
-        return pattern.sub(substitution, name)
 
     def _format_label(self, tp: Optional[TP] = None,
                       stream: Optional[StreamT] = None,

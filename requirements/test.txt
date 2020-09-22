@@ -2,7 +2,7 @@ hypothesis>=3.31
 freezegun>=0.3.11
 pytest-aiofiles>=0.2.0
 pytest-aiohttp>=0.3.0
-pytest-asyncio>=0.8
+pytest-asyncio
 pytest-forked
 pytest-openfiles>=0.2.0
 pytest-picked
@@ -14,3 +14,4 @@ pytz>=2018.7
 -r extras/redis.txt
 -r extras/statsd.txt
 -r extras/yaml.txt
+-r extras/prometheus.txt
