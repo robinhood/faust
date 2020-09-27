@@ -34,9 +34,16 @@ if typing.TYPE_CHECKING:
     from .join import JoinT as _JoinT
     from .serializers import SchemaT as _SchemaT
 else:
-    class _AppT: ...     # noqa
-    class _JoinT: ...    # noqa
-    class _SchemaT: ...  # noqa
+    class _AppT:
+        ...  # noqa
+
+
+    class _JoinT:
+        ...  # noqa
+
+
+    class _SchemaT:
+        ...  # noqa
 
 __all__ = [
     'Processor',
@@ -98,7 +105,6 @@ class JoinableT(abc.ABC):
 
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
-
     app: _AppT
     channel: AsyncIterator[T_co]
     outbox: Optional[asyncio.Queue] = None
@@ -172,6 +178,12 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     @no_type_check
     async def take(self, max_: int,
                    within: Seconds) -> AsyncIterable[Sequence[T_co]]:
+        ...
+
+    @abc.abstractmethod
+    @no_type_check
+    async def take_events(self, max_: int,
+                          within: Seconds) -> AsyncIterable[Sequence[EventT]]:
         ...
 
     @abc.abstractmethod
