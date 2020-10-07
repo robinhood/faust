@@ -63,7 +63,7 @@ class Record(Model, abstract=True):  # type: ignore
     """Describes a model type that is a record (Mapping).
 
     Examples:
-        >>> class LogEvent(Record, serializer='json'):
+        >>> class LogEvent(Record, serializer='json', inlcude_metadata=False):
         ...     severity: str
         ...     message: str
         ...     timestamp: float
