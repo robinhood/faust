@@ -737,6 +737,7 @@ class test_AIOKafkaConsumerThread(AIOKafkaConsumerThreadFixtures):
                 api_version=app.conf.consumer_api_version,
                 client_id=conf.broker_client_id,
                 group_id=conf.id,
+                group_instance_id=conf.consumer_group_instance_id,
                 bootstrap_servers=server_list(
                     transport.url, transport.default_port),
                 partition_assignment_strategy=[cthread._assignor],
