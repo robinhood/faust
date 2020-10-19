@@ -301,7 +301,9 @@ class Stream(StreamT[T_co], Service):
                 yield self.current_event
 
     async def take(self, max_: int,
-                   within: Seconds) -> AsyncIterable[Sequence[T_co]]:
+                   within: Seconds,
+                   yield_events: bool = False,
+                   ) -> AsyncIterable[Union[Sequence[EventT], Sequence[T_co]]]:
         """Buffer n values at a time and yield a list of buffered values.
 
         Arguments:
@@ -313,6 +315,8 @@ class Stream(StreamT[T_co], Service):
                 Warning: If there's no timeout (i.e. `timeout=None`),
                 the agent is likely to stall and block buffered events for an
                 unreasonable length of time(!).
+            yield_events: If True, yield the raw Event values including access
+                to original message payload and message meta data.
         """
         buffer: List[T_co] = []
         events: List[EventT] = []
@@ -374,7 +378,10 @@ class Stream(StreamT[T_co], Service):
                     # buffer while we read.
                     buffer_consuming = self.loop.create_future()
                     try:
-                        yield list(buffer)
+                        if yield_events:
+                            yield list(events)
+                        else:
+                            yield list(buffer)
                     finally:
                         buffer.clear()
                         for event in events:
