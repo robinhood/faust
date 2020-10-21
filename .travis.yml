@@ -143,7 +143,7 @@ matrix:
         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python -m pip install --upgrade pip wheel
   - python: 3.8.0
-    env: TOXENV=3.8 IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
+    env: TOXENV=3.8-cython IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
     os: linux
     dist: xenial
     stage: cython
@@ -152,12 +152,7 @@ before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" && "$USE_ENCHANT" == "y" ]]; then sudo apt-get install -y enchant libenchant-dev; fi
 
 install:
-- |
-  if [[ "$USE_CYTHON" == "y" ]]; then
-    python -m pip install -U cython tox
-  else
-    python -m pip install -U tox
-  fi
+- python -m pip install -U tox
 after_success:
 - |
   if [[ ! -z "$IDENT" ]]; then

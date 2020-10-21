@@ -1,3 +1,4 @@
+from pytest import approx
 from faust.windows import HoppingWindow
 
 
