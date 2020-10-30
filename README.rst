@@ -548,7 +548,7 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
 
-.. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
+.. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.svg?branch=master
     :alt: Build status
     :target: https://travis-ci.org/robinhood/faust
 
