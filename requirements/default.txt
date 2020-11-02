@@ -1,6 +1,6 @@
 aiohttp>=3.5.2,<4.0
 aiohttp_cors>=0.7,<2.0
-dt-aiokafka==1.1.8
+dt-aiokafka==1.1.9
 click>=6.7,<8.0
 colorclass>=2.2,<3.0
 mode>=4.3.2,<4.4
