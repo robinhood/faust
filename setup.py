@@ -34,6 +34,7 @@ BUNDLES = {
     'debug',
     'fast',
     'orjson',
+    'prometheus',
     'redis',
     'rocksdb',
     'sentry',

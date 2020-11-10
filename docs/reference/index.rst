@@ -105,6 +105,7 @@ Sensors
     faust.sensors.base
     faust.sensors.datadog
     faust.sensors.monitor
+    faust.sensors.prometheus
     faust.sensors.statsd
 
 Serializers

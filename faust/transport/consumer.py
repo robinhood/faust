@@ -425,7 +425,7 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self._commit_every = self.app.conf.broker_commit_every
-        self.scheduler = self.app.conf.ConsumerScheduler()
+        self.scheduler = self.app.conf.ConsumerScheduler()  # type: ignore
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
         self.commit_livelock_soft_timeout = (
@@ -486,13 +486,15 @@ class Consumer(Service, ConsumerT):
         return xtps
 
     def on_buffer_full(self, tp: TP) -> None:
-        self._active_partitions.discard(tp)
+        active_partitions = self._get_active_partitions()
+        active_partitions.discard(tp)
         self._buffered_partitions.add(tp)
 
     def on_buffer_drop(self, tp: TP) -> None:
         buffered_partitions = self._buffered_partitions
         if tp in buffered_partitions:
-            self._active_partitions.add(tp)
+            active_partitions = self._get_active_partitions()
+            active_partitions.add(tp)
             buffered_partitions.discard(tp)
 
     @abc.abstractmethod

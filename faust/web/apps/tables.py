@@ -41,7 +41,7 @@ class TableView(web.View):
         try:
             return table[key]
         except KeyError:
-            raise self.NotFound(f'key not found', key=key, table=table.name)
+            raise self.NotFound('key not found', key=key, table=table.name)
 
 
 @blueprint.route('/', name='list')

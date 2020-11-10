@@ -50,7 +50,8 @@ class test_Monitor:
     def create_monitor(self, **kwargs: Any) -> Monitor:
         return Monitor(**kwargs)
 
-    def create_populated_monitor(self,
+    def create_populated_monitor(
+            self,
             messages_active=101,
             messages_received_total=1001,
             messages_sent=303,

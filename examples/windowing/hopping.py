@@ -48,7 +48,7 @@ async def print_windowed_events(stream):
     async for _ in stream: # noqa
         hopping_table['counter'] += 1
         value = hopping_table['counter']
-        print(f'-- New Event (every 2 secs) written to hopping(10, 5) --')
+        print('-- New Event (every 2 secs) written to hopping(10, 5) --')
         print(f'now() should have values between 1-3: {value.now()}')
         print(f'current() should have values between 1-3: {value.current()}')
         print(f'value() should have values between 1-3: {value.value()}')

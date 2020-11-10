@@ -1,8 +1,7 @@
 """Monitor using Statsd."""
-import re
 import typing
 
-from typing import Any, Dict, Optional, Pattern, cast
+from typing import Any, Dict, Optional, cast
 
 from mode.utils.objects import cached_property
 
@@ -34,15 +33,6 @@ else:
     class StatsClient: ...  # noqa
 
 __all__ = ['StatsdMonitor']
-
-# This regular expression is used to generate stream ids in Statsd.
-# It converts for example
-#    "Stream: <Topic: withdrawals>"
-# -> "Stream_Topic_withdrawals"
-#
-# See StatsdMonitor._normalize()
-RE_NORMALIZE = re.compile(r'[\<\>:\s]+')
-RE_NORMALIZE_SUBSTITUTION = '_'
 
 
 class StatsdMonitor(Monitor):
@@ -255,12 +245,6 @@ class StatsdMonitor(Monitor):
             'http_response_latency',
             self.ms_since(state['time_end']),
             rate=self.rate)
-
-    def _normalize(self, name: str,
-                   *,
-                   pattern: Pattern = RE_NORMALIZE,
-                   substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
-        return pattern.sub(substitution, name)
 
     @cached_property
     def client(self) -> StatsClient:

@@ -203,7 +203,7 @@ class Store(base.SerializedStore):
         that database file is already being populated.
 
         Currently it is recommended that you use
-        separate data directories for multiple worker son the same machine.
+        separate data directories for multiple workers on the same machine.
 
         For example if you have a 4 CPU core machine, you can run
         four worker instances on that machine, but using separate

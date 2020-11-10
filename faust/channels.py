@@ -120,10 +120,10 @@ class Channel(ChannelT[T]):
     def _get_default_schema(self,
                             key_type: ModelArg = None,
                             value_type: ModelArg = None) -> SchemaT:
-        return self.app.conf.Schema(
+        return cast(SchemaT, self.app.conf.Schema(  # type: ignore
             key_type=key_type,
             value_type=value_type,
-        )
+        ))
 
     @property
     def queue(self) -> ThrowableQueue:
@@ -614,13 +614,13 @@ class SerializedChannel(Channel[T]):
                             key_serializer: CodecArg = None,
                             value_serializer: CodecArg = None,
                             allow_empty: bool = None) -> SchemaT:
-        return self.app.conf.Schema(
+        return cast(SchemaT, self.app.conf.Schema(  # type: ignore
             key_type=key_type,
             value_type=value_type,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             allow_empty=allow_empty,
-        )
+        ))
 
     @no_type_check  # incompatible with base class, but OK
     def _clone_args(self) -> Mapping:

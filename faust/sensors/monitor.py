@@ -1,5 +1,6 @@
 """Monitor - sensor tracking metrics."""
 import asyncio
+import re
 
 from collections import deque
 from http import HTTPStatus
@@ -12,6 +13,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Pattern,
     Tuple,
     cast,
 )
@@ -39,6 +41,9 @@ MAX_ASSIGNMENT_LATENCY_HISTORY = 30
 TPOffsetMapping = MutableMapping[TP, int]
 PartitionOffsetMapping = MutableMapping[int, int]
 TPOffsetDict = MutableMapping[str, PartitionOffsetMapping]
+
+RE_NORMALIZE = re.compile(r'[\<\>:\s]+')
+RE_NORMALIZE_SUBSTITUTION = '_'
 
 
 class TableState(KeywordReduce):
@@ -612,7 +617,8 @@ class Monitor(Sensor, KeywordReduce):
                            *,
                            view: web.View = None) -> None:
         """Web server finished working on request."""
-        status_code = HTTPStatus(response.status if response else 500)
+        status_code = HTTPStatus(
+            response.status if response is not None else 500)
         time_start = state['time_start']
         time_end = self.time()
         latency_end = time_end - time_start
@@ -624,3 +630,9 @@ class Monitor(Sensor, KeywordReduce):
         deque_pushpopmax(
             self.http_response_latency, latency_end, self.max_avg_history)
         self.http_response_codes[status_code] += 1
+
+    def _normalize(self, name: str,
+                   *,
+                   pattern: Pattern = RE_NORMALIZE,
+                   substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
+        return pattern.sub(substitution, name)
