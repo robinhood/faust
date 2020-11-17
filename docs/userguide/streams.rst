@@ -310,7 +310,7 @@ stream by taking a "key type" as argument:
     orders_topic = app.topic('orders', value_type=Order)
 
     @app.agent(orders_topic)
-    async def process(orders):
+    async def process_order(orders):
         async for order in orders.group_by(Order.account_id):
             ...
 
@@ -338,7 +338,7 @@ the data in streams you can manually extract the key used for repartitioning:
         return json.loads(order)['account_id']
 
     @app.agent(app.topic('order'))
-    async def process(orders):
+    async def process_order(orders):
         async for order in orders.group_by(get_order_account_id):
             ...
 
