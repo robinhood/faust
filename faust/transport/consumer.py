@@ -988,6 +988,9 @@ class Consumer(Service, ConsumerT):
             batch = next(consecutive_numbers(acked))
             # remove them from the list to clean up.
             acked[:len(batch) - 1] = []
+            latest_commit_id = self._committed_offset.get(tp, -1)
+            if acked and latest_commit_id and acked[0] <= latest_commit_id:
+                acked[:1] = []
             self._acked_index[tp].difference_update(batch)
             # return the highest commit offset
             return batch[-1]
