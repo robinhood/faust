@@ -178,6 +178,8 @@ Faust is...
 
     Here's one of the easier applications you can make::
 
+.. sourcecode:: python
+
         import faust
 
         class Greeting(faust.Record):
