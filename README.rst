@@ -180,39 +180,39 @@ Faust is...
 
 .. sourcecode:: python
 
-        import faust
+    import faust
 
-        class Greeting(faust.Record):
-            from_name: str
-            to_name: str
+    class Greeting(faust.Record):
+        from_name: str
+        to_name: str
 
-        app = faust.App('hello-app', broker='kafka://localhost')
-        topic = app.topic('hello-topic', value_type=Greeting)
+    app = faust.App('hello-app', broker='kafka://localhost')
+    topic = app.topic('hello-topic', value_type=Greeting)
 
-        @app.agent(topic)
-        async def hello(greetings):
-            async for greeting in greetings:
-                print(f'Hello from {greeting.from_name} to {greeting.to_name}')
+    @app.agent(topic)
+    async def hello(greetings):
+        async for greeting in greetings:
+            print(f'Hello from {greeting.from_name} to {greeting.to_name}')
 
-        @app.timer(interval=1.0)
-        async def example_sender(app):
-            await hello.send(
-                value=Greeting(from_name='Faust', to_name='you'),
-            )
+    @app.timer(interval=1.0)
+    async def example_sender(app):
+        await hello.send(
+            value=Greeting(from_name='Faust', to_name='you'),
+        )
 
-        if __name__ == '__main__':
-            app.main()
+    if __name__ == '__main__':
+        app.main()
 
-    You're probably a bit intimidated by the `async` and `await` keywords,
-    but you don't have to know how ``asyncio`` works to use
-    Faust: just mimic the examples, and you'll be fine.
+You're probably a bit intimidated by the `async` and `await` keywords,
+but you don't have to know how ``asyncio`` works to use
+Faust: just mimic the examples, and you'll be fine.
 
-    The example application starts two tasks: one is processing a stream,
-    the other is a background thread sending events to that stream.
-    In a real-life application, your system will publish
-    events to Kafka topics that your processors can consume from,
-    and the background thread is only needed to feed data into our
-    example.
+The example application starts two tasks: one is processing a stream,
+the other is a background thread sending events to that stream.
+In a real-life application, your system will publish
+events to Kafka topics that your processors can consume from,
+and the background thread is only needed to feed data into our
+example.
 
 **Highly Available**
     Faust is highly available and can survive network problems and server
