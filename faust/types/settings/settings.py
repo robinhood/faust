@@ -109,6 +109,7 @@ class Settings(base.SettingsRegistry):
             consumer_api_version: str = None,
             consumer_max_fetch_size: int = None,
             consumer_auto_offset_reset: str = None,
+            consumer_group_instance_id: str = None,
             # Topic serialization settings:
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
@@ -1097,6 +1098,21 @@ class Settings(base.SettingsRegistry):
         exists, e.g. when starting a new consumer for the first time.
 
         Options include 'earliest', 'latest', 'none'.
+        """
+
+    @sections.Consumer.setting(
+        params.Str,
+        version_introduced='2.1',
+        env_name='CONSUMER_GROUP_INSTANCE_ID',
+        default=None,
+    )
+    def consumer_group_instance_id(self) -> str:
+        """Consumer group instance id.
+
+        The group_instance_id for static partition assignment.
+
+        If not set, default assignment strategy is used. Otherwise,
+        each consumer instance has to have a unique id.
         """
 
     @sections.Serialization.setting(
