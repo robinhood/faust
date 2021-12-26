@@ -582,7 +582,12 @@ class Stream(StreamT[T_co], Service):
             suffix = f'-{name}-repartition'
             p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
-                prefix=prefix, suffix=suffix, partitions=p, internal=True)
+                key_type=key.type if hasattr(key, 'type') else None,
+                prefix=prefix,
+                suffix=suffix,
+                partitions=p,
+                internal=True,
+            )
         format_key = self._format_key
 
         channel_it = aiter(channel)
