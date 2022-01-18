@@ -12,3 +12,4 @@ tox>=2.3.1
 twine
 vulture
 wheel>=0.29.0
+intervaltree

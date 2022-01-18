@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+from intervaltree import IntervalTree, Interval
 from faust import App
 from faust.app._attached import Attachments
 from faust.exceptions import AlreadyConfiguredWarning
@@ -970,10 +971,18 @@ class test_Consumer:
 
     @pytest.mark.parametrize('tp,acked,gaps,expected_offset', [
         (TP1, [], [], None),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [], 10),
-        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], [9], 10),
-        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], [5], 8),
-        (TP1, [1, 3, 4, 6, 7, 8, 10], [2, 5, 9], 10),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], IntervalTree(), 10),
+        (TP1,
+         [1, 2, 3, 4, 5, 6, 7, 8, 10],
+         IntervalTree([Interval(9, 10)]),
+         10),
+        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], IntervalTree([Interval(5, 6)]), 8),
+        (TP1,
+         [1, 3, 4, 6, 7, 8, 10],
+         IntervalTree([Interval(2, 3),
+                       Interval(5, 6),
+                       Interval(9, 10)]),
+         10),
     ])
     def test_new_offset_with_gaps(self, tp, acked, gaps,
                                   expected_offset, *, consumer):
@@ -992,14 +1001,14 @@ class test_Consumer:
         consumer._committed_offset[tp] = 299
         consumer._add_gap(TP1, 300, 343)
 
-        assert consumer._gap[tp] == list(range(300, 343))
+        assert consumer._gap[tp] == IntervalTree([Interval(300, 344)])
 
     def test__add_gap__previous_to_committed(self, *, consumer):
         tp = TP1
         consumer._committed_offset[tp] = 400
         consumer._add_gap(TP1, 300, 343)
 
-        assert consumer._gap[tp] == []
+        assert consumer._gap[tp] == IntervalTree()
 
     @pytest.mark.asyncio
     async def test_commit_handler(self, *, consumer):

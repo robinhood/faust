@@ -10,3 +10,4 @@ venusian>=1.1,<2.0
 yarl>=1.0,<2.0
 croniter>=0.3.16
 mypy_extensions
+intervaltree

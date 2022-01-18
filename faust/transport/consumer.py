@@ -71,6 +71,8 @@ from typing import (
 )
 from weakref import WeakSet
 
+from intervaltree import IntervalTree
+
 from mode import Service, ServiceT, flight_recorder, get_logger
 from mode.threads import MethodQueue, QueueServiceThread
 from mode.utils.futures import notify
@@ -362,7 +364,7 @@ class Consumer(Service, ConsumerT):
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = ()
 
     # Mapping of TP to list of gap in offsets.
-    _gap: MutableMapping[TP, List[int]]
+    _gap: MutableMapping[TP, IntervalTree]
 
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TP, List[int]]
@@ -431,7 +433,7 @@ class Consumer(Service, ConsumerT):
         self.commit_livelock_soft_timeout = (
             commit_livelock_soft_timeout or
             self.app.conf.broker_commit_livelock_soft_timeout)
-        self._gap = defaultdict(list)
+        self._gap = defaultdict(IntervalTree)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
@@ -988,13 +990,24 @@ class Consumer(Service, ConsumerT):
         # the return value will be: 36
         if acked:
             max_offset = max(acked)
-            gap_for_tp = self._gap[tp]
+            gap_for_tp: IntervalTree = self._gap[tp]
             if gap_for_tp:
-                gap_index = next((i for i, x in enumerate(gap_for_tp)
-                                  if x > max_offset), len(gap_for_tp))
-                gaps = gap_for_tp[:gap_index]
-                acked.extend(gaps)
-                gap_for_tp[:gap_index] = []
+                # find all the ranges up to the max of acked
+                candidates = gap_for_tp.overlap(0, max_offset)
+                sorted_candidates = sorted(candidates, key=lambda x: x.begin)
+                if sorted_candidates:
+                    stuff_to_add = list()
+                    for entry in sorted_candidates:
+                        stuff_to_add.extend(range(entry.begin, entry.end))
+                    new_max_offset = max(stuff_to_add[-1], max_offset + 1)
+                    acked.extend(stuff_to_add)
+                    gap_for_tp.chop(0, new_max_offset)
+                # original faust code:
+                # gap_index = next((i for i, x in enumerate(gap_for_tp)
+                #                   if x > max_offset), len(gap_for_tp))
+                # gaps = gap_for_tp[:gap_index]
+                # acked.extend(gaps)
+                # gap_for_tp[:gap_index] = []
             acked.sort()
             # Note: acked is always kept sorted.
             # find first list of consecutive numbers
@@ -1013,9 +1026,16 @@ class Consumer(Service, ConsumerT):
     def _add_gap(self, tp: TP, offset_from: int, offset_to: int) -> None:
         committed = self._committed_offset[tp]
         gap_for_tp = self._gap[tp]
-        for offset in range(offset_from, offset_to):
-            if committed is None or offset > committed:
-                gap_for_tp.append(offset)
+        if committed is not None:
+            offset_from = max(offset_from, committed + 1)
+        # intervaltree intervals exclude the end
+        if offset_from <= offset_to:
+            gap_for_tp.addi(offset_from, offset_to + 1)
+            gap_for_tp.merge_overlaps()
+        # original faust code
+        # for offset in range(offset_from, offset_to):
+        #     if committed is None or offset > committed:
+        #         gap_for_tp.append(offset)
 
     async def _drain_messages(
             self, fetcher: ServiceT) -> None:  # pragma: no cover
