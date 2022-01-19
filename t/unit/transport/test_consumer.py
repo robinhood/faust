@@ -983,6 +983,11 @@ class test_Consumer:
                        Interval(5, 6),
                        Interval(9, 10)]),
          10),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10],
+         IntervalTree([Interval(9, 10),
+                       Interval(11, 15)]),
+         10
+         )
     ])
     def test_new_offset_with_gaps(self, tp, acked, gaps,
                                   expected_offset, *, consumer):
