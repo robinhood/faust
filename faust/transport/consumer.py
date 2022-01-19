@@ -992,8 +992,12 @@ class Consumer(Service, ConsumerT):
             max_offset = max(acked)
             gap_for_tp: IntervalTree = self._gap[tp]
             if gap_for_tp:
-                # find all the ranges up to the max of acked
+                # find all the ranges up to the max of acked, add them in to acked,
+                # and chop them off the gap.
                 candidates = gap_for_tp.overlap(0, max_offset)
+                # note: merge_overlaps will sort the intervaltree and will ensure that
+                # the intervals left over don't overlap each other. So can sort by their
+                # start without worrying about ends overlapping.
                 sorted_candidates = sorted(candidates, key=lambda x: x.begin)
                 if sorted_candidates:
                     stuff_to_add = list()
