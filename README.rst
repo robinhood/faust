@@ -452,7 +452,7 @@ Slack
 -----
 
 For discussions about the usage, development, and future of Faust,
-please join the `fauststream`_ Slack.
+please join the `fauststream` Slack.
 
 * https://fauststream.slack.com
 * Sign-up: https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTIyMjNjY2M2YzA2OWFhMDlmMzVkODk3YTBlYThlYmZiNTUwZDJlYWZiZTdkN2Q4ZGU4NWM4YWMyNTM5MGQ5OTg

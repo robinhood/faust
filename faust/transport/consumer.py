@@ -1027,7 +1027,7 @@ class Consumer(Service, ConsumerT):
         """Call when processing a message failed."""
         await self.commit()
 
-    def _add_gap(self, tp: TP, offset_from: int, offset_to: int) -> None:
+    async def _add_gap(self, tp: TP, offset_from: int, offset_to: int) -> None:
         committed = self._committed_offset[tp]
         gap_for_tp = self._gap[tp]
         if committed is not None:
@@ -1035,6 +1035,9 @@ class Consumer(Service, ConsumerT):
         # intervaltree intervals exclude the end
         if offset_from <= offset_to:
             gap_for_tp.addi(offset_from, offset_to + 1)
+            # sleep 0 to allow other coroutines to get some loop time
+            # for example, to answer health checks while building the gap
+            await asyncio.sleep(0)
             gap_for_tp.merge_overlaps()
         # original faust code
         # for offset in range(offset_from, offset_to):
@@ -1087,7 +1090,7 @@ class Consumer(Service, ConsumerT):
                             if gap > 1 and r_offset:
                                 acks_enabled = acks_enabled_for(message.topic)
                                 if acks_enabled:
-                                    self._add_gap(tp, r_offset + 1, offset)
+                                    await self._add_gap(tp, r_offset + 1, offset)
                             if commit_every is not None:
                                 if self._n_acked >= commit_every:
                                     self._n_acked = 0
