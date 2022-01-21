@@ -994,14 +994,13 @@ class Consumer(Service, ConsumerT):
             if gap_for_tp:
                 # find all the ranges up to the max of acked, add them in to acked,
                 # and chop them off the gap.
+                gap_for_tp.merge_overlaps()
                 candidates = gap_for_tp.overlap(0, max_offset)
                 # note: merge_overlaps will sort the intervaltree and will ensure that
-                # the intervals left over don't overlap each other. So can sort by their
-                # start without worrying about ends overlapping.
-                sorted_candidates = sorted(candidates, key=lambda x: x.begin)
-                if sorted_candidates:
+                # the intervals left over don't overlap each other.
+                if candidates:
                     stuff_to_add = list()
-                    for entry in sorted_candidates:
+                    for entry in candidates:
                         stuff_to_add.extend(range(entry.begin, entry.end))
                     new_max_offset = max(stuff_to_add[-1], max_offset + 1)
                     acked.extend(stuff_to_add)
@@ -1038,7 +1037,6 @@ class Consumer(Service, ConsumerT):
             # sleep 0 to allow other coroutines to get some loop time
             # for example, to answer health checks while building the gap
             await asyncio.sleep(0)
-            gap_for_tp.merge_overlaps()
         # original faust code
         # for offset in range(offset_from, offset_to):
         #     if committed is None or offset > committed:
