@@ -802,7 +802,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         """Fetch batch of messages from server."""
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
-        # NOTE: Since we are enqueing the fetch request,
+        # NOTE: Since we are enqueuing the fetch request,
         # we need to check when dequeued that we are not in a rebalancing
         # state at that point to return early, or we
         # will create a deadlock (fetch request starts after flow stopped)

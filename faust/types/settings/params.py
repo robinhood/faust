@@ -130,7 +130,7 @@ OnDefaultCallable = Callable[[_Settings], IT]
 
 
 class Param(Generic[IT, OT], property):
-    """Faust setting desscription.
+    """Faust setting description.
 
     Describes a Faust setting, how to read it from environment
     variables or from a configuration object.
