@@ -3,6 +3,12 @@
 .. image:: https://raw.githubusercontent.com/robinhood/faust/8ee5e209322d9edf5bdb79b992ef986be2de4bb4/artwork/banner-alt1.png
 
 ===========================
+ Deprecation Notice
+===========================
+
+This library has been deprecated and no longer managed or supported. The current active community project can be found at https://github.com/faust-streaming/faust
+
+===========================
  Python Stream Processing
 ===========================
 
