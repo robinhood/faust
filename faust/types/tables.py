@@ -156,7 +156,8 @@ class CollectionT(ServiceT, JoinableT):
                        key: Any,
                        value: Any,
                        key_serializer: CodecArg = None,
-                       value_serializer: CodecArg = None) -> FutureMessage:
+                       value_serializer: CodecArg = None,
+                       ) -> Awaitable[FutureMessage]:
         ...
 
     @abc.abstractmethod

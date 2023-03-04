@@ -169,7 +169,7 @@ class Topic(SerializedChannel, TopicT):
         if app._attachments.enabled and not force:
             event = current_event()
             if event is not None:
-                return cast(Event, event)._attach(
+                return await cast(Event, event)._attach(
                     self,
                     key,
                     value,
@@ -205,14 +205,16 @@ class Topic(SerializedChannel, TopicT):
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
                   force: bool = False,
-                  eager_partitioning: bool = False) -> FutureMessage:
+                  eager_partitioning: bool = False,
+                  on_table_key_change: Callable = None,
+                  ) -> Awaitable[FutureMessage]:
         """Produce message by adding to buffer.
 
         Notes:
             This method can be used by non-`async def` functions
             to produce messages.
         """
-        fut = self.as_future_message(
+        fut_awaitable = self.as_future_message(
             key=key,
             value=value,
             partition=partition,
@@ -223,9 +225,10 @@ class Topic(SerializedChannel, TopicT):
             value_serializer=value_serializer,
             callback=callback,
             eager_partitioning=eager_partitioning,
+            on_table_key_change=on_table_key_change,
         )
-        self.app.producer.send_soon(fut)
-        return fut
+        self.app.producer.send_soon(fut_awaitable)
+        return fut_awaitable
 
     async def put(self, event: EventT) -> None:
         """Put event directly onto the underlying queue of this topic.

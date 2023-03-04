@@ -1,5 +1,5 @@
 import pytest
-from mode.utils.mocks import AsyncMock, Mock, call
+from mode.utils.mocks import AsyncMock, Mock
 from faust.transport.producer import Producer, ProducerBuffer
 
 
@@ -32,22 +32,25 @@ class test_ProducerBuffer:
         )
 
     @pytest.mark.asyncio
-    async def test__handle_pending(self, *, buf):
-        buf.pending = Mock(get=AsyncMock())
-        buf._send_pending = AsyncMock()
+    async def test__handle_pending(self, *, buf, app, future_message):
+        message = future_message(app.topic('foo'))
+
+        async def get_pending():
+            async def async_func():
+                return message
+            return async_func()
 
         async def on_send(fut):
             if buf._send_pending.call_count >= 3:
                 buf._stopped.set()
 
+        buf.pending = Mock(get=get_pending)
+        buf._send_pending = AsyncMock()
+
         buf._send_pending.side_effect = on_send
 
         await buf._handle_pending(buf)
-
-        buf._send_pending.assert_has_calls([
-            call(buf.pending.get.coro.return_value),
-            call(buf.pending.get.coro.return_value),
-        ])
+        buf._send_pending.assert_called_with(message)
 
     @pytest.mark.asyncio
     async def test_wait_until_ebb(self, *, buf):

@@ -5,6 +5,7 @@ from typing import (
     Any,
     AsyncIterator,
     Awaitable,
+    Callable,
     Generic,
     Optional,
     Set,
@@ -111,7 +112,9 @@ class ChannelT(AsyncIterator[_EventT[_T]]):
                   value_serializer: CodecArg = None,
                   callback: MessageSentCallback = None,
                   force: bool = False,
-                  eager_partitioning: bool = False) -> FutureMessage:
+                  eager_partitioning: bool = False,
+                  on_table_key_change: Callable = None,
+                  ) -> Awaitable[FutureMessage]:
         ...
 
     @abc.abstractmethod
@@ -126,7 +129,8 @@ class ChannelT(AsyncIterator[_EventT[_T]]):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            eager_partitioning: bool = False) -> FutureMessage:
+            eager_partitioning: bool = False,
+            on_table_key_change: Callable = None) -> Awaitable[FutureMessage]:
         ...
 
     @abc.abstractmethod

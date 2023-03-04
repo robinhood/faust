@@ -1,6 +1,7 @@
 import asyncio
 import re
 import faust
+import json
 import pytest
 from faust import Event, Record
 from faust.exceptions import KeyDecodeError, ValueDecodeError
@@ -66,12 +67,13 @@ class test_Topic:
 
         assert repr(topic.schema)
 
-    def test_schema_loads_key__loads_arg_optional(self, *, app):
+    @pytest.mark.asyncio
+    async def test_schema_loads_key__loads_arg_optional(self, *, app):
         topic = app.topic('foo', key_type='str', key_serializer='msgpack')
         app.serializers.loads_key = Mock(name='loads_value')
 
         message = Mock(name='message')
-        payload = topic.schema.loads_key(app, message)
+        payload = await topic.schema.loads_key(app, message)
 
         app.serializers.loads_key.assert_called_once_with(
             'str', message.key, serializer='msgpack',
@@ -79,12 +81,13 @@ class test_Topic:
 
         assert payload == app.serializers.loads_key.return_value
 
-    def test_schema_loads_value__loads_arg_optional(self, *, app):
+    @pytest.mark.asyncio
+    async def test_schema_loads_value__loads_arg_optional(self, *, app):
         topic = app.topic('foo', value_type='str', value_serializer='msgpack')
         app.serializers.loads_value = Mock(name='loads_value')
 
         message = Mock(name='message')
-        payload = topic.schema.loads_value(app, message)
+        payload = await topic.schema.loads_value(app, message)
 
         app.serializers.loads_value.assert_called_once_with(
             'str', message.value, serializer='msgpack',
@@ -119,6 +122,51 @@ class test_Topic:
 
         assert repr(topic.schema)
 
+    @pytest.mark.asyncio
+    async def test_schema__override_loads_value(self, *, app, topic):
+        headers = [('avro-schema', b'https://avro-server/user-schema.avsc')]
+        payload = {'user_id': '100', 'content': 'Hi'}
+
+        class UserNotification(faust.Record):
+            user_id: str
+            content: str
+
+        class MySchema(faust.Schema):
+            async def dumps_value(
+                self, app, value, *,
+                serializer=None,
+                headers,
+            ):
+                return json.dumps(value).encode(), headers
+
+            async def dumps_key(
+                self, app, key, *,
+                serializer=None,
+                headers=None,
+            ):
+                return None, headers
+
+        schema = MySchema(value_serializer=UserNotification)
+
+        _, keys = await topic.prepare_key(
+            'key',
+            None,
+            schema=schema,
+            headers=headers,
+        )
+
+        assert headers == keys
+
+        payload_encoded, keys = await topic.prepare_value(
+            payload,
+            None,
+            schema=schema,
+            headers=headers,
+        )
+
+        assert headers == keys
+        assert payload_encoded == json.dumps(payload).encode()
+
     def test_init_key_serializer_taken_from_key_type(self, app):
         class M(Record, serializer='foobar'):
             x: int
@@ -133,7 +181,7 @@ class test_Topic:
         topic._get_producer = AsyncMock(return_value=producer)
         callback = Mock(name='callback')
         headers = {'k': 'v'}
-        fm = topic.as_future_message(
+        fm = await topic.as_future_message(
             key='foo',
             value='bar',
             partition=130,
@@ -144,8 +192,9 @@ class test_Topic:
             callback=callback,
         )
         await topic.publish_message(fm, wait=True)
-        key, headers = topic.prepare_key('foo', 'json', None, headers)
-        value, headers = topic.prepare_value('bar', 'json', None, headers)
+        key, headers = await topic.prepare_key('foo', 'json', None, headers)
+        value, headers = await topic.prepare_value(
+            'bar', 'json', None, headers)
         producer.send_and_wait.coro.assert_called_once_with(
             topic.get_topic_name(),
             key,
@@ -161,7 +210,11 @@ class test_Topic:
         app._attachments.enabled = True
         callback = Mock(name='callback')
         schema = Mock(name='schema')
-        with patch('faust.topics.current_event') as current_event:
+
+        event = Mock('current_event', _attach=AsyncMock())
+
+        with patch('faust.topics.current_event',
+                   return_value=event) as current_event:
             await topic.send(
                 key='k',
                 value='v',
@@ -255,6 +308,7 @@ class test_Topic:
         app.producer.send_soon = Mock(name='send_soon')
         callback = Mock(name='callback')
         schema = Mock(name='schema')
+        on_table_key_change = Mock(name='on_table_key_change')
         fut = topic.send_soon(
             key=b'k',
             value=b'v',
@@ -265,7 +319,9 @@ class test_Topic:
             key_serializer='kser',
             value_serializer='vser',
             callback=callback,
+            on_table_key_change=on_table_key_change,
         )
+
         topic.as_future_message.assert_called_once_with(
             key=b'k',
             value=b'v',
@@ -277,6 +333,7 @@ class test_Topic:
             value_serializer='vser',
             callback=callback,
             eager_partitioning=False,
+            on_table_key_change=on_table_key_change,
         )
         assert fut is topic.as_future_message.return_value
 

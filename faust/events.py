@@ -219,19 +219,19 @@ class Event(EventT):
             force=force,
         )
 
-    def _attach(self,
-                channel: Union[ChannelT, str],
-                key: K = None,
-                value: V = None,
-                partition: int = None,
-                timestamp: float = None,
-                headers: HeadersArg = None,
-                schema: SchemaT = None,
-                key_serializer: CodecArg = None,
-                value_serializer: CodecArg = None,
-                callback: MessageSentCallback = None,
-                ) -> Awaitable[RecordMetadata]:
-        return cast(_App, self.app)._attachments.put(
+    async def _attach(self,
+                      channel: Union[ChannelT, str],
+                      key: K = None,
+                      value: V = None,
+                      partition: int = None,
+                      timestamp: float = None,
+                      headers: HeadersArg = None,
+                      schema: SchemaT = None,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None,
+                      callback: MessageSentCallback = None,
+                      ) -> Awaitable[RecordMetadata]:
+        return await cast(_App, self.app)._attachments.put(
             self.message,
             channel,
             key,

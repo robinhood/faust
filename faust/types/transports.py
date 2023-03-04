@@ -79,7 +79,7 @@ class ProducerBufferT(ServiceT):
     pending: asyncio.Queue
 
     @abc.abstractmethod
-    def put(self, fut: FutureMessage) -> None:
+    def put(self, fut: Awaitable[FutureMessage]) -> None:
         ...
 
     @abc.abstractmethod
@@ -134,7 +134,7 @@ class ProducerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def send_soon(self, fut: FutureMessage) -> None:
+    def send_soon(self, fut: Awaitable[FutureMessage]) -> None:
         ...
 
     @abc.abstractmethod

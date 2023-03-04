@@ -139,11 +139,12 @@ class test_Event:
             force=False,
         )
 
-    def test_attach(self, *, event, app):
+    @pytest.mark.asyncio
+    async def test_attach(self, *, event, app):
         callback = Mock(name='callback')
         schema = Mock(name='schema')
-        app._attachments.put = Mock(name='_attachments.put')
-        result = event._attach(
+        app._attachments.put = AsyncMock(name='_attachments.put')
+        result = await event._attach(
             channel='chan',
             key=b'k',
             value=b'v',
@@ -168,7 +169,7 @@ class test_Event:
             value_serializer='vser',
             callback=callback,
         )
-        assert result is app._attachments.put()
+        assert result is await app._attachments.put()
 
     @pytest.mark.asyncio
     async def test__send(self, *, event, app):

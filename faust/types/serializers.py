@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar
 
 from .codecs import CodecArg
 from .core import K, OpenHeadersArg, V
@@ -94,25 +94,27 @@ class SchemaT(Generic[KT, VT]):
     @abc.abstractmethod
     def loads_key(self, app: _AppT, message: _Message, *,
                   loads: Callable = None,
-                  serializer: CodecArg = None) -> KT:
+                  serializer: CodecArg = None) -> Awaitable[KT]:
         ...
 
     @abc.abstractmethod
     def loads_value(self, app: _AppT, message: _Message, *,
                     loads: Callable = None,
-                    serializer: CodecArg = None) -> VT:
+                    serializer: CodecArg = None) -> Awaitable[VT]:
         ...
 
     @abc.abstractmethod
     def dumps_key(self, app: _AppT, key: K, *,
                   serializer: CodecArg = None,
-                  headers: OpenHeadersArg) -> Tuple[Any, OpenHeadersArg]:
+                  headers: OpenHeadersArg,
+                  ) -> Awaitable[Tuple[Any, OpenHeadersArg]]:
         ...
 
     @abc.abstractmethod
     def dumps_value(self, app: _AppT, value: V, *,
                     serializer: CodecArg = None,
-                    headers: OpenHeadersArg) -> Tuple[Any, OpenHeadersArg]:
+                    headers: OpenHeadersArg,
+                    ) -> Awaitable[Tuple[Any, OpenHeadersArg]]:
         ...
 
     @abc.abstractmethod
