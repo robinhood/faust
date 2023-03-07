@@ -287,8 +287,10 @@ class Stream(StreamT[T_co], Service):
                     async for key, value in stream.items():
                         print(key, value)
         """
-        async for event in self.events():
-            yield event.key, cast(T_co, event.value)
+        async for value in self:
+            if self.current_event is not None:
+                # yield processed value from iterator, not from event
+                yield self.current_event.key, value
 
     async def events(self) -> AsyncIterable[EventT]:
         """Iterate over the stream as events exclusively.

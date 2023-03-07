@@ -63,6 +63,21 @@ async def test_async_iterator(app):
 
 
 @pytest.mark.asyncio
+async def test_async_iterator_with_processor(app):
+    async with new_stream(app) as stream:
+        stream.add_processor(lambda x: x * 2)
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i))
+        received = 0
+        async for value in stream:
+            assert value == received * 2
+            received += 1
+            if received >= 100:
+                break
+        assert await channel_empty(stream.channel)
+
+
+@pytest.mark.asyncio
 async def test_throw(app):
     async with new_stream(app) as stream:
         streamit = aiter(stream)
@@ -96,6 +111,22 @@ async def test_items(app):
         async for key, value in stream.items():
             assert key == i
             assert value == i * 2
+            i += 1
+            if i > 99:
+                break
+        assert await channel_empty(stream.channel)
+
+
+@pytest.mark.asyncio
+async def test_items_with_processor(app):
+    async with new_stream(app) as stream:
+        stream.add_processor(lambda x: x * 3)
+        for i in range(100):
+            await stream.channel.deliver(message(key=i, value=i * 2))
+        i = 0
+        async for key, value in stream.items():
+            assert key == i
+            assert value == i * 6
             i += 1
             if i > 99:
                 break
