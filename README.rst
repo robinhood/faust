@@ -235,7 +235,7 @@ Faust is...
     Faust is just Python, and a stream is an infinite asynchronous iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
-    SQLAlchemy, NTLK, NumPy, SciPy, TensorFlow, etc.
+    SQLAlchemy, NLTK, NumPy, SciPy, TensorFlow, etc.
 
 .. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
 
