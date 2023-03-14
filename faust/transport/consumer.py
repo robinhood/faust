@@ -719,7 +719,7 @@ class Consumer(Service, ConsumerT):
             if self.app.topics.acks_enabled_for(message.topic):
                 committed = self._committed_offset[tp]
                 try:
-                    if committed is None or offset > committed:
+                    if committed is None or offset >= committed:
                         acked_index = self._acked_index[tp]
                         if offset not in acked_index:
                             self._unacked_messages.discard(message)
@@ -1005,7 +1005,7 @@ class Consumer(Service, ConsumerT):
             acked[:len(batch) - 1] = []
             self._acked_index[tp].difference_update(batch)
             # return the highest commit offset
-            return batch[-1]
+            return batch[-1] + 1
         return None
 
     async def on_task_error(self, exc: BaseException) -> None:
@@ -1059,7 +1059,7 @@ class Consumer(Service, ConsumerT):
 
                         offset = message.offset
                         r_offset = get_read_offset(tp)
-                        if r_offset is None or offset > r_offset:
+                        if r_offset is None or offset >= r_offset:
                             gap = offset - (r_offset or 0)
                             # We have a gap in income messages
                             if gap > 1 and r_offset:
