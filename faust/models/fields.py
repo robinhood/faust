@@ -7,6 +7,7 @@ from operator import attrgetter
 from typing import (
     Any,
     Callable,
+    Hashable,
     Iterable,
     Mapping,
     Optional,
@@ -544,7 +545,10 @@ TYPE_TO_FIELD = {
 
 @lru_cache(maxsize=2048)
 def field_for_type(
-        typ: Type) -> Tuple[Type[FieldDescriptorT], Optional[Type[Tag]]]:
+        htyp: Hashable) -> Tuple[Type[FieldDescriptorT], Optional[Type[Tag]]]:
+    # This is a way to make mypy >= 0.790 happy, as lru_cache
+    # expects a Hashable
+    typ = cast(Type, htyp)
     try:
         # 1) Check if type is in fast index.
         return TYPE_TO_FIELD[typ], None
@@ -557,7 +561,8 @@ def field_for_type(
         else:
             try:
                 if origin is not None and issubclass(origin, Tag):
-                    return field_for_type(typ.__args__[0])[0], typ
+                    return field_for_type(
+                        cast(Hashable, typ.__args__[0]))[0], typ
             except TypeError:
                 pass
 

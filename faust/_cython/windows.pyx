@@ -64,7 +64,7 @@ cdef class HoppingWindow:
         r = []
         for start in range(int(start), int(timestamp) + 1, int(self.step)):
             end = start + self.size - 0.1
-            r.append((start, end))
+            r.append((float(start), end))
         return r
 
     cdef double _start_initial_range(self, double timestamp):
