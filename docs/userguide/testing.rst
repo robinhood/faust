@@ -33,7 +33,7 @@ To test an agent when unit testing or functional testing, use the special
     orders_for_account = app.Table('order-count-by-account', default=int)
 
     @app.agent(orders_topic)
-    async def order(orders):
+    async def process_order(orders):
         async for order in orders.group_by(Order.account_id):
             orders_for_account[order.account_id] += 1
             yield order

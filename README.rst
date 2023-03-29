@@ -59,7 +59,7 @@ Here's an example processing a stream of incoming orders:
         amount: int
 
     @app.agent(value_type=Order)
-    async def order(orders):
+    async def process_order(orders):
         async for order in orders:
             # process infinite stream of orders.
             print(f'Order for {order.account_id}: {order.amount}')
