@@ -905,10 +905,10 @@ class Stream(StreamT[T_co], Service):
                     except Skip:
                         value = skipped_value
 
-                if value is skipped_value:
-                    continue
-                self.events_total += 1
                 try:
+                    if value is skipped_value:
+                        continue
+                    self.events_total += 1
                     yield value
                 finally:
                     self.current_event = None
