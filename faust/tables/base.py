@@ -30,6 +30,7 @@ from yarl import URL
 
 from faust import stores
 from faust import joins
+from faust import windows
 from faust.exceptions import PartitionsMismatch
 from faust.streams import current_event
 from faust.types import (
@@ -99,6 +100,13 @@ class Collection(Service, CollectionT):
     @abc.abstractmethod
     def _del_key(self, key: Any) -> None:  # pragma: no cover
         ...
+
+    def _maybe_add_session_key(self, key: Any) -> Any:
+        event = cast(EventT, current_event())
+        key_list = list(key)
+        if isinstance(self.window, windows.SessionWindow):
+            key_list.append(event.key)
+        return tuple(key_list)
 
     def __init__(self,
                  app: AppT,
@@ -488,15 +496,18 @@ class Collection(Service, CollectionT):
         get_ = self._get_key
         set_ = self._set_key
         for window_range in self._window_ranges(timestamp):
-            set_((key, window_range), op(get_((key, window_range)), value))
+            table_key = self._maybe_add_session_key((key, window_range))
+            set_(table_key, op(get_(table_key), value))
 
     def _set_windowed(self, key: Any, value: Any, timestamp: float) -> None:
         for window_range in self._window_ranges(timestamp):
-            self._set_key((key, window_range), value)
+            table_key = self._maybe_add_session_key((key, window_range))
+            self._set_key(table_key, value)
 
     def _del_windowed(self, key: Any, timestamp: float) -> None:
         for window_range in self._window_ranges(timestamp):
-            self._del_key((key, window_range))
+            table_key = self._maybe_add_session_key((key, window_range))
+            self._del_key(table_key)
 
     def _window_ranges(self, timestamp: float) -> Iterator[WindowRange]:
         window = cast(WindowT, self.window)
@@ -533,23 +544,30 @@ class Collection(Service, CollectionT):
 
     def _windowed_now(self, key: Any) -> Any:
         window = cast(WindowT, self.window)
-        return self._get_key((key, window.earliest(self._relative_now())))
+        table_key = self._maybe_add_session_key(
+            (key, window.earliest(self._relative_now())))
+        return self._get_key(table_key)
 
     def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
         window = cast(WindowT, self.window)
-        return self._get_key((key, window.current(timestamp)))
+        table_key = self._maybe_add_session_key(
+            (key, window.current(timestamp)))
+        return self._get_key(table_key)
 
     def _windowed_contains(self, key: Any, timestamp: float) -> bool:
         window = cast(WindowT, self.window)
-        return self._has_key((key, window.current(timestamp)))
+        table_key = self._maybe_add_session_key(
+            (key, window.current(timestamp)))
+        return self._has_key(table_key)
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
         window = cast(WindowT, self.window)
-        return self._get_key(
+        table_key = self._maybe_add_session_key(
             (key,
              window.delta(self._relative_event(event), d)),
         )
+        return self._get_key(table_key)
 
     async def on_rebalance(self,
                            assigned: Set[TP],
