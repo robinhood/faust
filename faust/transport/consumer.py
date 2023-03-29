@@ -406,6 +406,10 @@ class Consumer(Service, ConsumerT):
     flow_active: bool = True
     can_resume_flow: Event
 
+    #: Ensures consumer isn't in middle of writing
+    #: records into queue during rebalance
+    can_stop_flow: Event
+
     def __init__(self,
                  transport: TransportT,
                  callback: ConsumerCallback,
@@ -443,6 +447,7 @@ class Consumer(Service, ConsumerT):
         self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
         self.can_resume_flow = Event()
+        self.can_stop_flow = Event()
         self._reset_state()
         super().__init__(loop=loop or self.transport.loop, **kwargs)
         self.transactions = self.transport.create_transaction_manager(
@@ -465,6 +470,7 @@ class Consumer(Service, ConsumerT):
         self._paused_partitions = set()
         self._buffered_partitions = set()
         self.can_resume_flow.clear()
+        self.can_stop_flow.clear()
         self.flow_active = True
         self._time_start = monotonic()
 
@@ -535,15 +541,17 @@ class Consumer(Service, ConsumerT):
     async def _seek(self, partition: TP, offset: int) -> None:
         ...
 
-    def stop_flow(self) -> None:
+    async def stop_flow(self) -> None:
         """Block consumer from processing any more messages."""
         self.flow_active = False
         self.can_resume_flow.clear()
+        await self.wait(self.can_stop_flow, timeout=5)
 
     def resume_flow(self) -> None:
         """Allow consumer to process messages."""
         self.flow_active = True
         self.can_resume_flow.set()
+        self.can_stop_flow.clear()
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
         """Pause fetching from partitions."""
@@ -672,6 +680,8 @@ class Consumer(Service, ConsumerT):
             self, timeout: float) -> Tuple[Optional[RecordMap],
                                            Optional[Set[TP]]]:
         if not self.flow_active:
+            self.log.dev('Flow is inactive. Waiting to resume...')
+            self.can_stop_flow.set()
             await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
 
@@ -1057,6 +1067,11 @@ class Consumer(Service, ConsumerT):
                             await sleep(0)
                             num_since_yield = 0
 
+                        # A rebalance might occur after yielding,
+                        # so we exit the loop here
+                        if not self.flow_active:
+                            break
+
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         if r_offset is None or offset > r_offset:
@@ -1093,6 +1108,7 @@ class Consumer(Service, ConsumerT):
             self.log.exception('Drain messages raised: %r', exc)
             raise
         finally:
+            self.can_stop_flow.set()
             unset_flag(flag_consumer_fetching)
 
     def close(self) -> None:

@@ -603,11 +603,13 @@ class test_Consumer:
         assert consumer._read_offset[TP1] == 401
         consumer._seek.assert_called_once_with(TP1, 401)
 
-    def test_stop_flow(self, *, consumer):
+    @pytest.mark.asyncio
+    async def test_stop_flow(self, *, consumer):
         consumer.flow_active = True
         consumer.can_resume_flow.set()
+        consumer.can_stop_flow.set()
 
-        consumer.stop_flow()
+        await consumer.stop_flow()
 
         assert not consumer.flow_active
         assert not consumer.can_resume_flow.is_set()
@@ -1041,7 +1043,7 @@ class test_ConsumerThread:
         def resume_partitions(self, *args, **kwargs):
             ...
 
-        def stop_flow(self, *args, **kwargs):
+        async def stop_flow(self, *args, **kwargs):
             ...
 
         def resume_flow(self, *args, **kwargs):
