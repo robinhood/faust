@@ -29,7 +29,6 @@ from faust.types import AppT
 from faust.types.web import BlueprintT, ResourceOptions, View
 
 __all__ = [
-    'DEFAULT_BLUEPRINTS',
     'BlueprintManager',
     'Request',
     'Response',
@@ -41,18 +40,15 @@ _bytes = bytes
 _BPArg = SymbolArg[BlueprintT]
 _BPList = Iterable[Tuple[str, _BPArg]]
 
-DEFAULT_BLUEPRINTS: _BPList = [
-    ('/router', 'faust.web.apps.router:blueprint'),
-    ('/table', 'faust.web.apps.tables.blueprint'),
-]
-
 PRODUCTION_BLUEPRINTS: _BPList = [
     ('', 'faust.web.apps.production_index:blueprint'),
 ]
 
 DEBUG_BLUEPRINTS: _BPList = [
-    ('/graph', 'faust.web.apps.graph:blueprint'),
     ('', 'faust.web.apps.stats:blueprint'),
+    ('/graph', 'faust.web.apps.graph:blueprint'),
+    ('/router', 'faust.web.apps.router:blueprint'),
+    ('/table', 'faust.web.apps.tables.blueprint'),
 ]
 
 CONTENT_SEPARATOR: bytes = b'\r\n\r\n'
@@ -163,7 +159,6 @@ class BlueprintManager:
 class Web(Service):
     """Web server and HTTP interface."""
 
-    default_blueprints: ClassVar[_BPList] = DEFAULT_BLUEPRINTS  # noqa: E704
     production_blueprints: ClassVar[_BPList] = PRODUCTION_BLUEPRINTS
     debug_blueprints: ClassVar[_BPList] = DEBUG_BLUEPRINTS
 
@@ -184,7 +179,7 @@ class Web(Service):
         self.app = app
         self.views = {}
         self.reverse_names = {}
-        blueprints = list(self.default_blueprints)
+        blueprints = []
         if self.app.conf.debug:
             blueprints.extend(self.debug_blueprints)
         else:
