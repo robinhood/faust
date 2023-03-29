@@ -37,6 +37,15 @@ class Table(TableT[KT, VT], Collection):
             key_index=key_index,
         )
 
+    def sliding(self, before: Seconds, after: Seconds,
+                expires: Seconds = None,
+                key_index: bool = False) -> 'WindowWrapperT':
+        """Wrap table in a sliding window."""
+        return self.using_window(
+            windows.SlidingWindow(before, after, expires),
+            key_index=key_index,
+        )
+
     def tumbling(self, size: Seconds,
                  expires: Seconds = None,
                  key_index: bool = False) -> WindowWrapperT:
