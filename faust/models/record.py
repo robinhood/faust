@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    Hashable,
     List,
     Mapping,
     MutableMapping,
@@ -253,7 +254,9 @@ class Record(Model, abstract=True):  # type: ignore
             else:
                 target_type = typ
             if descr is None or not isinstance(descr, FieldDescriptorT):
-                DescriptorType, tag = field_for_type(target_type)
+                # Make mypy happy
+                hashed_target_type = cast(Hashable, target_type)
+                DescriptorType, tag = field_for_type(hashed_target_type)
                 if tag:
                     add_to_tagged_indices(field, tag)
                 descr = DescriptorType(
