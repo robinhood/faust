@@ -107,6 +107,7 @@ class Recovery(Service):
 
     completed: Event
     in_recovery: bool = False
+    in_active_partition_recovery: bool = False
     standbys_pending: bool = False
     recovery_delay: float
 
@@ -402,6 +403,7 @@ class Recovery(Service):
 
                 if self.need_recovery():
                     self.log.info('Restoring state from changelog topics...')
+                    self._set_recovery_fetch_started()
                     T(consumer.resume_partitions)(active_tps)
                     # Resume partitions and start fetching.
                     self.log.info('Resuming flow...')
@@ -503,6 +505,9 @@ class Recovery(Service):
             # restart - wait for next rebalance.
         self._set_recovery_ended()
 
+    def _set_recovery_fetch_started(self) -> None:
+        self.in_active_partition_recovery = True
+
     def _set_recovery_started(self) -> None:
         self.in_recovery = True
         self._recovery_ended = None
@@ -514,6 +519,7 @@ class Recovery(Service):
 
     def _set_recovery_ended(self) -> None:
         self.in_recovery = False
+        self.in_active_partition_recovery = False
         self._recovery_ended_at = monotonic()
         self._active_events_received_at.clear()
         self._standby_events_received_at.clear()
@@ -705,7 +711,8 @@ class Recovery(Service):
         processing_times = self._processing_times
 
         def _maybe_signal_recovery_end() -> None:
-            if self.in_recovery and not self.active_remaining_total():
+            if self.in_active_partition_recovery and \
+               not self.active_remaining_total():
                 # apply anything stuck in the buffers
                 self.flush_buffers()
                 self._set_recovery_ended()
