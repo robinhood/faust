@@ -445,7 +445,7 @@ class WindowWrapper(WindowWrapperT):
         if self.key_index_table is not None:
             return len(self.key_index_table)
         raise NotImplementedError(
-            'Windowed table must use_index=True to support len()')
+            'Windowed table must set key_index=True to support len()')
 
     def _relative_handler(
             self, relative_to: RelativeArg) -> Optional[RelativeHandler]:
@@ -476,7 +476,7 @@ class WindowWrapper(WindowWrapperT):
                 yield key
         else:
             raise NotImplementedError(
-                'Windowed table must set use_index=True to '
+                'Windowed table must set key_index=True to '
                 'support .keys/.items/.values')
 
     def values(self, event: EventT = None) -> ValuesView:
