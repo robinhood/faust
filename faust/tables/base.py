@@ -183,7 +183,9 @@ class Collection(Service, CollectionT):
         return object.__hash__(self)
 
     def _new_store(self) -> StoreT:
-        return self._new_store_by_url(self._store or self.app.conf.store)
+        return self._new_store_by_url(
+            self._store if self._store is not None else self.app.conf.store,
+        )
 
     def _new_store_by_url(self, url: Union[str, URL]) -> StoreT:
         return stores.by_url(url)(
