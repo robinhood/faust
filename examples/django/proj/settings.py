@@ -93,7 +93,7 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': (  # ridiculuously long names are silly
+        'NAME': (  # ridiculously long names are silly
             'django.contrib.auth.password_validation.'
             'UserAttributeSimilarityValidator'),
     },

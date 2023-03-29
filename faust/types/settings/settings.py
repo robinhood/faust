@@ -480,7 +480,7 @@ class Settings(base.SettingsRegistry):
     def env_prefix(self) -> str:
         """Environment variable prefix.
 
-        When configuring Faust by environent variables,
+        When configuring Faust by environment variables,
         this adds a common prefix to all Faust environment value names.
         """
 
