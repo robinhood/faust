@@ -63,7 +63,7 @@ globals().update(conf.build_config(
         r'faust.web.apps.*',
         'faust.web.apps.stats.app',
         'faust.web.apps.router.app',
-        'faust'
+        'faust',
         'faust.web.drivers',
         r'.*\._cython.*',
     ],
