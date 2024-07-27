@@ -250,7 +250,7 @@ decreased, use ``await event.ack()``
     async for event in stream.events():
         async with event:
             print(event.value)
-            # event acked when exiting this block
+            # event acknowledged when exiting this block
 
 Note that the conditions in automatic acknowledgment still apply
 when manually acknowledging a message.
