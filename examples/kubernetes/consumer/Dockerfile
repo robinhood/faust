@@ -1,12 +1,16 @@
 FROM python:3.7.1-alpine3.7
 
-RUN mkdir -p /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+RUN mkdir -p /app && chown appuser:appgroup /app
 WORKDIR /app
 
 COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 
-COPY . .
+COPY --chown=appuser:appgroup . .
+
+USER appuser
 
 CMD ["faust", "-A", "consumer", "worker", "-l", "info"]
