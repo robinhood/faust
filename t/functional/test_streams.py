@@ -618,6 +618,31 @@ async def test_take__10(app, loop):
         assert not event.message.refcount
     assert s.enable_acks is True
 
+@pytest.mark.asyncio
+async def test_take_events(app, loop):
+    s = new_stream(app)
+    async with s:
+        assert s.enable_acks is True
+        for i in range(10):
+            await s.channel.send(value=i)
+
+        event_processor = s.take_events(10, within=1)
+        async for event_list in event_processor:
+            assert all(isinstance(e, faust.Event) for e in event_list)
+            assert list(range(10)) == [e.message.value for e in event_list]
+            break
+
+        try:
+            await event_processor.athrow(asyncio.CancelledError())
+        except asyncio.CancelledError:
+            pass
+
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+
 
 @pytest.mark.asyncio
 async def test_take__no_event_crashes(app, loop):

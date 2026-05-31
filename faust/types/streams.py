@@ -175,6 +175,12 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    @no_type_check
+    async def take_events(self, max_: int,
+                          within: Seconds) -> AsyncIterable[Sequence[EventT]]:
+        ...
+
+    @abc.abstractmethod
     def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 
