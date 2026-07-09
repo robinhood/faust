@@ -15,9 +15,9 @@ This library has been deprecated and no longer managed or supported. The current
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
 :Version: 1.10.4
-:Web: http://faust.readthedocs.io/
-:Download: http://pypi.org/project/faust
-:Source: http://github.com/robinhood/faust
+:Web: https://faust.readthedocs.io/
+:Download: https://pypi.org/project/faust
+:Source: https://github.com/robinhood/faust
 :Keywords: distributed, stream, async, processing, data, queue, state management
 
 
@@ -166,11 +166,11 @@ resource for learning the implementation of `Kafka Streams`_.
 .. _`RocksDB`: http://rocksdb.org
 .. _`Apache Kafka`: https://kafka.apache.org
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 Faust is...
 ===========
@@ -237,11 +237,11 @@ Faust is...
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, SciPy, TensorFlow, etc.
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 Installation
 ============
@@ -336,7 +336,7 @@ Downloading and installing from source
 --------------------------------------
 
 Download the latest version of Faust from
-http://pypi.org/project/faust
+https://pypi.org/project/faust
 
 You can install it by doing:
 
@@ -363,11 +363,11 @@ You can install the latest snapshot of Faust using the following
 
     $ pip install https://github.com/robinhood/faust/zipball/master#egg=faust
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 FAQ
 ===
@@ -441,11 +441,11 @@ What kafka versions faust supports?
 
 Faust supports kafka with version >= 0.10.
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 .. _getting-help:
 
@@ -484,11 +484,11 @@ file in the top distribution directory for the full license text.
 
 .. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 Contributing
 ============
@@ -502,7 +502,7 @@ Be sure to also read the `Contributing to Faust`_ section in the
 documentation.
 
 .. _`Contributing to Faust`:
-    http://faust.readthedocs.io/en/latest/contributing.html
+    https://faust.readthedocs.io/en/latest/contributing.html
 
 Code of Conduct
 ===============
@@ -548,11 +548,11 @@ reported by opening an issue or contacting one or more of the project maintainer
 This Code of Conduct is adapted from the Contributor Covenant,
 version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
 .. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
     :alt: Build status
@@ -567,19 +567,19 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. |wheel| image:: https://img.shields.io/pypi/wheel/faust.svg
     :alt: faust can be installed via wheel
-    :target: http://pypi.org/project/faust/
+    :target: https://pypi.org/project/faust/
 
 .. |pyversion| image:: https://img.shields.io/pypi/pyversions/faust.svg
     :alt: Supported Python versions.
-    :target: http://pypi.org/project/faust/
+    :target: https://pypi.org/project/faust/
 
 .. |pyimp| image:: https://img.shields.io/pypi/implementation/faust.svg
     :alt: Support Python implementations.
-    :target: http://pypi.org/project/faust/
+    :target: https://pypi.org/project/faust/
 
-.. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
+.. _`introduction`: https://faust.readthedocs.io/en/latest/introduction.html
 
-.. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
+.. _`quickstart`: https://faust.readthedocs.io/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
+.. _`User Guide`: https://faust.readthedocs.io/en/latest/userguide/index.html
 
