@@ -82,7 +82,9 @@ class Consumer(ThreadDelegateConsumer):
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
         """Create topic on broker."""
-        return  # XXX
+        raise NotImplementedError(
+                'Topic creation is not supported by the Confluent consumer'
+            )
         await self._thread.create_topic(
             topic,
             partitions,
@@ -352,7 +354,9 @@ class ConfluentConsumerThread(ConsumerThread):
                       topic: str,
                       key: Optional[bytes],
                       partition: int = None) -> Optional[int]:
-        raise NotImplementedError('TODO')  # TODO XXX
+        raise NotImplementedError(
+                'Partition lookup is not supported by the Confluent consumer'
+            )
 
 
 class ProducerProduceFuture(asyncio.Future):
@@ -478,23 +482,9 @@ class Producer(base.Producer):
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
         """Create topic on broker."""
-        return  # XXX
-        _retention = (int(want_seconds(retention) * 1000.0)
-                      if retention else None)
-        await cast(Transport, self.transport)._create_topic(
-            self,
-            self._producer.client,
-            topic,
-            partitions,
-            replication,
-            config=config,
-            timeout=int(want_seconds(timeout) * 1000.0),
-            retention=_retention,
-            compacting=compacting,
-            deleting=deleting,
-            ensure_created=ensure_created,
-        )
-
+        raise NotImplementedError(
+                'Topic creation is not supported by the Confluent producer'
+            )
     async def on_start(self) -> None:
         """Call when producer is starting."""
         await self._producer_thread.start()
@@ -519,12 +509,6 @@ class Producer(base.Producer):
             on_delivery=fut.set_from_on_delivery,
         )
         return cast(Awaitable[RecordMetadata], fut)
-        try:
-            return cast(Awaitable[RecordMetadata], await self._producer.send(
-                topic, value, key=key, partition=partition))
-        except KafkaException as exc:
-            raise ProducerSendError(f'Error while sending: {exc!r}') from exc
-
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
@@ -548,7 +532,9 @@ class Producer(base.Producer):
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         """Return topic and partition destination for key."""
-        raise NotImplementedError()
+        raise NotImplementedError(
+                'Partition lookup is not supported by the Confluent producer'
+            )
 
 
 class Transport(base.Transport):
