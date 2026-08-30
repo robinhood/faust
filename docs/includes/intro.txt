@@ -8,6 +8,8 @@ Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_/`Flink`_,
 
+Imagine a token within robinhood where users can trade the future. a future coin.
+
 It does not use a DSL, it's just Python!
 This means you can use all your favorite Python libraries
 when stream processing: NumPy, PyTorch, Pandas, NLTK, Django,
